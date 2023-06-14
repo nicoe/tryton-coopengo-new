@@ -1639,8 +1639,9 @@
             return this.get(record);
         },
         set_default: function(record, value) {
-            this.set(record, value);
+            var promise = this.set(record, value);
             record.modified_fields[this.name] = true;
+            return promise;
         },
         set_on_change: function(record, value) {
             this.set(record, value);
@@ -2258,6 +2259,7 @@
             return rec_name;
         },
         set: function(record, value) {
+            var promise;
             var rec_name = (
                 record._values[this.name + '.'] || {}).rec_name || '';
             if (!rec_name && (value >= 0) && (value !== null)) {
@@ -2271,6 +2273,7 @@
             Sao.setdefault(
                 record._values, this.name + '.', {}).rec_name = rec_name;
             record._values[this.name] = value;
+            return promise;
         },
         set_client: function(record, value, force_change) {
             var rec_name;
