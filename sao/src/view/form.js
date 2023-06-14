@@ -2315,6 +2315,9 @@ function eval_pyson(value){
                     }
                 }
                 if (!found) {
+                    Sao.Logger.debug(
+                        `Selection value "${value}" not found for `
+                        + `"${record.model.name}->${field.name}"`);
                     prm = Sao.common.selection_mixin.get_inactive_selection
                         .call(this, value);
                     prm.done(inactive => {
