@@ -91,7 +91,7 @@
                 params.context = jQuery.extend(
                     params.context, data.extra_context || {});
 
-                ctx.context = ctx;
+                ctx.context = Sao.common.clone(ctx);
                 decoder = new Sao.PYSON.Decoder(ctx);
                 params.domain = decoder.decode(action.pyson_domain);
                 params.order = decoder.decode(action.pyson_order);
