@@ -1176,26 +1176,39 @@ div.infobar {
 ///////////////////////////////////////////////////////////////////////////////
 // from https://loading.io/css/
 #processing {
-    padding-top:   300px;
-    padding-bottom: 100%;
-    background-color: rgba(@color-black, 0.6);
+    top: 300px;
     cursor: wait;
+    background-color: transparent;
+
+    > p {
+        display: none;
+    }
+}
+
+#processing.spinning {
+    background-color: rgba(@color-grey, @coog-header-opacity);
+    border-radius: 20px;
     .label-info {
+        background-color: transparent;
         display: inline-block;
-        width: 80px;
-        height: 80px;
-        background: transparent;
+        width: 150px;
+        height: 150px;
+        color: @color-white;
+        padding: 5px;
+        text-align-last: center;
     }
     .label-info:after {
+        color: @color-white;
         content: " ";
         display: block;
         width: 60px;
         height: 60px;
-        // margin: 8px;
         border-radius: 50%;
         border: 6px solid #fff;
-        border-color: #fff transparent #fff transparent;
+        border-color: @color-white transparent @color-white transparent;
         animation: label-info 1.2s linear infinite;
+        margin-top: 15%;
+        margin-left: 45px;
     }
     @keyframes label-info {
         0% {
