@@ -3862,7 +3862,7 @@ function eval_pyson(value){
                                     domain: domain,
                                     order: order,
                                     search_filter: '',
-                                    title: this.attributes.string
+                                    title: this.attributes.string,
 
                         });
                     };
