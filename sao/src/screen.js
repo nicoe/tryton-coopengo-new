@@ -1480,14 +1480,6 @@
         },
         display: function(set_cursor) {
             var deferreds = [];
-            if (this.current_record &&
-                    ~this.current_record.group.indexOf(this.current_record)) {
-            } else if (this.group && this.group.length &&
-                (this.current_view.view_type == 'form')) {
-                this.current_record = this.group[0];
-            } else {
-                this.current_record = null;
-            }
             if (this.views && this.current_view) {
                 var search_prm = this.search_active(
                         ~['tree', 'graph', 'calendar'].indexOf(
@@ -1678,7 +1670,7 @@
                 var selected_date = this.current_view.get_selected_date();
             }
             if (this.current_view && !this.current_view.creatable) {
-                prm = this.switch_view('form', undefined, true, false);
+                prm = this.switch_view('form', undefined, true, false, false);
             }
             return prm.then(() => {
                 if (!this.current_view || !this.current_view.editable) {
@@ -1690,6 +1682,7 @@
                 } else {
                     group = this.group;
                 }
+                this.current_record = null;
                 var record = group.new_(false);
                 var prm;
                 if (default_) {

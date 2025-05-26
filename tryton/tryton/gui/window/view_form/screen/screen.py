@@ -738,13 +738,14 @@ class Screen:
         if self.current_view and self.current_view.view_type == 'calendar':
             selected_date = self.current_view.get_selected_date()
         if self.current_view and not self.current_view.creatable:
-            self.switch_view(creatable=True)
+            self.switch_view(creatable=True, display=False)
             if not self.current_view.creatable:
                 return None
         if self.current_record:
             group = self.current_record.group
         else:
             group = self.group
+        self.current_record = None
         record = group.new(default, defaults=defaults)
         group.add(record, self.new_position)
         if previous_view.view_type == 'calendar':
@@ -1066,13 +1067,6 @@ class Screen:
         self.display(set_cursor=set_cursor)
 
     def display(self, set_cursor=False):
-        if (self.current_record
-                and self.current_record in self.current_record.group):
-            pass
-        elif self.group and self.current_view.view_type == 'form':
-            self.current_record = self.group[0]
-        else:
-            self.current_record = None
         if self.views and self.current_view:
             self.search_active(self.current_view.view_type
                 in ('tree', 'graph', 'calendar'))
