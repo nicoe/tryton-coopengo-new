@@ -279,6 +279,15 @@ class JSONDescriptor(FieldDescriptor):
         return value
 
 
+class JSONDescriptor(FieldDescriptor):
+
+    def __get__(self, instance, owner):
+        value = super().__get__(instance, owner)
+        if value:
+            value = copy.deepcopy(value)
+        return value
+
+
 class Many2OneDescriptor(FieldDescriptor):
     def __get__(self, instance, owner):
         Relation = Model.get(self.definition['relation'], instance._config)
