@@ -362,9 +362,6 @@
             // Overriden in Sao.Tab.Form
         },
         set_name: function(name) {
-            if (name != this.attributes.name) {
-                name = `${this.attributes.name}: ${name}`;
-            };
             this.name_short_el.text(name.split(' / ').pop());
             this.name_long_el.text(name);
             this.name_el.attr('title', name);
