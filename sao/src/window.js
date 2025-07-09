@@ -2608,6 +2608,8 @@
                             'minimumFractionDigits': 0,
                             'maximumFractionDigits': 20,
                         });
+                } else if (typeof(val) == 'object') {
+                    val = JSON.stringify(val);
                 }
             } else if (val.isDateTime) {
                 val = val.utc();
@@ -2615,6 +2617,8 @@
                 val = val.asSeconds();
             } else if (typeof(val) == 'boolean') {
                 val += 0;
+            } else if (typeof(val) == 'object') {
+                val = JSON.stringify(val);
             }
             if ((i === 0) && indent && (typeof(val) == 'string')) {
                 val = '  '.repeat(indent) + val;
