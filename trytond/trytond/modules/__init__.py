@@ -415,11 +415,13 @@ def load_modules(
             except IOError:
                 continue
 
-        cursor.execute(*ir_module.select(ir_module.name))
-        for module_in_db, in cursor.fetchall():
+        cursor.execute(*ir_module.select(ir_module.name, ir_module.state))
+        for module_in_db, module_state_in_db in cursor.fetchall():
             if (module_in_db in modules_in_dir
                     or module_in_db in modules_to_migrate):
                 continue
+            elif module_state_in_db == "not activated":
+                modules_to_migrate[module_in_db] = ('to_drop', None)
             elif AUTO_UNINSTALL:
                 logger.warning(f'{module_in_db} is about to be uninstalled')
                 modules_to_migrate[module_in_db] = ('to_drop', None)
