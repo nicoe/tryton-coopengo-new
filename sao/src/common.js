@@ -4537,11 +4537,16 @@
 
                     var ids = records.map(
                         (r) => {
+                            let id;
                             if (field_name) {
-                                return r.get_eval()[field_name];
+                                id = r.get_eval()[field_name];
                             } else {
-                                return r.id;
+                                id = r.id;
                             }
+                            if (typeof id === 'string' || id instanceof String) {
+                                return parseInt(id.split(',')[1], 10);
+                            }
+                            return id;
                         });
 
                     Sao.Tab.create({
@@ -4549,6 +4554,7 @@
                         'mode': ['form'],
                         'context': context,
                         'res_id': ids,
+                        'name': Sao.common.MODELNAME.get(model_name),
                     });
                 };
             };
