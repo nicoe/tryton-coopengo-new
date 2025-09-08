@@ -353,6 +353,7 @@
                 if (this._chat) {
                     this._chat.unregister();
                 }
+                Sao.Tab.closed_tabs.push(this.attributes);
             });
         },
         _close_allowed: function() {
@@ -423,16 +424,18 @@
         tab.close();
     };
 
-    Sao.Tab.create = function(attributes) {
+    Sao.Tab.create = function(attributes, skip_duplicate_check = false) {
         var tablist = jQuery('#tablist');
         if (attributes.context === undefined) {
             attributes.context = {};
         }
-        for (const other of Sao.Tab.tabs) {
-            if (other.compare(attributes)) {
-                Sao.common.scrollIntoViewIfNeeded(
-                    tablist.find('a[href="#' + other.id + '"]').tab('show'));
-                return;
+        if (!skip_duplicate_check) {
+            for (const other of Sao.Tab.tabs) {
+                if (other.compare(attributes)) {
+                    Sao.common.scrollIntoViewIfNeeded(
+                        tablist.find('a[href="#' + other.id + '"]').tab('show'));
+                    return;
+                }
             }
         }
         var tab;
@@ -443,6 +446,7 @@
         }
         return tab.view_prm.then(function() {
             Sao.Tab.add(tab);
+            return tab;
         });
     };
 
@@ -465,6 +469,7 @@
                 tab.close();
             }
         })
+        .on('contextmenu', Sao.Tab.contextmenu)
         .append(jQuery('<button/>', {
             'class': 'close',
             'aria-label': Sao.i18n.gettext("Close"),
@@ -966,6 +971,7 @@
             });
         },
         modified_save: function() {
+<<<<<<< HEAD
             return this.screen.save_tree_state().then(() => {
                 this.screen.current_view.set_value();
                 if (this.screen.modified()) {
@@ -980,6 +986,24 @@
                                     var record_id = null;
                                     if (this.screen.current_record) {
                                         record_id = this.screen.current_record.id;
+=======
+            this.screen.save_tree_state();
+            this.screen.current_view.set_value();
+            if (this.screen.modified()) {
+                this.show();
+                return Sao.common.sur_3b.run(
+                        Sao.i18n.gettext('This record has been modified\n' +
+                            'do you want to save it?'))
+                    .then(result => {
+                        switch(result) {
+                            case 'ok':
+                                return this.save();
+                            case 'ko':
+                                var record_id = this.screen.current_record.id;
+                                return this.reload(false).then(() => {
+                                    if (record_id < 0) {
+                                        return jQuery.Deferred().reject(true);
+>>>>>>> d873a9f1ba (Add tab management menu and shortcuts (#473))
                                     }
                                     return this.reload(false).then(() => {
                                         if (record_id !== null) {

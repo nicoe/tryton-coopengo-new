@@ -55,6 +55,9 @@ msgstr ""
 msgid "Close Tab"
 msgstr ""
 
+msgid "Undo close tab"
+msgstr ""
+
 msgid "Attachment"
 msgstr ""
 
@@ -184,6 +187,9 @@ msgid "t"
 msgstr ""
 
 msgid "False"
+msgstr ""
+
+msgid "Show / Hide more"
 msgstr ""
 
 msgid "Do you want to proceed?"
@@ -460,6 +466,9 @@ msgstr ""
 msgid "Scan"
 msgstr ""
 
+msgid "Clear"
+msgstr ""
+
 msgid "Translate"
 msgstr ""
 
@@ -518,9 +527,6 @@ msgid "Select"
 msgstr ""
 
 msgid "Select..."
-msgstr ""
-
-msgid "Clear"
 msgstr ""
 
 msgid "Open..."
@@ -781,4 +787,19 @@ msgid "Make this an internal message"
 msgstr ""
 
 msgid "Translate view"
+msgstr ""
+
+msgid "Close all other tabs"
+msgstr ""
+
+msgid "Close tabs to the left"
+msgstr ""
+
+msgid "Close tabs to the right"
+msgstr ""
+
+msgid "Duplicate the tab"
+msgstr ""
+
+msgid "Open in a new browser tab"
 msgstr ""
