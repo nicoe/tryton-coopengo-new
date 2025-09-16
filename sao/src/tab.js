@@ -971,10 +971,10 @@
             });
         },
         modified_save: function() {
-<<<<<<< HEAD
             return this.screen.save_tree_state().then(() => {
                 this.screen.current_view.set_value();
                 if (this.screen.modified()) {
+                    this.show();
                     return Sao.common.sur_3b.run(
                             Sao.i18n.gettext('This record has been modified\n' +
                                 'do you want to save it?'))
@@ -986,24 +986,6 @@
                                     var record_id = null;
                                     if (this.screen.current_record) {
                                         record_id = this.screen.current_record.id;
-=======
-            this.screen.save_tree_state();
-            this.screen.current_view.set_value();
-            if (this.screen.modified()) {
-                this.show();
-                return Sao.common.sur_3b.run(
-                        Sao.i18n.gettext('This record has been modified\n' +
-                            'do you want to save it?'))
-                    .then(result => {
-                        switch(result) {
-                            case 'ok':
-                                return this.save();
-                            case 'ko':
-                                var record_id = this.screen.current_record.id;
-                                return this.reload(false).then(() => {
-                                    if (record_id < 0) {
-                                        return jQuery.Deferred().reject(true);
->>>>>>> d873a9f1ba (Add tab management menu and shortcuts (#473))
                                     }
                                     return this.reload(false).then(() => {
                                         if (record_id !== null) {
