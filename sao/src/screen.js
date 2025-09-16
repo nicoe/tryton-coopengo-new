@@ -2213,8 +2213,7 @@
                 });
             };
 
-            let selected_record;
-            let prms = [];
+            let selected_records;
             let fields;
             if (attributes.type == 'client_action') {
                 selected_records = [];
