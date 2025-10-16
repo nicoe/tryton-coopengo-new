@@ -2861,8 +2861,9 @@
         },
         get_visible: function() {
             // 480px is bootstrap's screen-xs-max
-            return (window.visualViewport.width > 480) && this._visible_header;
-        },
+            return ((Sao.common.vp_width > 480) &&
+                !this.header.hasClass('invisible'));
+        }
     });
 
     Sao.View.Tree.TextColum = Sao.class_(Sao.View.Tree.CharColumn, {
@@ -3401,7 +3402,8 @@
             }
         },
         get_visible: function() {
-            return this._visible_header && !this.header.hasClass('invisible');
+            return ((Sao.common.vp_width > 480) &&
+                !this.header.hasClass('invisible'));
         },
         button_clicked: function(event) {
             var record = event.data[0];
