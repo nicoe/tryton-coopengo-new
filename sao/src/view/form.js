@@ -4102,8 +4102,16 @@ function eval_pyson(value){
             ).appendTo(buttons);
             this.but_undel.click(disable_during(this.undelete.bind(this)));
 
+            var content_class = this.class_ + '-content panel-body';
+            // [Coog specific]
+            //      > attribute expand_toolbar (hide toolbar)
+            if (attributes.expand_toolbar) {
+                this.menu.hide();
+                content_class += ' coog-hidden-toolbar';
+            }
+
             this.content = jQuery('<div/>', {
-                'class': this.class_ + '-content panel-body'
+                'class': content_class
             });
             this.el.append(this.content);
 
@@ -5026,8 +5034,16 @@ function eval_pyson(value){
             ).appendTo(buttons);
             this.but_unremove.click(this.unremove.bind(this));
 
+            var content_class = this.class_ + '-content panel-body';
+            // [Coog specific]
+            //      > attribute expand_toolbar (hide toolbar)
+            if (attributes.expand_toolbar) {
+                this.menu.hide();
+                content_class += ' coog-hidden-toolbar';
+            }
+
             this.content = jQuery('<div/>', {
-                'class': this.class_ + '-content panel-body'
+                'class': content_class
             });
             this.el.append(this.content);
             var model = attributes.relation;
