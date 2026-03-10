@@ -87,8 +87,9 @@ Create no dunning::
 
     >>> create_dunning = Wizard('account.dunning.create')
     >>> create_dunning.execute('create_')
-    >>> Dunning.find([])
-    []
+    >>> # coog specific : active field does not depend on payment_amount
+    >>> len(Dunning.find([]))
+    1
 
 Fail the payment::
 
@@ -122,7 +123,9 @@ Recreate a payment::
 Dunning is inactive::
 
     >>> dunning.reload()
+    >>> # coog specific : active field does not depend on payment_amount
     >>> dunning.active
-    False
-    >>> Dunning.find([])
-    []
+    True
+    >>> # coog specific : active field does not depend on payment_amount
+    >>> len(Dunning.find([]))
+    1
