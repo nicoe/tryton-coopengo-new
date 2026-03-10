@@ -60,7 +60,7 @@ Create a statement with origins::
     >>> origin.date = today
     >>> origin.amount = Decimal('50.00')
     >>> origin.party = customer
-    >>> statement.click('validate_statement')
+    >>> statement.click('dummy_validate_method')
 
 Statement can not be posted until all origins are finished::
 
@@ -83,7 +83,7 @@ Statement can not be posted until all origins are finished::
     Decimal('-2.00')
     >>> line.account = expense
     >>> line.description = "Bank Fees"
-    >>> statement.click('validate_statement')
+    >>> statement.click('dummy_validate_method')
     >>> statement.click('post')
     >>> statement.state
     'posted'
