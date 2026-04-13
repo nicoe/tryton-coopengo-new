@@ -2016,9 +2016,11 @@ function hide_x2m_body(widget) {
             }
         },
         clear_filter: function(){
-            this.wid_text.val('');
-            // Pass an "event" as parameter to trigger redraw without filter
-            this.display_tree(true);
+            if (this.tree_data_field) {
+                this.wid_text.val('');
+                // Pass an "event" as parameter to trigger redraw without filter
+                this.display_tree(true);
+            }
         },
         display_tree: function(event){
             var tree_data, json_data;
