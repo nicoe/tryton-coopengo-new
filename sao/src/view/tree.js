@@ -1200,7 +1200,7 @@
                 this.update_selection(); // update after new rows has been added
                 this.update_visible();
                 if (scroll && selected && selected.length ) {
-                    let first_element = this.find_row(selected[0]);
+                    let first_element = this.find_row_by_id(selected[0].slice());
                     if (first_element) {
                         Sao.common.scrollIntoViewIfNeeded(first_element.el);
                     }
@@ -1590,6 +1590,32 @@
                 }
             }
             return row;
+        },
+        find_row_by_id: function(path, group, row) {
+            if (group === undefined) {
+                group = this.rows;
+            }
+            if (!a.length) {
+                return row;
+            }
+            if (!group.length && a.length) {
+                return null;
+            }
+
+            let id_ = path.shift();
+            let found = false;
+            for (let r of group) {
+                if (r.record.id == id_) {
+                    found = true;
+                    break;
+                }
+            }
+
+            if (found) {
+                return this.find_row_by_id(path, r.rows, r);
+            } else {
+                return null;
+            }
         },
         n_children: function(row) {
             // [Coog specific]
