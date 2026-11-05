@@ -1003,9 +1003,9 @@
                 states = {};
             }
             if (states.invisible) {
-                this.el.hide();
+                this.el.sao_hide();
             } else {
-                this.el.show();
+                this.el.sao_show();
             }
             this.el.prop('disabled', Boolean(states.readonly));
             this.set_icon(states.icon || this.attributes.icon);
@@ -3789,7 +3789,7 @@
                     'text': '.',
                 }));
             }
-            this.el.hide();
+            this.el.sao_hide();
             jQuery(() => {
                 this.el.appendTo('body');
             });
@@ -3798,10 +3798,10 @@
             if (timeout === null) {
                 timeout = this.timeout;
             }
-            this.el.show();
+            this.el.sao_show();
             return window.setTimeout(() => {
                 this.queries += 1;
-                this.el.show();
+                this.el.sao_show();
                 let delta = Date.now() - this.spinner_end;
                 if (delta < this.spinner_hysteresis) {
                     return window.setTimeout(() => this.start_spinner(),
@@ -3838,7 +3838,7 @@
                 this.el.removeClass('spinning');
                 this.spinner_end = Date.now();
             }
-            this.el.hide();
+            this.el.sao_hide();
         }
     });
     Sao.common.processing = new Sao.common.Processing();
@@ -3890,7 +3890,7 @@
                 'role': 'separator',
                 'class': 'divider'
             }).appendTo(this.menu);
-            this.separator.hide();
+            this.separator.sao_hide();
 
             this.source = source;
             this.match_selected = match_selected;
@@ -3962,10 +3962,10 @@
             }
             this.menu.find('li.action').remove();
             if (jQuery.isEmptyObject(actions)) {
-                this.separator.hide();
+                this.separator.sao_hide();
                 return;
             }
-            this.separator.show();
+            this.separator.sao_show();
             actions.forEach(function(action) {
                 var action_id = action[0];
                 var content = action[1];

@@ -382,7 +382,7 @@ function hide_x2m_body(widget) {
             var field;
             var promesses = [];
             if (this.scan_code_btn) {
-                this.scan_code_btn.el.toggle(Boolean(record));
+                this.scan_code_btn.el.sao_toggle(Boolean(record));
             }
             if (record) {
                 // Force to set fields in record
@@ -837,10 +837,10 @@ function hide_x2m_body(widget) {
             }
         },
         show: function() {
-            this.el.show();
+            this.el.sao_show();
         },
         hide: function() {
-            this.el.hide();
+            this.el.sao_hide();
         }
     });
 
@@ -1248,9 +1248,9 @@ function hide_x2m_body(widget) {
                     return number != 0;
                 });
                 if (non_empty.length) {
-                    this.el.show();
+                    this.el.sao_show();
                 } else {
-                    this.el.hide();
+                    this.el.sao_hide();
                 }
             }
         },
@@ -1467,9 +1467,9 @@ function hide_x2m_body(widget) {
         set_invisible: function(invisible) {
             this.visible = !invisible;
             if (invisible) {
-                this.el.hide();
+                this.el.sao_hide();
             } else {
-                this.el.show();
+                this.el.sao_show();
             }
         },
         focus: function() {
@@ -2673,9 +2673,9 @@ function hide_x2m_body(widget) {
             this.el.find('input').prop('readonly', readonly);
             if (this.icon){
                 if (readonly) {
-                    this.icon.hide();
+                    this.icon.sao_hide();
                 } else {
-                    this.icon.show();
+                    this.icon.sao_show();
                 }
             }
         },
@@ -2717,7 +2717,7 @@ function hide_x2m_body(widget) {
             Sao.View.Form.Time._super.init.call(this, view, attributes);
             if (~navigator.userAgent.indexOf("Firefox")) {
                 // time input on Firefox does not have a pop-up
-                this.input.parent().hide();
+                this.input.parent().sao_hide();
             }
         },
         get_format: function() {
@@ -2799,18 +2799,18 @@ function hide_x2m_body(widget) {
         input.attr('step', 1);
         input.attr('lang', Sao.i18n.getlang());
 
-        input.hide().on('focusout', function() {
+        input.sao_hide().on('focusout', function() {
             if (input[0].checkValidity()) {
                 switch_id(input, input_text);
-                input.hide();
-                input_text.show();
+                input.sao_hide();
+                input_text.sao_show();
             }
         });
         input_text.on('focusin', function() {
             if (!input.prop('readonly')) {
                 switch_id(input, input_text);
-                input_text.hide();
-                input.show();
+                input_text.sao_hide();
+                input.sao_show();
                 window.setTimeout(function() {
                     input.focus();
                 });
@@ -2877,10 +2877,10 @@ function hide_x2m_body(widget) {
             var set_symbol = function(el, text) {
                 if (text) {
                     el.text(text);
-                    el.show();
+                    el.sao_show();
                 } else {
                     el.text('');
-                    el.hide();
+                    el.sao_hide();
                 }
             };
             let prm = Sao.View.Form.Integer._super.display.call(this);
@@ -2923,8 +2923,8 @@ function hide_x2m_body(widget) {
         },
         focus: function() {
             if (!this.input.prop('readonly')) {
-                this.input_text.hide();
-                this.input.show().focus();
+                this.input_text.sao_hide();
+                this.input.sao_show().focus();
             } else {
                 this.input_text.focus();
             }
@@ -3479,8 +3479,8 @@ function hide_x2m_body(widget) {
 
             if (!record) {
                 this.entry.val('');
-                this.but_primary.parent().hide();
-                this.but_secondary.parent().hide();
+                this.but_primary.parent().sao_hide();
+                this.but_secondary.parent().sao_hide();
                 return Promise.resolve();
             }
             this.set_text(field.get_client(record));
@@ -3510,10 +3510,10 @@ function hide_x2m_body(widget) {
                 var icon_input = button.parent();
                 var type = 'input-icon-' + items[3];
                 if (!icon_name) {
-                    icon_input.hide();
+                    icon_input.sao_hide();
                     icon_input.parent().removeClass(type);
                 } else {
-                    icon_input.show();
+                    icon_input.sao_show();
                     icon_input.parent().addClass(type);
                     Sao.common.ICONFACTORY.get_icon_url(icon_name).then(function(url) {
                         button.find('img').attr('src', url);
@@ -5639,13 +5639,13 @@ function hide_x2m_body(widget) {
         },
         update_buttons: function(value) {
             if (value) {
-                this.but_save_as.show();
-                this.but_select.hide();
-                this.but_clear.show();
+                this.but_save_as.sao_show();
+                this.but_select.sao_hide();
+                this.but_clear.sao_show();
             } else {
-                this.but_save_as.hide();
-                this.but_select.show();
-                this.but_clear.hide();
+                this.but_save_as.sao_hide();
+                this.but_select.sao_show();
+                this.but_clear.sao_hide();
             }
         },
         select: function() {
@@ -5777,7 +5777,7 @@ function hide_x2m_body(widget) {
                     this.text.val('');
                 }
                 this.size.val('');
-                this.but_save_as.hide();
+                this.but_save_as.sao_hide();
                 return;
             }
             var size;
@@ -5796,9 +5796,9 @@ function hide_x2m_body(widget) {
             if (this.text) {
                 this.text.val(this.filename_field.get(record) || '');
                 if (file_exist) {
-                    this.but_open.parent().show();
+                    this.but_open.parent().sao_show();
                 } else {
-                    this.but_open.parent().hide();
+                    this.but_open.parent().sao_hide();
                 }
             }
             this.update_buttons(file_exist);
@@ -5828,7 +5828,7 @@ function hide_x2m_body(widget) {
             Sao.View.Form.Binary._super.set_readonly.call(this, readonly);
             var record = this.record;
             this.but_select.toggleClass('disabled', readonly || !record);
-            this.input_select.toggle(!readonly && Boolean(record));
+            this.input_select.sao_toggle(!readonly && Boolean(record));
             this.but_clear.prop('disabled', readonly || !record);
             if (this.text) {
                 this.text.prop('readonly', readonly);
@@ -6120,7 +6120,7 @@ function hide_x2m_body(widget) {
         },
         set_url: function(value) {
             this.button.attr('href', value);
-            this.button.toggle(Boolean(value));
+            this.button.sao_toggle(Boolean(value));
         },
         set_invisible: function(invisible) {
             Sao.View.Form.URL._super.set_invisible.call(this, invisible);
@@ -6199,9 +6199,9 @@ function hide_x2m_body(widget) {
             Sao.View.Form.HTML._super.set_readonly.call(this, readonly);
             this.el.find('button').prop('disabled', readonly || !this.record);
             if (readonly) {
-                this.el.find('a').hide();
+                this.el.find('a').sao_hide();
             } else {
-                this.el.find('a').show();
+                this.el.find('a').sao_show();
             }
         },
         translate_dialog: function(languages) {
