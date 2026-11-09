@@ -230,10 +230,17 @@
             }
             this.events =  [];
             var promisses = [];
+            let fnames = (new Set(this.fields)).union(
+                new Set([
+                    this.attributes.dtstart,
+                    this.attributes.dtend,
+                    this.attributes.color,
+                    this.attributes.background_color,
+                ].filter(Boolean)));
             prm.then(() => {
                 this.group.forEach(record => {
                     var record_promisses = [];
-                    for (const name of this.fields) {
+                    for (const name of fnames) {
                         record_promisses.push(record.load(name));
                     }
                     var prm = jQuery.when.apply(jQuery, record_promisses).then(
