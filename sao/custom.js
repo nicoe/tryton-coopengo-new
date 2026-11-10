@@ -308,7 +308,7 @@
             });
             this._source_textarea = jQuery('<textarea/>', {
                 'class': 'markdown-source',
-            }).appendTo(body).hide()
+            }).appendTo(body).sao_hide()
                 .on('input', () => {
                     this.send_modified();
                     this._resize_source_textarea();
@@ -592,8 +592,8 @@
                 this._source_textarea
                     .val(this._editor.getMarkdown())
                     .css('height', editorHeight + 'px');
-                this._mount.hide();
-                this._source_textarea.show();
+                this._mount.sao_hide();
+                this._source_textarea.sao_show();
                 this._source_textarea[0].focus({preventScroll: true});
                 this._table_toolbar.removeClass('is-visible');
                 this.toolbar.find('.md-btn').not(this._toolbar_btns.source)
@@ -601,8 +601,8 @@
                 this._toolbar_btns.source.addClass('is-active');
             } else {
                 var md = this._source_textarea.val();
-                this._source_textarea.hide().css('height', '');
-                this._mount.show();
+                this._source_textarea.sao_hide().css('height', '');
+                this._mount.sao_show();
                 this._editor.commands.setContent(
                     md, {contentType: 'markdown', emitUpdate: false});
                 if (md == this._baseline) {
@@ -1268,9 +1268,9 @@
         },
         _update_toolbar_visibility: function() {
             if (this._disabled || !this._show_toolbar) {
-                this._toolbar_heading.hide();
+                this._toolbar_heading.sao_hide();
             } else {
-                this._toolbar_heading.show();
+                this._toolbar_heading.sao_show();
                 if (this._source_mode) {
                     this.toolbar.find('.md-btn').not(this._toolbar_btns.source)
                         .prop('disabled', true);

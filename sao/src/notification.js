@@ -28,7 +28,7 @@
             jQuery(document).ready(() => {
                 // Wait for the DOM to be ready to let the observer find the
                 // other indicators
-                this.indicator.hide();
+                this.indicator.sao_hide();
             });
         }
 
@@ -102,7 +102,7 @@
                             };
                             params.model = 'res.notification';
                             Sao.Tab.create(params).done(() => {
-                                this.indicator.hide();
+                                this.indicator.sao_hide();
                             });
                         }))
                     );
@@ -144,9 +144,9 @@
                     // Let's keep the text short
                     this.indicator.text('9+');
                 }
-                this.indicator.show();
+                this.indicator.sao_show();
             } else {
-                this.indicator.hide();
+                this.indicator.sao_hide();
             }
         }
 

@@ -54,7 +54,7 @@
                 .off('show.bs.dropdown')
                 .on('show.bs.dropdown', () => {
                     Sao.NotificationMenu.fill();
-                    Sao.NotificationMenu.indicator.hide();
+                    Sao.NotificationMenu.indicator.sao_hide();
                 })
                 .prepend(user);
             if (this.avatar_badge_url) {

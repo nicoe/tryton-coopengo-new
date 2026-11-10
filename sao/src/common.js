@@ -3843,7 +3843,7 @@
             if (timeout === null) {
                 timeout = this.timeout;
             }
-            this.el.show();
+            this.el.sao_show();
             return window.setTimeout(() => {
                 this.queries += 1;
                 this.el.sao_show();

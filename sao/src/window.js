@@ -2068,9 +2068,9 @@
             this.expander_csv.append(' ');
             this.el_add_headers.on('change', (evt) => {
                 if (this.el_add_headers.is(':checked')) {
-                    field_div.show();
+                    field_div.sao_show();
                 } else {
-                    field_div.hide();
+                    field_div.sao_hide();
                 }
             });
 
@@ -2834,7 +2834,7 @@
             })).append(jQuery('<span/>', {
                 'class': 'sr-only',
             }).text(Sao.i18n.gettext("Remove")));
-            button.hide();
+            button.sao_hide();
             button.appendTo(row);
 
             file.on('change', () => {
