@@ -1906,7 +1906,7 @@
 
             switch(this.tree.selection_mode) {
                 case Sao.common.SELECTION_NONE:
-                    this.selection.hide();
+                    this.selection.sao_hide();
                     break;
                 case Sao.common.SELECTION_SINGLE:
                     this.selection.attr('type', 'radio');

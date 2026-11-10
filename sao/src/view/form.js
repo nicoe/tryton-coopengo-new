@@ -24,14 +24,14 @@ function hide_x2m_body(widget) {
 
     var shown = widget.content.data('shown');
     if (shown) {
-        widget.content.hide();
+        widget.content.sao_hide();
         widget.content.data('shown', false);
         Sao.common.ICONFACTORY.get_icon_url('tryton-arrow-right')
             .done(icon => {
                 widget.title_expander.attr('src', icon);
             });
     } else {
-        widget.content.show();
+        widget.content.sao_show();
         widget.content.data('shown', true);
         Sao.common.ICONFACTORY.get_icon_url('tryton-arrow-down')
             .done(icon => {
@@ -1506,12 +1506,12 @@ function hide_x2m_body(widget) {
         };
         this.set_visibility = function(visible){
             if (visible){
-                this.el.show();
+                this.el.sao_show();
                 if (this.is_parent)
                     for (var j in this.childs)
                         this.childs[j].set_visibility(false);
             } else{
-                this.el.hide();
+                this.el.sao_hide();
                 for (var i in this.childs)
                     this.childs[i].set_visibility(visible);
             }
@@ -4245,7 +4245,7 @@ function hide_x2m_body(widget) {
             // [Coog specific]
             //      > attribute expand_toolbar (hide toolbar)
             if (attributes.expand_toolbar) {
-                this.menu.hide();
+                this.menu.sao_hide();
                 content_class += ' coog-hidden-toolbar';
             }
 
@@ -5225,7 +5225,7 @@ function hide_x2m_body(widget) {
             // [Coog specific]
             //      > attribute expand_toolbar (hide toolbar)
             if (attributes.expand_toolbar) {
-                this.menu.hide();
+                this.menu.sao_hide();
                 content_class += ' coog-hidden-toolbar';
             }
 

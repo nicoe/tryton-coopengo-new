@@ -178,7 +178,7 @@
 
             if (!show_filter && (show_filter !== undefined)) {
                 this.filter_box.css('margin', 0);
-                search_row.hide();
+                search_row.sao_hide();
             }
 
             this.content_box = jQuery('<div/>', {

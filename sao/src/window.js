@@ -2666,7 +2666,7 @@
             })).append(jQuery('<span/>', {
                 'class': 'sr-only',
             }).text(Sao.i18n.gettext("Remove")));
-            button.hide();
+            button.sao_hide();
             button.appendTo(row);
 
             file.on('change', () => {
