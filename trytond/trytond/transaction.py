@@ -1,6 +1,7 @@
 # This file is part of Tryton.  The COPYRIGHT file at the top level of
 # this repository contains the full copyright notices and license terms.
 
+import contextvars
 import copy
 import ipaddress
 import logging
@@ -85,21 +86,22 @@ def inactive_records(func=None):
     return active_records(func=func, _test=False)
 
 
-class _AttributeManager(object):
-    '''
-    Manage Attribute of transaction
-    '''
+class _CtxVarManager:
 
     def __init__(self, **kwargs):
         self.kwargs = kwargs
+        self._reset_tokens = {}
 
     def __enter__(self):
-        return Transaction()
-
-    def __exit__(self, type, value, traceback):
         t = Transaction()
-        for name, value in self.kwargs.items():
-            setattr(t, name, value)
+        for var, value in self.kwargs.items():
+            name = f'_{var}'
+            self._reset_tokens[name] = getattr(t, name).set(value)
+
+    def __exit__(self, type_, value, traceback):
+        t = Transaction()
+        for name, token in self._reset_tokens.items():
+            getattr(t, name).reset(token)
 
 
 class _NoopManager(object):
@@ -276,8 +278,8 @@ class Transaction(object):
             instance.database = None
             instance.readonly = False
             instance.connection = None
-            instance.user = None
-            instance.context = None
+            instance._user = contextvars.ContextVar('user', default=None)
+            instance._context = contextvars.ContextVar('context', default=None)
             instance.current_savepoint = None
             instance.savepoints = []
             instance.timestamp = None
@@ -307,6 +309,22 @@ class Transaction(object):
                 for key in sorted(self.cache_keys)
                 if key in self.context))
         return (self.current_savepoint, self.user, keys)
+
+    @property
+    def context(self):
+        return self._context.get()
+
+    @context.setter
+    def context(self, value):
+        self._context.set(value)
+
+    @property
+    def user(self):
+        return self._user.get()
+
+    @user.setter
+    def user(self, value):
+        self._user.set(value)
 
     def get_cache(self):
         from trytond.cache import LRUDict
@@ -432,38 +450,21 @@ class Transaction(object):
                 transactions.reverse()
 
     def set_context(self, context=None, **kwargs):
-        if context is None:
-            context = {}
-        if not context and not kwargs:
-            manager = _NoopManager(self)
-        else:
-            manager = _AttributeManager(context=self.context)
-            ctx = self.context.copy()
-            ctx.update(context)
-            if kwargs:
-                ctx.update(kwargs)
-            self.context = ImmutableDict(ctx)
-        return manager
+        return _CtxVarManager(context=self.context | context | kwargs)
 
     def reset_context(self):
-        manager = _AttributeManager(context=self.context)
-        self.context = ImmutableDict()
-        return manager
+        return _CtxVarManager(context=ImmutableDict())
 
     def set_user(self, user, set_context=False):
         if user != 0 and set_context:
             raise ValueError('set_context only allowed for root')
-        manager = _AttributeManager(user=self.user,
-                context=self.context)
         ctx = self.context.copy()
         if set_context:
             if user != self.user:
                 ctx['user'] = self.user
         else:
             ctx.pop('user', None)
-        self.context = ImmutableDict(ctx)
-        self.user = user
-        return manager
+        return _CtxVarManager(context=ctx, user=user)
 
     def lock_table(self, table):
         # JCA (merge 6.8): restore previous behaviour until inlined commits can
