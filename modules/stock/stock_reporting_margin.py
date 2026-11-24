@@ -10,14 +10,13 @@ from sql.aggregate import Max, Min, Sum
 from sql.conditionals import Case, Coalesce
 from sql.functions import Ceil, DateTrunc, Log, Power, Round
 
+from trytond import tx
 from trytond.i18n import lazy_gettext
 from trytond.model import ModelSQL, ModelView, fields, sum_tree
 from trytond.modules.currency.fields import Monetary
-from trytond.pool import Pool
 from trytond.pyson import Eval, If
 from trytond.tools import pairwise_longest
 from trytond.tools.chart import sparkline
-from trytond.transaction import Transaction
 
 
 class Abstract(ModelSQL, ModelView):
@@ -58,7 +57,7 @@ class Abstract(ModelSQL, ModelView):
 
     @classmethod
     def _joins(cls):
-        pool = Pool()
+        pool = tx.pool
         Company = pool.get('company.company')
         Currency = pool.get('currency.currency')
         Move = pool.get('stock.move')
@@ -161,7 +160,7 @@ class Abstract(ModelSQL, ModelView):
 
     @classmethod
     def _where(cls, tables, withs):
-        context = Transaction().context
+        context = tx.transaction.context
         move = tables['move']
         from_location = tables['move.from_location']
         to_location = tables['move.to_location']
@@ -189,7 +188,7 @@ class Abstract(ModelSQL, ModelView):
     @classmethod
     def _to_location_types(cls):
         types = ['customer']
-        if Transaction().context.get('include_lost'):
+        if tx.transaction.context.get('include_lost'):
             types += ['lost_found']
         return types
 
@@ -206,7 +205,7 @@ class Abstract(ModelSQL, ModelView):
 
     @classmethod
     def _period_delta(cls):
-        context = Transaction().context
+        context = tx.transaction.context
         return {
             'year': relativedelta(years=1),
             'month': relativedelta(months=1),
@@ -245,7 +244,7 @@ class AbstractTimeseries(Abstract):
 
     @classmethod
     def _column_date(cls, tables, withs):
-        context = Transaction().context
+        context = tx.transaction.context
         move = tables['move']
         date = DateTrunc(context.get('period'), move.effective_date)
         date = cls.date.sql_cast(date)
@@ -285,33 +284,33 @@ class Context(ModelView):
 
     @classmethod
     def default_company(cls):
-        return Transaction().context.get('company')
+        return tx.transaction.context.get('company')
 
     @classmethod
     def default_from_date(cls):
-        pool = Pool()
+        pool = tx.pool
         Date = pool.get('ir.date')
-        context = Transaction().context
+        context = tx.transaction.context
         if 'from_date' in context:
             return context['from_date']
         return Date.today() - relativedelta(years=1)
 
     @classmethod
     def default_to_date(cls):
-        pool = Pool()
+        pool = tx.pool
         Date = pool.get('ir.date')
-        context = Transaction().context
+        context = tx.transaction.context
         if 'to_date' in context:
             return context['to_date']
         return Date.today()
 
     @classmethod
     def default_period(cls):
-        return Transaction().context.get('period', 'month')
+        return tx.transaction.context.get('period', 'month')
 
     @classmethod
     def default_include_lost(cls):
-        return Transaction().context.get('include_lost', False)
+        return tx.transaction.context.get('include_lost', False)
 
 
 class Main(Abstract, ModelView):
@@ -326,7 +325,7 @@ class Main(Abstract, ModelView):
         return ''
 
     def get_time_series(self, name):
-        pool = Pool()
+        pool = tx.pool
         Timeseries = pool.get('stock.reporting.margin.main.time_series')
         return [t.id for t in Timeseries.search([])]
 
@@ -351,7 +350,7 @@ class ProductMixin:
 
     @classmethod
     def _joins(cls):
-        pool = Pool()
+        pool = tx.pool
         Product = pool.get('product.product')
         Template = pool.get('product.template')
         from_item, tables, withs = super()._joins()
@@ -432,7 +431,7 @@ class CategoryMixin:
 
     @classmethod
     def _joins(cls):
-        pool = Pool()
+        pool = tx.pool
         Product = pool.get('product.product')
         TemplateCategory = pool.get('product.template-product.category.all')
         from_item, tables, withs = super()._joins()
@@ -459,7 +458,7 @@ class CategoryMixin:
 
     @classmethod
     def _column_id(cls, tables, withs):
-        pool = Pool()
+        pool = tx.pool
         Category = pool.get('product.category')
         category = Category.__table__()
         move = tables['move']
@@ -550,26 +549,26 @@ class CategoryTree(ModelSQL, ModelView):
 
     @classmethod
     def table_query(cls):
-        pool = Pool()
+        pool = tx.pool
         Category = pool.get('product.category')
         return Category.__table__()
 
     @classmethod
     def get_name(cls, categories, name):
-        pool = Pool()
+        pool = tx.pool
         Category = pool.get('product.category')
         categories = Category.browse(categories)
         return {c.id: c.name for c in categories}
 
     @classmethod
     def search_name(cls, name, clause):
-        pool = Pool()
+        pool = tx.pool
         Category = pool.get('product.category')
         return [('id', 'in', Category.search([clause], query=True))]
 
     @classmethod
     def order_name(cls, tables):
-        pool = Pool()
+        pool = tx.pool
         Category = pool.get('product.category')
         table, _ = tables[None]
         if 'category' not in tables:
@@ -585,10 +584,10 @@ class CategoryTree(ModelSQL, ModelView):
 
     @classmethod
     def get_total(cls, categories, names):
-        pool = Pool()
+        pool = tx.pool
         ReportingCategory = pool.get('stock.reporting.margin.category')
         reporting_category = ReportingCategory.__table__()
-        cursor = Transaction().connection.cursor()
+        cursor = tx.transaction.connection.cursor()
 
         categories = cls.search([
                 ('parent', 'child_of', [c.id for c in categories]),
@@ -615,9 +614,9 @@ class CategoryTree(ModelSQL, ModelView):
                 Decimal(1) / 10 ** digits[1])
 
     def get_currency(self, name):
-        pool = Pool()
+        pool = tx.pool
         Company = pool.get('company.company')
-        company = Transaction().context.get('company')
+        company = tx.transaction.context.get('company')
         if company is not None and company >= 0:
             return Company(company).currency.id
 

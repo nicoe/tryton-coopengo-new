@@ -13,16 +13,15 @@ from sql.functions import CharLength
 from stdnum import get_cc_module
 from stdnum.eu.vat import MEMBER_STATES as EU_MEMBER_STATES
 
-from trytond import backend
+from trytond import backend, tx
 from trytond.i18n import gettext
 from trytond.model import (
     DeactivableMixin, Index, ModelSQL, ModelView, MultiValueMixin, Unique,
     ValueMixin, convert_from, fields, sequence_ordered)
 from trytond.model.exceptions import AccessError
-from trytond.pool import Pool
 from trytond.pyson import Bool, Eval
 from trytond.tools import is_full_text, lstrip_wildcard
-from trytond.transaction import Transaction, inactive_records
+from trytond.transaction import inactive_records
 from trytond.wizard import Button, StateTransition, StateView, Wizard
 
 from .contact_mechanism import _PHONE_TYPES, _ContactMechanismMixin
@@ -123,24 +122,24 @@ class Party(
 
     @staticmethod
     def default_categories():
-        return Transaction().context.get('categories', [])
+        return tx.transaction.context.get('categories', [])
 
     @staticmethod
     def default_addresses():
-        if Transaction().user == 0:
+        if tx.transaction.user == 0:
             return []
         return [{}]
 
     @classmethod
     def default_lang(cls, **pattern):
-        Configuration = Pool().get('party.configuration')
+        Configuration = tx.pool.get('party.configuration')
         config = Configuration(1)
         lang = config.get_multivalue('party_lang', **pattern)
         return lang.id if lang else None
 
     @classmethod
     def default_code_readonly(cls, **pattern):
-        Configuration = Pool().get('party.configuration')
+        Configuration = tx.pool.get('party.configuration')
         config = Configuration(1)
         return bool(config.get_multivalue('party_sequence', **pattern))
 
@@ -191,15 +190,15 @@ class Party(
         return self.name
 
     def get_contact_mechanism(self, name):
-        usage = Transaction().context.get('party_contact_mechanism_usage')
+        usage = tx.transaction.context.get('party_contact_mechanism_usage')
         mechanism = self.contact_mechanism_get(name, usage)
         return mechanism.value if mechanism else ''
 
     @classmethod
     def set_contact_mechanism(cls, parties, name, value):
-        pool = Pool()
+        pool = tx.pool
         ContactMechanism = pool.get('party.contact_mechanism')
-        usage = Transaction().context.get('party_contact_mechanism_usage')
+        usage = tx.transaction.context.get('party_contact_mechanism_usage')
         contact_mechanisms = []
         for party in parties:
             if getattr(party, name):
@@ -229,7 +228,7 @@ class Party(
 
     @classmethod
     def _distance_query(cls, usages=None, party=None, depth=None):
-        context = Transaction().context
+        context = tx.transaction.context
         if party is None:
             party = context.get('related_party')
 
@@ -247,7 +246,7 @@ class Party(
         distances = {p.id: None for p in parties}
         query = cls._distance_query()
         if query:
-            cursor = Transaction().connection.cursor()
+            cursor = tx.transaction.connection.cursor()
             cursor.execute(*query.select(
                     query.to.as_('to'),
                     Min(query.distance).as_('distance'),
@@ -286,7 +285,7 @@ class Party(
 
     @classmethod
     def _code_sequence(cls, **pattern):
-        pool = Pool()
+        pool = tx.pool
         Configuration = pool.get('party.configuration')
         config = Configuration(1)
         return config.get_multivalue('party_sequence', **pattern)
@@ -368,7 +367,7 @@ class Party(
 
     @classmethod
     def autocomplete(cls, text, domain=None, limit=None, order=None):
-        pool = Pool()
+        pool = tx.pool
         Configuration = pool.get('party.configuration')
         configuration = Configuration(1)
 
@@ -407,7 +406,7 @@ class Party(
     @classmethod
     def default_get(
             cls, fields_names=None, with_rec_name=True, with_default=True):
-        pool = Pool()
+        pool = tx.pool
         Country = pool.get('country.country')
 
         values = super().default_get(
@@ -858,7 +857,7 @@ class Identifier(sequence_ordered(), DeactivableMixin, ModelSQL, ModelView):
 
     @classmethod
     def __register__(cls, module_name):
-        cursor = Transaction().connection.cursor()
+        cursor = tx.transaction.connection.cursor()
         table = cls.__table__()
         table_h = cls.__table_handler__(module_name)
 
@@ -893,7 +892,7 @@ class Identifier(sequence_ordered(), DeactivableMixin, ModelSQL, ModelView):
 
     @classmethod
     def get_types(cls):
-        pool = Pool()
+        pool = tx.pool
         Configuration = pool.get('party.configuration')
         configuration = Configuration(1)
         return [(None, '')] + configuration.get_identifier_types()
@@ -1090,7 +1089,7 @@ class Replace(Wizard):
     replace = StateTransition()
 
     def check_similarity(self):
-        pool = Pool()
+        pool = tx.pool
         Warning = pool.get('res.user.warning')
         source = self.ask.source
         destination = self.ask.destination
@@ -1117,11 +1116,11 @@ class Replace(Wizard):
                         destination_code=destination_code))
 
     def transition_replace(self):
-        pool = Pool()
+        pool = tx.pool
         Address = pool.get('party.address')
         ContactMechanism = pool.get('party.contact_mechanism')
         Identifier = pool.get('party.identifier')
-        transaction = Transaction()
+        transaction = tx.transaction
 
         self.check_similarity()
         source = self.ask.source
@@ -1208,7 +1207,7 @@ class ReplaceAsk(ModelView):
 
     @classmethod
     def default_source(cls):
-        context = Transaction().context
+        context = tx.transaction.context
         if context.get('active_model') == 'party.party':
             return context.get('active_id')
 
@@ -1228,9 +1227,9 @@ class Erase(Wizard):
     erase = StateTransition()
 
     def transition_erase(self):
-        pool = Pool()
+        pool = tx.pool
         Party = pool.get('party.party')
-        transaction = Transaction()
+        transaction = tx.transaction
         cursor = transaction.connection.cursor()
 
         resources = self.get_resources()
@@ -1293,7 +1292,7 @@ class Erase(Wizard):
                     party=party.rec_name))
 
     def to_erase(self, party_id):
-        pool = Pool()
+        pool = tx.pool
         Party = pool.get('party.party')
         Identifier = pool.get('party.identifier')
         Address = pool.get('party.address')
@@ -1319,7 +1318,7 @@ class Erase(Wizard):
 
     @classmethod
     def get_resources(cls):
-        pool = Pool()
+        pool = tx.pool
         Attachment = pool.get('ir.attachment')
         Note = pool.get('ir.note')
         Avatar = pool.get('ir.avatar')
@@ -1333,6 +1332,6 @@ class EraseAsk(ModelView):
 
     @classmethod
     def default_party(cls):
-        context = Transaction().context
+        context = tx.transaction.context
         if context.get('active_model') == 'party.party':
             return context.get('active_id')

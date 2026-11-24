@@ -11,15 +11,16 @@ from sql.aggregate import Max, Sum
 from sql.conditionals import Case, Coalesce
 from sql.operators import Concat
 
+from trytond import tx
 from trytond.i18n import gettext
 from trytond.model import Index, ModelSQL, ModelView, fields
 from trytond.model.exceptions import AccessError
 from trytond.modules.product import price_digits, round_price
-from trytond.pool import Pool, PoolMeta
+from trytond.pool import PoolMeta
 from trytond.pyson import Bool, Eval, If, PYSONEncoder
 from trytond.tools import decistmt
 from trytond.tools import timezone as tz
-from trytond.transaction import Transaction, without_check_access
+from trytond.transaction import without_check_access
 from trytond.wizard import (
     Button, StateAction, StateTransition, StateView, Wizard)
 
@@ -29,7 +30,7 @@ from .shipment import ShipmentAssignMixin
 
 
 def _find_moves(cls, records):
-    pool = Pool()
+    pool = tx.pool
     Move = pool.get('stock.move')
     if cls.__name__ == 'product.template':
         field = 'product.template'
@@ -43,7 +44,7 @@ def _find_moves(cls, records):
 
 
 def _check_no_stock(cls, records):
-    pool = Pool()
+    pool = tx.pool
     Company = pool.get('company.company')
     Location = pool.get('stock.location')
     Product = pool.get('product.product')
@@ -52,7 +53,7 @@ def _check_no_stock(cls, records):
     def get_record_locations(company, location_ids, records, grouping):
         record2locations = defaultdict(list)
         record_ids = list(map(int, records))
-        with Transaction().set_context(company=company.id):
+        with tx.transaction.set_context(company=company.id):
             quantities = Product.products_by_location(
                 location_ids, with_childs=True,
                 grouping=grouping, grouping_filter=(record_ids,))
@@ -143,7 +144,7 @@ class Template(metaclass=PoolMeta):
 
     @classmethod
     def recompute_cost_price(cls, templates, start=None):
-        pool = Pool()
+        pool = tx.pool
         Product = pool.get('product.product')
 
         products = [p for t in templates for p in t.products]
@@ -167,7 +168,7 @@ class Product(StockMixin, object, metaclass=PoolMeta):
 
     @classmethod
     def _quantity_locations(cls):
-        context = Transaction().context
+        context = tx.transaction.context
         location_ids = context.get('locations')
         if not location_ids and context.get('location'):
             location_ids = [context['location']]
@@ -187,11 +188,11 @@ class Product(StockMixin, object, metaclass=PoolMeta):
 
     @classmethod
     def get_cost_value(cls, products, name):
-        pool = Pool()
+        pool = tx.pool
         Company = pool.get('company.company')
         cost_values = {p.id: None for p in products}
         context = {}
-        trans_context = Transaction().context
+        trans_context = tx.transaction.context
         if trans_context.get('stock_date_end'):
             # Use the last cost_price of the day
             context['_datetime'] = datetime.datetime.combine(
@@ -212,7 +213,7 @@ class Product(StockMixin, object, metaclass=PoolMeta):
             # The date could be before the product creation
             products = [p for p in products
                 if p.create_date <= context['_datetime']]
-        with Transaction().set_context(context):
+        with tx.transaction.set_context(context):
             for product, h_product in zip(products, cls.browse(products)):
                 # The product may not have a cost price
                 if h_product.cost_price is not None:
@@ -222,7 +223,7 @@ class Product(StockMixin, object, metaclass=PoolMeta):
 
     @classmethod
     def check_modification(cls, mode, products, values=None, external=False):
-        pool = Pool()
+        pool = tx.pool
         Template = pool.get('product.template')
         super().check_modification(
             mode, products, values=values, external=external)
@@ -253,14 +254,14 @@ class Product(StockMixin, object, metaclass=PoolMeta):
                 _check_no_stock(cls, products)
 
     def can_be_deactivated(self):
-        pool = Pool()
+        pool = tx.pool
         Location = pool.get('stock.location')
         Company = pool.get('company.company')
         result = super().can_be_deactivated()
         locations = Location.search([('type', '=', 'storage')])
         location_ids = list(map(int, locations))
         for company in Company.search([]):
-            with Transaction().set_context(
+            with tx.transaction.set_context(
                     company=company.id,
                     locations=location_ids):
                 product = self.__class__(self.id)
@@ -270,7 +271,7 @@ class Product(StockMixin, object, metaclass=PoolMeta):
 
     @classmethod
     def deactivate_replaced(cls, products=None):
-        pool = Pool()
+        pool = tx.pool
         Move = pool.get('stock.move')
         deactivated = super().deactivate_replaced(products=products)
         if deactivated:
@@ -296,7 +297,7 @@ class Product(StockMixin, object, metaclass=PoolMeta):
         Return a dictionary with location id and grouping as key
                 and quantity as value.
         """
-        pool = Pool()
+        pool = tx.pool
         Location = pool.get('stock.location')
         Move = pool.get('stock.move')
 
@@ -305,7 +306,7 @@ class Product(StockMixin, object, metaclass=PoolMeta):
         # and to add after the query.
         storage_to_remove = set()
         wh_to_add = {}
-        if Transaction().context.get('stock_skip_warehouse'):
+        if tx.transaction.context.get('stock_skip_warehouse'):
             location_ids = set(location_ids)
             for location in Location.browse(list(location_ids)):
                 if location.type == 'warehouse':
@@ -334,7 +335,7 @@ class Product(StockMixin, object, metaclass=PoolMeta):
 
     @classmethod
     def recompute_cost_price_from_moves(cls):
-        pool = Pool()
+        pool = tx.pool
         Move = pool.get('stock.move')
         products = set()
         for move in Move.search([
@@ -349,7 +350,7 @@ class Product(StockMixin, object, metaclass=PoolMeta):
 
     @classmethod
     def recompute_cost_price(cls, products, start=None):
-        pool = Pool()
+        pool = tx.pool
         Move = pool.get('stock.move')
         costs = defaultdict(list)
         for product in products:
@@ -391,7 +392,7 @@ class Product(StockMixin, object, metaclass=PoolMeta):
     @classmethod
     def _domain_moves_cost(cls):
         "Returns the domain for moves to use in cost computation"
-        context = Transaction().context
+        context = tx.transaction.context
         return [
             ('company', '=', context.get('company')),
             ('state', '=', 'done'),
@@ -419,21 +420,21 @@ class Product(StockMixin, object, metaclass=PoolMeta):
         return [('type', '=', 'storage')]
 
     def _get_storage_quantity(self, date=None):
-        pool = Pool()
+        pool = tx.pool
         Location = pool.get('stock.location')
 
         locations = Location.search(self._domain_storage_quantity())
         if not date:
             date = datetime.date.today()
         location_ids = [l.id for l in locations]
-        with Transaction().set_context(
+        with tx.transaction.set_context(
                 locations=location_ids,
                 with_childs=False,
                 stock_date_end=date):
             return self.__class__(self.id).quantity
 
     def recompute_cost_price_average(self, start=None):
-        pool = Pool()
+        pool = tx.pool
         Move = pool.get('stock.move')
         Uom = pool.get('product.uom')
         Revision = pool.get('product.cost_price.revision')
@@ -559,11 +560,11 @@ class ProductByLocationContext(ModelView):
 
     @classmethod
     def default_company(cls):
-        return Transaction().context.get('company')
+        return tx.transaction.context.get('company')
 
     @staticmethod
     def default_forecast_date():
-        Date = Pool().get('ir.date')
+        Date = tx.pool.get('ir.date')
         return Date.today()
 
     @fields.depends('forecast_date')
@@ -601,7 +602,7 @@ class OpenProductQuantitiesByWarehouse(Wizard):
         return context
 
     def get_search_value(self):
-        pool = Pool()
+        pool = tx.pool
         Date = pool.get('ir.date')
         today = Date.today()
         value = [('date', '>=', today)]
@@ -650,13 +651,13 @@ class ProductQuantitiesByWarehouse(ModelSQL, ModelView):
 
     @classmethod
     def table_query(cls):
-        pool = Pool()
+        pool = tx.pool
         Move = pool.get('stock.move')
         Location = pool.get('stock.location')
         Product = pool.get('product.product')
         Date = pool.get('ir.date')
         move = from_ = Move.__table__()
-        transaction = Transaction()
+        transaction = tx.transaction
         context = transaction.context
         today = Date.today()
 
@@ -734,10 +735,10 @@ class ProductQuantitiesByWarehouse(ModelSQL, ModelView):
 
     @classmethod
     def parse_view(cls, tree, type, *args, **kwargs):
-        pool = Pool()
+        pool = tx.pool
         Product = pool.get('product.product')
         Template = pool.get('product.template')
-        context = Transaction().context
+        context = tx.transaction.context
         if kwargs.get('view_depends') is None:
             view_depends = []
         else:
@@ -778,8 +779,8 @@ class ProductQuantitiesByWarehouse(ModelSQL, ModelView):
 
     @classmethod
     def get_quantity(cls, lines, name):
-        Product = Pool().get('product.product')
-        trans_context = Transaction().context
+        Product = tx.pool.get('product.product')
+        trans_context = tx.transaction.context
 
         if trans_context.get('product_template') is not None:
             grouping = ('product.template',)
@@ -812,7 +813,7 @@ class ProductQuantitiesByWarehouse(ModelSQL, ModelView):
                 'stock_date_end': date,
                 'forecast': True,
                 }
-            with Transaction().set_context(**context):
+            with tx.transaction.set_context(**context):
                 quantities[date] = Product.products_by_location(
                     [warehouse_id],
                     grouping=grouping,
@@ -853,16 +854,16 @@ class ProductQuantitiesByWarehouseContext(ModelView):
 
     @classmethod
     def default_company(cls):
-        return Transaction().context.get('company')
+        return tx.transaction.context.get('company')
 
     @classmethod
     def default_warehouse(cls):
-        Location = Pool().get('stock.location')
+        Location = tx.pool.get('stock.location')
         return Location.get_default_warehouse()
 
     @classmethod
     def default_stock_skip_warehouse(cls):
-        return Transaction().context.get('stock_skip_warehouse')
+        return tx.transaction.context.get('stock_skip_warehouse')
 
 
 class OpenProductQuantitiesByWarehouseMove(Wizard):
@@ -910,13 +911,13 @@ class ProductQuantitiesByWarehouseMove(ModelSQL, ModelView):
 
     @classmethod
     def table_query(cls):
-        pool = Pool()
+        pool = tx.pool
         Date = pool.get('ir.date')
         Location = pool.get('stock.location')
         Move = pool.get('stock.move')
         Product = pool.get('product.product')
         move = from_ = Move.__table__()
-        transaction = Transaction()
+        transaction = tx.transaction
         context = transaction.context
         today = Date.today()
 
@@ -993,19 +994,19 @@ class ProductQuantitiesByWarehouseMove(ModelSQL, ModelView):
 
     @classmethod
     def get_origin(cls):
-        pool = Pool()
+        pool = tx.pool
         Move = pool.get('stock.move')
         return Move.get_origin()
 
     @classmethod
     def _get_document_models(cls):
-        pool = Pool()
+        pool = tx.pool
         Move = pool.get('stock.move')
         return [m for m, _ in Move.get_shipment() if m]
 
     @classmethod
     def get_documents(cls):
-        pool = Pool()
+        pool = tx.pool
         Model = pool.get('ir.model')
         get_name = Model.get_name
         models = cls._get_document_models()
@@ -1017,9 +1018,9 @@ class ProductQuantitiesByWarehouseMove(ModelSQL, ModelView):
 
     @classmethod
     def get_cumulative_quantity(cls, records, names):
-        pool = Pool()
+        pool = tx.pool
         Product = pool.get('product.product')
-        transaction = Transaction()
+        transaction = tx.transaction
         trans_context = transaction.context
 
         if trans_context.get('product_template') is not None:
@@ -1056,7 +1057,7 @@ class ProductQuantitiesByWarehouseMove(ModelSQL, ModelView):
                     }
             except OverflowError:
                 pass
-            with Transaction().set_context(**context):
+            with tx.transaction.set_context(**context):
                 quantities[date] = Product.products_by_location(
                     [warehouse_id],
                     grouping=grouping,
@@ -1102,7 +1103,7 @@ class RecomputeCostPrice(Wizard):
     recompute = StateTransition()
 
     def default_start(self, fields):
-        pool = Pool()
+        pool = tx.pool
         Move = pool.get('stock.move')
         Product = pool.get('product.product')
 
@@ -1148,7 +1149,7 @@ class ModifyCostPrice(Wizard):
     modify = StateTransition()
 
     def transition_modify(self):
-        pool = Pool()
+        pool = tx.pool
         Product = pool.get('product.product')
         Revision = pool.get('product.cost_price.revision')
         Date = pool.get('ir.date')
@@ -1197,7 +1198,7 @@ class ModifyCostPrice(Wizard):
         return Revision(
             template=None,
             product=None,
-            company=Transaction().context.get('company'),
+            company=tx.transaction.context.get('company'),
             date=self.start.date,
             cost_price=self.start.cost_price,
             )
@@ -1213,7 +1214,7 @@ class ModifyCostPriceStart(ModelView):
 
     @classmethod
     def default_date(cls):
-        pool = Pool()
+        pool = tx.pool
         Date = pool.get('ir.date')
         return Date.today()
 
@@ -1265,7 +1266,7 @@ class CostPriceRevision(ModelSQL, ModifyCostPriceStart):
 
     @classmethod
     def default_company(cls):
-        return Transaction().context.get('company')
+        return tx.transaction.context.get('company')
 
     @fields.depends('product', '_parent_product.template')
     def on_change_product(self):
@@ -1307,7 +1308,7 @@ class CostPriceRevision(ModelSQL, ModifyCostPriceStart):
 
     @classmethod
     def _get_for_product_domain(cls):
-        context = Transaction().context
+        context = tx.transaction.context
         return [
             ('company', '=', context.get('company')),
             ]

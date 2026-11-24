@@ -8,9 +8,9 @@ from sql.conditionals import Coalesce, NullIf
 from sql.functions import Trim
 from sql.operators import Not
 
+from trytond import tx
 from trytond.rpc import RPC
 from trytond.tools import is_full_text, unescape_wildcard
-from trytond.transaction import Transaction
 
 from .field import Field, FieldTranslate, order_method, size_validate
 
@@ -119,7 +119,7 @@ class Char(FieldTranslate):
         if not self.required:
             column = Coalesce(column, '')
         if self.search_unaccented and operator.endswith('ilike'):
-            database = Transaction().database
+            database = tx.transaction.database
             column = database.unaccent(column)
         return column
 
@@ -130,12 +130,12 @@ class Char(FieldTranslate):
             value = ''
         value = super()._domain_value(operator, value)
         if self.search_unaccented and operator.endswith('ilike'):
-            database = Transaction().database
+            database = tx.transaction.database
             value = database.unaccent(value)
         return value
 
     def _convert_domain(self, domain, tables, Model):
-        transaction = Transaction()
+        transaction = tx.transaction
         context = transaction.context
         database = transaction.database
         expression = super()._convert_domain(domain, tables, Model)
@@ -196,7 +196,7 @@ class Char(FieldTranslate):
 
     @order_method
     def convert_order(self, name, tables, Model):
-        transaction = Transaction()
+        transaction = tx.transaction
         context = transaction.context
         database = transaction.database
         key = '%s.%s.order' % (Model.__name__, name)

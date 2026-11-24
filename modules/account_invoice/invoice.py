@@ -15,7 +15,7 @@ from sql.functions import CharLength, Round
 from sql.operators import Exists
 from stdnum import iso7064, iso11649
 
-from trytond import backend, config
+from trytond import backend, config, tx
 from trytond.i18n import gettext
 from trytond.model import (
     ChatMixin, DeactivableMixin, Index, MatchMixin, ModelSQL, ModelView,
@@ -27,20 +27,19 @@ from trytond.modules.company.model import (
     employee_field, reset_employee, set_employee)
 from trytond.modules.currency.fields import Monetary
 from trytond.modules.product import price_digits
-from trytond.pool import Pool, PoolMeta
+from trytond.pool import PoolMeta
 from trytond.pyson import Bool, Eval, Id, If
 from trytond.report import Report
 from trytond.rpc import RPC
 from trytond.tools import (
     cached_property, firstline, grouped_slice, slugify, sqlite_apply_types)
-from trytond.transaction import Transaction
 from trytond.wizard import (
     Button, StateAction, StateReport, StateTransition, StateView, Wizard)
 
 from .exceptions import (
-    InvoiceFutureWarning, InvoiceNumberError, InvoicePaymentTermDateWarning,
-    InvoiceSimilarWarning, InvoiceTaxesWarning, InvoiceTaxValidationError,
-    InvoiceValidationError, PayInvoiceError)
+    InvoiceNumberError, InvoicePaymentTermDateWarning, InvoiceSimilarWarning,
+    InvoiceTaxesWarning, InvoiceTaxValidationError, InvoiceValidationError,
+    PayInvoiceError)
 
 if config.getboolean('account_invoice', 'filestore', default=False):
     file_id = 'invoice_report_cache_id'
@@ -409,7 +408,7 @@ class Invoice(
 
     @classmethod
     def __setup__(cls):
-        pool = Pool()
+        pool = tx.pool
         Party = pool.get('party.party')
         cls.number.search_unaccented = False
         cls.reference.search_unaccented = False
@@ -561,14 +560,14 @@ class Invoice(
 
     @staticmethod
     def default_currency():
-        Company = Pool().get('company.company')
-        if Transaction().context.get('company'):
-            company = Company(Transaction().context['company'])
+        Company = tx.pool.get('company.company')
+        if tx.transaction.context.get('company'):
+            company = Company(tx.transaction.context['company'])
             return company.currency.id
 
     @staticmethod
     def default_company():
-        return Transaction().context.get('company')
+        return tx.transaction.context.get('company')
 
     @fields.depends(
         'company', 'tax_identifier', methods=['on_change_with_company_party'])
@@ -599,7 +598,7 @@ class Invoice(
 
     @fields.depends('type')
     def set_journal(self, pattern=None):
-        pool = Pool()
+        pool = tx.pool
         Journal = pool.get('account.journal')
         pattern = pattern.copy() if pattern is not None else {}
         pattern.setdefault('type', {
@@ -650,12 +649,12 @@ class Invoice(
 
     @fields.depends('invoice_date', 'company')
     def on_change_with_currency_date(self, name=None):
-        Date = Pool().get('ir.date')
+        Date = tx.pool.get('ir.date')
         if self.company:
             company_id = self.company.id
         else:
-            company_id = Transaction().context.get('company')
-        with Transaction().set_context(company=company_id):
+            company_id = tx.transaction.context.get('company')
+        with tx.transaction.set_context(company=company_id):
             return self.invoice_date or Date.today()
 
     @fields.depends(
@@ -708,7 +707,7 @@ class Invoice(
             return self.party.code_digit
 
     def format_customer_payment_reference(self, type):
-        pool = Pool()
+        pool = tx.pool
         Confifugaration = pool.get('account.configuration')
         configuration = Confifugaration(1)
         source = configuration.get_multivalue(
@@ -726,7 +725,7 @@ class Invoice(
 
     @fields.depends('party')
     def on_change_with_party_lang(self, name=None):
-        Config = Pool().get('ir.configuration')
+        Config = tx.pool.get('ir.configuration')
         if self.party and self.party.lang:
             return self.party.lang.code
         return Config.get_language()
@@ -757,7 +756,7 @@ class Invoice(
     @fields.depends(
         'lines', 'taxes', 'currency', methods=['_get_taxes', 'tax_date'])
     def _on_change_lines_taxes(self):
-        pool = Pool()
+        pool = tx.pool
         InvoiceTax = pool.get('account.invoice.tax')
 
         self.untaxed_amount = Decimal(0)
@@ -821,9 +820,9 @@ class Invoice(
 
     @classmethod
     def get_amount(cls, invoices, names):
-        pool = Pool()
+        pool = tx.pool
         InvoiceTax = pool.get('account.invoice.tax')
-        cursor = Transaction().connection.cursor()
+        cursor = tx.transaction.connection.cursor()
 
         untaxed_amount = {i.id: i.currency.round(Decimal(0)) for i in invoices}
         tax_amount = untaxed_amount.copy()
@@ -892,7 +891,7 @@ class Invoice(
 
     @classmethod
     def _query_lines_to_pay(cls, invoices):
-        pool = Pool()
+        pool = tx.pool
         MoveLine = pool.get('account.move.line')
         AdditionalMove = pool.get('account.invoice-additional-account.move')
         line = MoveLine.__table__()
@@ -927,7 +926,7 @@ class Invoice(
 
     @classmethod
     def get_lines_to_pay(cls, invoices, name):
-        cursor = Transaction().connection.cursor()
+        cursor = tx.transaction.connection.cursor()
         lines = defaultdict(list)
         query = cls._query_lines_to_pay(invoices)
         query = query.select(
@@ -940,12 +939,12 @@ class Invoice(
 
     @classmethod
     def get_reconciliation_lines(cls, invoices, name):
-        pool = Pool()
+        pool = tx.pool
         Line = pool.get('account.move.line')
         Move = pool.get('account.move')
         line = Line.__table__()
         move = Move.__table__()
-        cursor = Transaction().connection.cursor()
+        cursor = tx.transaction.connection.cursor()
         lines = defaultdict(list)
         lines_to_pay = cls._query_lines_to_pay(invoices)
         query = cls._query_lines_to_pay(invoices)
@@ -970,14 +969,14 @@ class Invoice(
 
     @classmethod
     def get_amount_to_pay(cls, invoices, name):
-        pool = Pool()
+        pool = tx.pool
         Currency = pool.get('currency.currency')
         Date = pool.get('ir.date')
 
         amounts = defaultdict(Decimal)
         for company, grouped_invoices in groupby(
                 invoices, key=lambda i: i.company):
-            with Transaction().set_context(company=company.id):
+            with tx.transaction.set_context(company=company.id):
                 today = Date.today()
             for invoice in grouped_invoices:
                 if invoice.state != 'posted':
@@ -1005,7 +1004,8 @@ class Invoice(
                     else:
                         amount += line.debit - line.credit
                 if amount:
-                    with Transaction().set_context(date=invoice.currency_date):
+                    with tx.transaction.set_context(
+                            date=invoice.currency_date):
                         amount_currency += Currency.compute(
                             invoice.company.currency, amount, invoice.currency)
                 if invoice.type == 'in' and amount_currency:
@@ -1015,7 +1015,7 @@ class Invoice(
 
     @classmethod
     def search_total_amount(cls, name, clause):
-        pool = Pool()
+        pool = tx.pool
         Line = pool.get('account.invoice.line')
         Tax = pool.get('account.invoice.tax')
         Invoice = pool.get('account.invoice')
@@ -1063,7 +1063,7 @@ class Invoice(
 
     @classmethod
     def search_untaxed_amount(cls, name, clause):
-        pool = Pool()
+        pool = tx.pool
         Line = pool.get('account.invoice.line')
         Invoice = pool.get('account.invoice')
         Currency = pool.get('currency.currency')
@@ -1101,7 +1101,7 @@ class Invoice(
 
     @classmethod
     def search_tax_amount(cls, name, clause):
-        pool = Pool()
+        pool = tx.pool
         Tax = pool.get('account.invoice.tax')
         Invoice = pool.get('account.invoice')
         type_name = cls.tax_amount._field.sql_type().base
@@ -1138,7 +1138,7 @@ class Invoice(
 
     @classmethod
     def get_has_payment_method(cls, invoices, name):
-        pool = Pool()
+        pool = tx.pool
         Method = pool.get('account.invoice.payment.method')
         methods = {}
         for (company, account), sub_invoices in groupby(
@@ -1155,7 +1155,7 @@ class Invoice(
     @classmethod
     def get_has_report_cache(cls, invoices, name):
         table = cls.__table__()
-        cursor = Transaction().connection.cursor()
+        cursor = tx.transaction.connection.cursor()
 
         has_cache = (
             (table.invoice_report_cache_id != Null)
@@ -1177,10 +1177,10 @@ class Invoice(
     @property
     @fields.depends('accounting_date', 'invoice_date', 'company')
     def tax_date(self):
-        pool = Pool()
+        pool = tx.pool
         Date = pool.get('ir.date')
-        context = Transaction().context
-        with Transaction().set_context(
+        context = tx.transaction.context
+        with tx.transaction.set_context(
                 company=self.company.id if self.company
                 else context.get('company')):
             today = Date.today()
@@ -1206,7 +1206,7 @@ class Invoice(
 
     @dualmethod
     def update_taxes(cls, invoices, exception=False):
-        Tax = Pool().get('account.invoice.tax')
+        Tax = tx.pool.get('account.invoice.tax')
         to_create = []
         to_delete = []
         to_write = []
@@ -1244,9 +1244,9 @@ class Invoice(
             Tax.write(*to_write)
 
     def get_payment_term_computation_date(self):
-        pool = Pool()
+        pool = tx.pool
         Date = pool.get('ir.date')
-        with Transaction().set_context(company=self.company.id):
+        with tx.transaction.set_context(company=self.company.id):
             today = Date.today()
 
         return self.payment_term_date or self.invoice_date or today
@@ -1255,14 +1255,14 @@ class Invoice(
         '''
         Return move line
         '''
-        pool = Pool()
+        pool = tx.pool
         Currency = pool.get('currency.currency')
         MoveLine = pool.get('account.move.line')
         line = MoveLine()
         if self.currency != self.company.currency:
             line.amount_second_currency = amount
             line.second_currency = self.currency
-            with Transaction().set_context(date=self.currency_date):
+            with tx.transaction.set_context(date=self.currency_date):
                 amount = Currency.compute(
                     self.currency, amount, self.company.currency)
         else:
@@ -1293,7 +1293,7 @@ class Invoice(
         return line
 
     def _get_exchange_move_line(self, amount):
-        pool = Pool()
+        pool = tx.pool
         Configuration = pool.get('account.configuration')
         MoveLine = pool.get('account.move.line')
         configuration = Configuration(1)
@@ -1326,7 +1326,7 @@ class Invoice(
         '''
         Compute account move for the invoice and return the created move
         '''
-        pool = Pool()
+        pool = tx.pool
         Move = pool.get('account.move')
         Period = pool.get('account.period')
         Date = pool.get('ir.date')
@@ -1335,7 +1335,7 @@ class Invoice(
 
         if self.move:
             return self.move
-        with Transaction().set_context(company=self.company.id):
+        with tx.transaction.set_context(company=self.company.id):
             today = Date.today()
         self.update_taxes(exception=True)
         move_lines = []
@@ -1388,7 +1388,7 @@ class Invoice(
         '''
         Set number to the invoice
         '''
-        pool = Pool()
+        pool = tx.pool
         Date = pool.get('ir.date')
         Lang = pool.get('ir.lang')
 
@@ -1396,7 +1396,7 @@ class Invoice(
 
         for company, grouped_invoices in groupby(
                 invoices, key=lambda i: i.company):
-            with Transaction().set_context(company=company.id):
+            with tx.transaction.set_context(company=company.id):
                 today = Date.today()
 
             def invoice_date(invoice):
@@ -1443,7 +1443,7 @@ class Invoice(
                                 after_invoice=after_invoice.rec_name))
                     sequences.add(sequence)
             for (sequence, date), n_invoices in to_number.items():
-                with Transaction().set_context(
+                with tx.transaction.set_context(
                         date=date, company=company.id):
                     for invoice, number in zip(
                             n_invoices, sequence.get_many(len(n_invoices))):
@@ -1453,7 +1453,7 @@ class Invoice(
 
     def _number_sequence(self, pattern=None):
         "Returns the sequence and date to use for numbering"
-        pool = Pool()
+        pool = tx.pool
         Period = pool.get('account.period')
 
         if pattern is None:
@@ -1507,7 +1507,7 @@ class Invoice(
 
     @classmethod
     def set_payment_means(cls, invoices):
-        pool = Pool()
+        pool = tx.pool
         PaymentMean = pool.get('account.invoice.payment.mean')
         PaymentMeanRule = pool.get('account.invoice.payment.mean.rule')
         payment_means = []
@@ -1530,7 +1530,7 @@ class Invoice(
         return self.state in {'posted', 'paid'} and self.type == 'out'
 
     def create_invoice_report_revision(self):
-        pool = Pool()
+        pool = tx.pool
         InvoiceReportRevision = pool.get('account.invoice.report.revision')
         if not self.invoice_report_versioned:
             return
@@ -1578,7 +1578,7 @@ class Invoice(
                     (l.origin_name for l in self.line_lines))))
 
     def get_origin_invoices(self, name):
-        pool = Pool()
+        pool = tx.pool
         InvoiceLine = pool.get('account.invoice.line')
         invoices = set()
         for line in self.lines:
@@ -1600,7 +1600,7 @@ class Invoice(
 
     @classmethod
     def view_attributes(cls):
-        pool = Pool()
+        pool = tx.pool
         PaymentMean = pool.get('account.invoice.payment.mean')
         if not PaymentMean.get_instruments():
             payment_means = [
@@ -1747,7 +1747,7 @@ class Invoice(
 
     @classmethod
     def check_source(cls, invoices, field_names):
-        pool = Pool()
+        pool = tx.pool
         Lang = pool.get('ir.lang')
         if field_names and 'state' not in field_names:
             return
@@ -1797,7 +1797,7 @@ class Invoice(
         '''
         Return list of lines and the remainder to make reconciliation.
         '''
-        pool = Pool()
+        pool = tx.pool
         Line = pool.get('account.move.line')
 
         assert currency in {self.currency, self.company.currency}
@@ -1822,7 +1822,7 @@ class Invoice(
         used to pay off the invoice.
         Returns the payment lines.
         '''
-        pool = Pool()
+        pool = tx.pool
         Currency = pool.get('currency.currency')
         Move = pool.get('account.move')
         Line = pool.get('account.move.line')
@@ -1840,7 +1840,7 @@ class Invoice(
             amount_second_currency = pay_amount
             second_currency = self.currency
             overpayment_second_currency = overpayment
-            with Transaction().set_context(date=date):
+            with tx.transaction.set_context(date=date):
                 amount = Currency.compute(
                     self.currency, amount, self.company.currency)
                 overpayment = Currency.compute(
@@ -1930,7 +1930,7 @@ class Invoice(
     @classmethod
     def remove_payment_lines(cls, lines):
         "Remove payment lines from their invoices."
-        pool = Pool()
+        pool = tx.pool
         PaymentLine = pool.get('account.invoice-account.move.line')
 
         payments = defaultdict(list)
@@ -1957,7 +1957,7 @@ class Invoice(
         '''
         Generate invoice report and store it in invoice_report field.
         '''
-        InvoiceReport = Pool().get('account.invoice', type='report')
+        InvoiceReport = tx.pool.get('account.invoice', type='report')
         for invoice in invoices:
             if not invoice.invoice_report_cache:
                 InvoiceReport.execute([invoice.id], {})
@@ -2018,7 +2018,7 @@ class Invoice(
     @Workflow.transition('draft')
     @reset_employee('validated_by', 'posted_by')
     def draft(cls, invoices):
-        Move = Pool().get('account.move')
+        Move = tx.pool.get('account.move')
 
         cls.write(invoices, {
                 'tax_amount_cache': None,
@@ -2042,7 +2042,7 @@ class Invoice(
     @Workflow.transition('validated')
     @set_employee('validated_by')
     def validate_invoice(cls, invoices):
-        pool = Pool()
+        pool = tx.pool
         Move = pool.get('account.move')
 
         cls._check_taxes(invoices)
@@ -2069,14 +2069,14 @@ class Invoice(
     @classmethod
     @Workflow.transition('posted')
     def post_batch(cls, invoices):
-        pool = Pool()
+        pool = tx.pool
         Date = pool.get('ir.date')
-        transaction = Transaction()
+        transaction = tx.transaction
         context = transaction.context
         cls.set_number(invoices)
         for company, grouped_invoices in groupby(
                 invoices, key=lambda i: i.company):
-            with Transaction().set_context(company=company.id):
+            with tx.transaction.set_context(company=company.id):
                 today = Date.today()
             for invoice in grouped_invoices:
                 if not invoice.payment_term_date:
@@ -2094,12 +2094,12 @@ class Invoice(
     def post(cls, invoices):
         # JMO: coog specific:
         # No warning for future invoices
-        # pool = Pool()
+        # pool = tx.pool
         # Date = pool.get('ir.date')
         # Warning = pool.get('res.user.warning')
         # for company, grouped_invoices in groupby(
         #         invoices, key=lambda i: i.company):
-        #     with Transaction().set_context(company=company.id):
+        #     with tx.transaction.set_context(company=company.id):
         #         today = Date.today()
         #     future_invoices = [
         #         i for i in grouped_invoices
@@ -2122,9 +2122,9 @@ class Invoice(
 
     @classmethod
     def _post(cls, invoices):
-        pool = Pool()
+        pool = tx.pool
         Move = pool.get('account.move')
-        transaction = Transaction()
+        transaction = tx.transaction
         context = transaction.context
 
         cls.set_number(invoices)
@@ -2158,7 +2158,7 @@ class Invoice(
 
     @classmethod
     def _check_taxes(cls, invoices):
-        pool = Pool()
+        pool = tx.pool
         Line = pool.get('account.invoice.line')
         Warning = pool.get('res.user.warning')
         for invoice in invoices:
@@ -2184,7 +2184,7 @@ class Invoice(
 
     @classmethod
     def _check_similar(cls, invoices, type='in'):
-        pool = Pool()
+        pool = tx.pool
         Warning = pool.get('res.user.warning')
         for sub_invoices in grouped_slice(
                 invoices, backend.MAX_QUERY_PARAMS // 10):
@@ -2212,11 +2212,11 @@ class Invoice(
                                 invoice=invoice.rec_name))
 
     def _similar_domain(self, delay=None):
-        pool = Pool()
+        pool = tx.pool
         Date = pool.get('ir.date')
         if not self.reference:
             return
-        with Transaction().set_context(company=self.company.id):
+        with tx.transaction.set_context(company=self.company.id):
             invoice_date = self.invoice_date or Date.today()
         if delay is None:
             delay = dt.timedelta(days=60)
@@ -2285,7 +2285,7 @@ class Invoice(
     @ModelView.button
     @Workflow.transition('cancelled')
     def cancel(cls, invoices):
-        pool = Pool()
+        pool = tx.pool
         Move = pool.get('account.move')
         Line = pool.get('account.move.line')
 
@@ -2668,7 +2668,7 @@ class InvoiceLine(sequence_ordered(), ModelSQL, ModelView, TaxableMixin):
 
     @classmethod
     def get_invoice_types(cls):
-        pool = Pool()
+        pool = tx.pool
         Invoice = pool.get('account.invoice')
         return Invoice.fields_get(['type'])['type']['selection'] + [(None, '')]
 
@@ -2694,14 +2694,14 @@ class InvoiceLine(sequence_ordered(), ModelSQL, ModelView, TaxableMixin):
 
     @staticmethod
     def default_currency():
-        Company = Pool().get('company.company')
-        if Transaction().context.get('company'):
-            company = Company(Transaction().context['company'])
+        Company = tx.pool.get('company.company')
+        if tx.transaction.context.get('company'):
+            company = Company(tx.transaction.context['company'])
             return company.currency.id
 
     @staticmethod
     def default_company():
-        return Transaction().context.get('company')
+        return tx.transaction.context.get('company')
 
     @staticmethod
     def default_type():
@@ -2737,7 +2737,7 @@ class InvoiceLine(sequence_ordered(), ModelSQL, ModelView, TaxableMixin):
 
     @classmethod
     def get_invoice_states(cls):
-        pool = Pool()
+        pool = tx.pool
         Invoice = pool.get('account.invoice')
         return Invoice.fields_get(['state'])['state']['selection']
 
@@ -2753,7 +2753,7 @@ class InvoiceLine(sequence_ordered(), ModelSQL, ModelView, TaxableMixin):
 
     @fields.depends('invoice', '_parent_invoice.party', 'party')
     def on_change_with_party_lang(self, name=None):
-        Config = Pool().get('ir.configuration')
+        Config = tx.pool.get('ir.configuration')
         if self.invoice and self.invoice.party:
             party = self.invoice.party
         else:
@@ -2786,7 +2786,7 @@ class InvoiceLine(sequence_ordered(), ModelSQL, ModelView, TaxableMixin):
             if (invoice_type == 'in'
                     and self.taxes_deductible_rate is not None
                     and self.taxes_deductible_rate != 1):
-                with Transaction().set_context(_deductible_rate=1):
+                with tx.transaction.set_context(_deductible_rate=1):
                     tax_amount = sum(
                         t.amount for t in self._get_taxes().values())
                 non_deductible_amount = (
@@ -2830,7 +2830,7 @@ class InvoiceLine(sequence_ordered(), ModelSQL, ModelView, TaxableMixin):
         'taxes_deductible_rate', 'taxes', 'unit_price', 'quantity',
         methods=['tax_date'])
     def taxable_lines(self):
-        context = Transaction().context
+        context = tx.transaction.context
         if self.invoice and self.invoice.type:
             invoice_type = self.invoice.type
         else:
@@ -2923,7 +2923,7 @@ class InvoiceLine(sequence_ordered(), ModelSQL, ModelView, TaxableMixin):
         else:
             type_ = self.invoice_type
         if type_ == 'in':
-            with Transaction().set_context(date=date):
+            with tx.transaction.set_context(date=date):
                 self.account = self.product.account_expense_used
             taxes = set()
             pattern = self._get_tax_rule_pattern()
@@ -2946,7 +2946,7 @@ class InvoiceLine(sequence_ordered(), ModelSQL, ModelView, TaxableMixin):
                 self.taxes_deductible_rate = (
                     self.product.supplier_taxes_deductible_rate_used)
         else:
-            with Transaction().set_context(date=date):
+            with tx.transaction.set_context(date=date):
                 self.account = self.product.account_revenue_used
             taxes = set()
             pattern = self._get_tax_rule_pattern()
@@ -3040,13 +3040,13 @@ class InvoiceLine(sequence_ordered(), ModelSQL, ModelView, TaxableMixin):
 
     @classmethod
     def get_origin(cls):
-        Model = Pool().get('ir.model')
+        Model = tx.pool.get('ir.model')
         get_name = Model.get_name
         models = cls._get_origin()
         return [(None, '')] + [(m, get_name(m)) for m in models]
 
     def get_rec_name(self, name):
-        pool = Pool()
+        pool = tx.pool
         Lang = pool.get('ir.lang')
         if self.product:
             lang = Lang.get()
@@ -3113,7 +3113,7 @@ class InvoiceLine(sequence_ordered(), ModelSQL, ModelView, TaxableMixin):
         return super().copy(lines, default=default)
 
     def _compute_taxes(self):
-        pool = Pool()
+        pool = tx.pool
         Currency = pool.get('currency.currency')
         TaxLine = pool.get('account.tax.line')
 
@@ -3123,7 +3123,7 @@ class InvoiceLine(sequence_ordered(), ModelSQL, ModelView, TaxableMixin):
         taxes = self._get_taxes().values()
         for tax in taxes:
             amount = tax.base
-            with Transaction().set_context(
+            with tx.transaction.set_context(
                     date=self.invoice.currency_date):
                 amount = Currency.compute(
                     self.invoice.currency, amount,
@@ -3139,14 +3139,14 @@ class InvoiceLine(sequence_ordered(), ModelSQL, ModelView, TaxableMixin):
         '''
         Return a list of move lines instances for invoice line
         '''
-        pool = Pool()
+        pool = tx.pool
         Currency = pool.get('currency.currency')
         MoveLine = pool.get('account.move.line')
         if self.type != 'line':
             return []
         line = MoveLine()
         if self.invoice.currency != self.invoice.company.currency:
-            with Transaction().set_context(date=self.invoice.currency_date):
+            with tx.transaction.set_context(date=self.invoice.currency_date):
                 amount = Currency.compute(self.invoice.currency,
                     self.amount, self.invoice.company.currency)
             line.amount_second_currency = self.amount
@@ -3312,13 +3312,13 @@ class InvoiceTax(sequence_ordered(), ModelSQL, ModelView):
 
     @classmethod
     def default_invoice_state(cls):
-        pool = Pool()
+        pool = tx.pool
         Invoice = pool.get('account.invoice')
         return Invoice.default_state()
 
     @classmethod
     def get_invoice_states(cls):
-        pool = Pool()
+        pool = tx.pool
         Invoice = pool.get('account.invoice')
         return Invoice.fields_get(['state'])['state']['selection']
 
@@ -3335,14 +3335,14 @@ class InvoiceTax(sequence_ordered(), ModelSQL, ModelView):
         'tax', 'invoice', '_parent_invoice.party', 'base',
         methods=['_compute_amount'])
     def on_change_tax(self):
-        Tax = Pool().get('account.tax')
+        Tax = tx.pool.get('account.tax')
         if not self.tax:
             return
         if self.invoice:
             context = self.invoice._get_tax_context()
         else:
             context = {}
-        with Transaction().set_context(**context):
+        with tx.transaction.set_context(**context):
             tax = Tax(self.tax.id)
         self.description = tax.description
         if self.base is not None:
@@ -3367,7 +3367,7 @@ class InvoiceTax(sequence_ordered(), ModelSQL, ModelView):
         '_parent_invoice.accounting_date', '_parent_invoice.invoice_date',
         '_parent_invoice.company')
     def _compute_amount(self):
-        pool = Pool()
+        pool = tx.pool
         Tax = pool.get('account.tax')
         if self.tax and self.manual:
             tax = self.tax
@@ -3419,8 +3419,8 @@ class InvoiceTax(sequence_ordered(), ModelSQL, ModelView):
         '''
         Return a list of move lines instances for invoice tax
         '''
-        Currency = Pool().get('currency.currency')
-        pool = Pool()
+        Currency = tx.pool.get('currency.currency')
+        pool = tx.pool
         Currency = pool.get('currency.currency')
         MoveLine = pool.get('account.move.line')
         TaxLine = pool.get('account.tax.line')
@@ -3429,7 +3429,7 @@ class InvoiceTax(sequence_ordered(), ModelSQL, ModelView):
             return []
         line.description = self.description
         if self.invoice.currency != self.invoice.company.currency:
-            with Transaction().set_context(date=self.invoice.currency_date):
+            with tx.transaction.set_context(date=self.invoice.currency_date):
                 amount = Currency.compute(self.invoice.currency, self.amount,
                     self.invoice.company.currency)
                 base = Currency.compute(self.invoice.currency, self.base,
@@ -3561,7 +3561,7 @@ class PaymentMean(ModelSQL, ModelView):
 
     @classmethod
     def get_instruments(cls):
-        pool = Pool()
+        pool = tx.pool
         Model = pool.get('ir.model')
         Rule = pool.get('account.invoice.payment.mean.rule')
         get_name = Model.get_name
@@ -3616,7 +3616,7 @@ class PaymentMeanRule(sequence_ordered(), MatchMixin, ModelSQL, ModelView):
 
     @classmethod
     def default_company(cls):
-        return Transaction().context.get('company')
+        return tx.transaction.context.get('company')
 
     @fields.depends('company')
     def on_change_with_payee(self, name=None):
@@ -3628,7 +3628,7 @@ class PaymentMeanRule(sequence_ordered(), MatchMixin, ModelSQL, ModelView):
 
     @classmethod
     def get_instruments(cls):
-        pool = Pool()
+        pool = tx.pool
         Model = pool.get('ir.model')
         get_name = Model.get_name
         instruments = []
@@ -3693,7 +3693,7 @@ class PaymentMethod(DeactivableMixin, ModelSQL, ModelView):
 
     @classmethod
     def default_company(cls):
-        return Transaction().context.get('company')
+        return tx.transaction.context.get('company')
 
 
 class InvoiceReportRevision(ModelSQL, ModelView, InvoiceReportMixin):
@@ -3716,7 +3716,7 @@ class InvoiceReportRevision(ModelSQL, ModelView, InvoiceReportMixin):
 
     @classmethod
     def get_filename(cls, revisions, name):
-        pool = Pool()
+        pool = tx.pool
         ActionReport = pool.get('ir.action.report')
 
         action_report, = ActionReport.search([
@@ -3768,7 +3768,7 @@ class InvoiceReport(Report):
 
     @classmethod
     def _execute(cls, records, header, data, action):
-        pool = Pool()
+        pool = tx.pool
         Invoice = pool.get('account.invoice')
         # Re-instantiate because records are TranslateModel
         invoice, = Invoice.browse(records)
@@ -3795,21 +3795,21 @@ class InvoiceReport(Report):
     def render(cls, *args, **kwargs):
         # Reset to default language to always have header and footer rendered
         # in the default language
-        with Transaction().set_context(language=False):
+        with tx.transaction.set_context(language=False):
             return super().render(*args, **kwargs)
 
     @classmethod
     def execute(cls, ids, data):
-        with Transaction().set_context(address_with_party=True):
+        with tx.transaction.set_context(address_with_party=True):
             return super().execute(ids, data)
 
     @classmethod
     def get_context(cls, records, header, data):
-        pool = Pool()
+        pool = tx.pool
         Date = pool.get('ir.date')
         context = super().get_context(records, header, data)
         context['invoice'] = context['record']
-        with Transaction().set_context(company=context['invoice'].company.id):
+        with tx.transaction.set_context(company=context['invoice'].company.id):
             context['today'] = Date.today()
         return context
 
@@ -3831,7 +3831,7 @@ class InvoiceEdocument(Wizard):
             ])
 
     def transition_render(self):
-        pool = Pool()
+        pool = tx.pool
         Start = pool.get('account.invoice.edocument.start')
         if self.start.format not in dict(Start.format.selection):
             raise ValueError("Unsupported format")
@@ -3909,7 +3909,7 @@ class PayInvoiceStart(ModelView):
 
     @staticmethod
     def default_date():
-        Date = Pool().get('ir.date')
+        Date = tx.pool.get('ir.date')
         return Date.today()
 
 
@@ -4086,7 +4086,7 @@ class PayInvoice(Wizard):
         return default
 
     def transition_pay(self):
-        pool = Pool()
+        pool = tx.pool
         MoveLine = pool.get('account.move.line')
         Lang = pool.get('ir.lang')
 

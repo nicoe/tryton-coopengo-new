@@ -1,6 +1,7 @@
 # This file is part of Tryton.  The COPYRIGHT file at the top level of
 # this repository contains the full copyright notices and license terms.
-from trytond.pool import Pool, PoolMeta
+from trytond import tx
+from trytond.pool import PoolMeta
 
 
 class Move(metaclass=PoolMeta):
@@ -13,7 +14,7 @@ class Move(metaclass=PoolMeta):
 
 
 def _payments_to_update(reconciliations):
-    pool = Pool()
+    pool = tx.pool
     Payment = pool.get('account.payment')
     Reconciliation = pool.get('account.move.reconciliation')
 
@@ -38,7 +39,7 @@ class MoveReconciliation(metaclass=PoolMeta):
 
     @classmethod
     def on_modification(cls, mode, reconciliations, field_names=None):
-        pool = Pool()
+        pool = tx.pool
         Payment = pool.get('account.payment')
         super().on_modification(mode, reconciliations, field_names=field_names)
         Payment.__queue__.update_reconciled(

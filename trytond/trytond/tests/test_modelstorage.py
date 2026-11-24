@@ -3,14 +3,14 @@
 
 import warnings
 
+from trytond import tx
 from trytond.model import EvalEnvironment
 from trytond.model.exceptions import (
     AccessError, DomainValidationError, RequiredValidationError)
 from trytond.model.modelstorage import _UnsavedRecordError
-from trytond.pool import Pool
 from trytond.tests.test_tryton import (
     TestCase, activate_module, with_transaction)
-from trytond.transaction import Transaction, check_access
+from trytond.transaction import check_access
 
 
 class ModelStorageTestCase(TestCase):
@@ -24,7 +24,7 @@ class ModelStorageTestCase(TestCase):
     @with_transaction()
     def test_search_read_order(self):
         'Test search_read order'
-        pool = Pool()
+        pool = tx.pool
         ModelStorage = pool.get('test.modelstorage')
 
         ModelStorage.create([{'name': i} for i in ['foo', 'bar', 'test']])
@@ -46,7 +46,7 @@ class ModelStorageTestCase(TestCase):
     @with_transaction()
     def test_copy_order(self):
         "Test copy order"
-        pool = Pool()
+        pool = tx.pool
         ModelStorage = pool.get('test.modelstorage')
 
         # Use both order to avoid false positive by chance
@@ -66,7 +66,7 @@ class ModelStorageTestCase(TestCase):
     @with_transaction()
     def test_search_count(self):
         "Test search_count"
-        pool = Pool()
+        pool = tx.pool
         ModelStorage = pool.get('test.modelstorage')
         ModelStorage.create([{'name': 'Test %s' % i} for i in range(10)])
 
@@ -79,7 +79,7 @@ class ModelStorageTestCase(TestCase):
     @with_transaction()
     def test_browse_deleted(self):
         "Test access record from browse list with deleted record"
-        pool = Pool()
+        pool = tx.pool
         ModelStorage = pool.get('test.modelstorage')
         records = ModelStorage.create(
             [{'name': 'Test %s' % i} for i in range(2)])
@@ -94,7 +94,7 @@ class ModelStorageTestCase(TestCase):
     @with_transaction()
     def test_browse_context(self):
         'Test context when browsing'
-        pool = Pool()
+        pool = tx.pool
         ModelStorageContext = pool.get('test.modelstorage.context')
 
         record, = ModelStorageContext.create([{}])
@@ -105,7 +105,7 @@ class ModelStorageTestCase(TestCase):
         # Clean the instance cache
         record = ModelStorageContext(record.id)
 
-        with Transaction().set_context(foo='bar'):
+        with tx.transaction.set_context(foo='bar'):
             self.assertDictEqual(record.context, record_context)
 
             record = ModelStorageContext(record.id)
@@ -114,11 +114,11 @@ class ModelStorageTestCase(TestCase):
     @with_transaction()
     def test_save_mixed_context(self):
         'Test save with mixed context '
-        pool = Pool()
+        pool = tx.pool
         ModelStorage = pool.get('test.modelstorage.required')
 
         foo = ModelStorage(name='foo')
-        with Transaction().set_context(bar=True):
+        with tx.transaction.set_context(bar=True):
             bar = ModelStorage(name='bar')
         ModelStorage.save([foo, bar])
 
@@ -127,11 +127,11 @@ class ModelStorageTestCase(TestCase):
     @with_transaction()
     def test_fail_saving_mixed_context1(self):
         'Test fail saving with mixed context '
-        pool = Pool()
+        pool = tx.pool
         ModelStorage = pool.get('test.modelstorage.required')
 
         foo = ModelStorage(name='foo')
-        with Transaction().set_context(bar=True):
+        with tx.transaction.set_context(bar=True):
             bar = ModelStorage(name='bar')
         ModelStorage.save([foo, bar])
         foo.name = None
@@ -141,11 +141,11 @@ class ModelStorageTestCase(TestCase):
     @with_transaction()
     def test_fail_saving_mixed_context2(self):
         'Test fail saving with mixed context '
-        pool = Pool()
+        pool = tx.pool
         ModelStorage = pool.get('test.modelstorage.required')
 
         foo = ModelStorage(name='foo')
-        with Transaction().set_context(bar=True):
+        with tx.transaction.set_context(bar=True):
             bar = ModelStorage(name='bar')
         ModelStorage.save([foo, bar])
 
@@ -157,7 +157,7 @@ class ModelStorageTestCase(TestCase):
     @with_transaction()
     def test_many2one_save_raise_exception(self):
         "Test _save_values raises _UnsavedRecordError on unsaved record"
-        pool = Pool()
+        pool = tx.pool
         ModelStorage = pool.get('test.modelstorage.save_m2o')
         Target = pool.get('test.modelstorage.save_m2o.target')
 
@@ -172,7 +172,7 @@ class ModelStorageTestCase(TestCase):
     @with_transaction()
     def test_save_many2one_create(self):
         "Test saving a record while creating a Many2One"
-        pool = Pool()
+        pool = tx.pool
         ModelStorage = pool.get('test.modelstorage.save_m2o')
         Target = pool.get('test.modelstorage.save_m2o.target')
 
@@ -188,7 +188,7 @@ class ModelStorageTestCase(TestCase):
     @with_transaction()
     def test_save_many2one_create_multi(self):
         "Test saving multiple records while creating a M2O"
-        pool = Pool()
+        pool = tx.pool
         ModelStorage = pool.get('test.modelstorage.save_m2o')
         Target = pool.get('test.modelstorage.save_m2o.target')
 
@@ -215,7 +215,7 @@ class ModelStorageTestCase(TestCase):
     @with_transaction()
     def test_save_many2one_in_one2many_create(self):
         "Test saving a record while creating a M2O contained in a O2M"
-        pool = Pool()
+        pool = tx.pool
         ModelStorage = pool.get('test.modelstorage.save_m2o')
         Target = pool.get('test.modelstorage.save_m2o.target')
         M2OTarget = pool.get('test.modelstorage.save_m2o.o2m_target.target')
@@ -239,7 +239,7 @@ class ModelStorageTestCase(TestCase):
     @with_transaction()
     def test_save_one2many_create(self):
         "Test save one2many create"
-        pool = Pool()
+        pool = tx.pool
         ModelStorage = pool.get('test.modelstorage.save2many')
         Target = pool.get('test.modelstorage.save2many.target')
 
@@ -253,7 +253,7 @@ class ModelStorageTestCase(TestCase):
     @with_transaction()
     def test_save_one2many_add(self):
         "Test save one2many add"
-        pool = Pool()
+        pool = tx.pool
         ModelStorage = pool.get('test.modelstorage.save2many')
         Target = pool.get('test.modelstorage.save2many.target')
 
@@ -270,7 +270,7 @@ class ModelStorageTestCase(TestCase):
     @with_transaction()
     def test_save_one2many_delete(self):
         "Test save one2many delete"
-        pool = Pool()
+        pool = tx.pool
         ModelStorage = pool.get('test.modelstorage.save2many')
         Target = pool.get('test.modelstorage.save2many.target')
 
@@ -284,7 +284,7 @@ class ModelStorageTestCase(TestCase):
     @with_transaction()
     def test_save_one2many_remove(self):
         "Test save one2many remove"
-        pool = Pool()
+        pool = tx.pool
         ModelStorage = pool.get('test.modelstorage.save2many')
         Target = pool.get('test.modelstorage.save2many.target')
 
@@ -298,7 +298,7 @@ class ModelStorageTestCase(TestCase):
     @with_transaction()
     def test_save_many2many_add(self):
         "Test save many2many add"
-        pool = Pool()
+        pool = tx.pool
         ModelStorage = pool.get('test.modelstorage.save2many')
         Target = pool.get('test.modelstorage.save2many.target')
 
@@ -315,7 +315,7 @@ class ModelStorageTestCase(TestCase):
     @with_transaction()
     def test_save_many2many_delete(self):
         "Test save many2many delete"
-        pool = Pool()
+        pool = tx.pool
         ModelStorage = pool.get('test.modelstorage.save2many')
         Target = pool.get('test.modelstorage.save2many.target')
 
@@ -329,7 +329,7 @@ class ModelStorageTestCase(TestCase):
     @with_transaction()
     def test_save_many2many_remove(self):
         "Test save one2many remove"
-        pool = Pool()
+        pool = tx.pool
         ModelStorage = pool.get('test.modelstorage.save2many')
         Target = pool.get('test.modelstorage.save2many.target')
 
@@ -346,7 +346,7 @@ class ModelStorageTestCase(TestCase):
     @with_transaction(context={'_check_access': True})
     def test_model_translations(self):
         'Test any user can translate fields and duplicate its records'
-        pool = Pool()
+        pool = tx.pool
         Transalatable = pool.get('test.char_translate')
         Lang = pool.get('ir.lang')
         User = pool.get('res.user')
@@ -359,10 +359,10 @@ class ModelStorageTestCase(TestCase):
 
         user = User(login='test')
         user.save()
-        with Transaction().set_user(user.id):
+        with tx.transaction.set_user(user.id):
             record = Transalatable(char='foo')
             record.save()
-            with Transaction().set_context(lang=lang.code):
+            with tx.transaction.set_context(lang=lang.code):
                 record = Transalatable(record.id)
                 record.char = 'bar'
                 record.save()
@@ -374,7 +374,7 @@ class ModelStorageTestCase(TestCase):
     @with_transaction()
     def test_pyson_domain_same(self):
         "Test same pyson domain validation"
-        pool = Pool()
+        pool = tx.pool
         Model = pool.get('test.modelstorage.pyson_domain')
 
         Model.create([{'constraint': 'foo', 'value': 'foo'}] * 10)
@@ -387,7 +387,7 @@ class ModelStorageTestCase(TestCase):
     @with_transaction()
     def test_pyson_domain_unique(self):
         "Test unique pyson domain validation"
-        pool = Pool()
+        pool = tx.pool
         Model = pool.get('test.modelstorage.pyson_domain')
 
         Model.create(
@@ -403,7 +403,7 @@ class ModelStorageTestCase(TestCase):
     @with_transaction()
     def test_pyson_domain_single(self):
         "Test pyson domain validation for 1 record"
-        pool = Pool()
+        pool = tx.pool
         Model = pool.get('test.modelstorage.pyson_domain')
 
         Model.create([{'constraint': 'foo', 'value': 'foo'}])
@@ -416,7 +416,7 @@ class ModelStorageTestCase(TestCase):
     @with_transaction()
     def test_relation_domain(self):
         "Test valid relation domain"
-        pool = Pool()
+        pool = tx.pool
         Model = pool.get('test.modelstorage.relation_domain')
         Target = pool.get('test.modelstorage.relation_domain.target')
 
@@ -427,7 +427,7 @@ class ModelStorageTestCase(TestCase):
     @with_transaction()
     def test_relation_domain_invalid(self):
         "Test invalid relation domain"
-        pool = Pool()
+        pool = tx.pool
         Model = pool.get('test.modelstorage.relation_domain')
         Target = pool.get('test.modelstorage.relation_domain.target')
 
@@ -441,7 +441,7 @@ class ModelStorageTestCase(TestCase):
     @with_transaction()
     def test_relation_domain_multi(self):
         "Test relation multi domain"
-        pool = Pool()
+        pool = tx.pool
         Model = pool.get('test.modelstorage.relation_multi_domain')
         Target = pool.get('test.modelstorage.relation_multi_domain.target')
 
@@ -452,7 +452,7 @@ class ModelStorageTestCase(TestCase):
     @with_transaction()
     def test_relation_domain_multi_invalid(self):
         "Test invalid relation multi domain"
-        pool = Pool()
+        pool = tx.pool
         Model = pool.get('test.modelstorage.relation_multi_domain')
         Target = pool.get('test.modelstorage.relation_multi_domain.target')
 
@@ -476,7 +476,7 @@ class ModelStorageTestCase(TestCase):
     @with_transaction()
     def test_relation_pyson_domain(self):
         "Test valid relation with PYSON"
-        pool = Pool()
+        pool = tx.pool
         Model = pool.get('test.modelstorage.relation_domain')
         Target = pool.get('test.modelstorage.relation_domain.target')
 
@@ -488,7 +488,7 @@ class ModelStorageTestCase(TestCase):
     @with_transaction()
     def test_relation_pyson_domain_invalid(self):
         "Test valid relation with PYSON"
-        pool = Pool()
+        pool = tx.pool
         Model = pool.get('test.modelstorage.relation_domain')
         Target = pool.get('test.modelstorage.relation_domain.target')
 
@@ -503,7 +503,7 @@ class ModelStorageTestCase(TestCase):
     @with_transaction()
     def test_relation_domain_context(self):
         "Test valid relation with context"
-        pool = Pool()
+        pool = tx.pool
         Model = pool.get('test.modelstorage.relation_domain')
         Target = pool.get('test.modelstorage.relation_domain.target')
 
@@ -515,7 +515,7 @@ class ModelStorageTestCase(TestCase):
     @with_transaction()
     def test_relation_domain_context_invalid(self):
         "Test invalid relation with context"
-        pool = Pool()
+        pool = tx.pool
         Model = pool.get('test.modelstorage.relation_domain')
         Target = pool.get('test.modelstorage.relation_domain.target')
 
@@ -528,7 +528,7 @@ class ModelStorageTestCase(TestCase):
     @with_transaction()
     def test_relation_pyson_domain_context(self):
         "Test valid relation with PYSON and context"
-        pool = Pool()
+        pool = tx.pool
         Model = pool.get('test.modelstorage.relation_domain')
         Target = pool.get('test.modelstorage.relation_domain.target')
 
@@ -540,7 +540,7 @@ class ModelStorageTestCase(TestCase):
     @with_transaction()
     def test_relation_pyson_domain_context_invalid(self):
         "Test invalid relation with PYSON and context"
-        pool = Pool()
+        pool = tx.pool
         Model = pool.get('test.modelstorage.relation_domain')
         Target = pool.get('test.modelstorage.relation_domain.target')
 
@@ -554,7 +554,7 @@ class ModelStorageTestCase(TestCase):
     @with_transaction()
     def test_relation2_domain_invalid(self):
         "Test invalid relation domain with 2 level"
-        pool = Pool()
+        pool = tx.pool
         Model = pool.get('test.modelstorage.relation_domain2')
         Target2 = pool.get('test.modelstorage.relation_domain2.target')
         Target = pool.get('test.modelstorage.relation_domain.target')
@@ -573,14 +573,14 @@ class ModelStorageTestCase(TestCase):
     @with_transaction()
     def test_domain_not_required_validation(self):
         "Test domain validation on not required"
-        pool = Pool()
+        pool = tx.pool
         Model = pool.get('test.modelstorage.domain_not_required')
         Model.create([{'domain_not_required': None}])
 
     @with_transaction()
     def test_domain_not_required_invalid(self):
         "Test invalid domain on not required"
-        pool = Pool()
+        pool = tx.pool
         Model = pool.get('test.modelstorage.domain_not_required')
 
         with self.assertRaises(DomainValidationError):
@@ -589,7 +589,7 @@ class ModelStorageTestCase(TestCase):
     @with_transaction()
     def test_check_xml_record_without_record(self):
         "Test check_xml_record without record"
-        pool = Pool()
+        pool = tx.pool
         Model = pool.get('test.modelstorage')
         record, = Model.create([{}])
 
@@ -598,7 +598,7 @@ class ModelStorageTestCase(TestCase):
     @with_transaction()
     def test_check_xml_record_with_record_no_matching_fields(self):
         "Test check_xml_record with record and no matching fields"
-        pool = Pool()
+        pool = tx.pool
         Model = pool.get('test.modelstorage')
         ModelData = pool.get('ir.model.data')
         record, = Model.create([{}])
@@ -616,7 +616,7 @@ class ModelStorageTestCase(TestCase):
     @with_transaction()
     def test_check_xml_record_with_record_matching_fields(self):
         "Test check_xml_record with record and matching fields"
-        pool = Pool()
+        pool = tx.pool
         Model = pool.get('test.modelstorage')
         ModelData = pool.get('ir.model.data')
         record, = Model.create([{'name': "Foo"}])
@@ -635,7 +635,7 @@ class ModelStorageTestCase(TestCase):
     @with_transaction()
     def test_check_xml_record_with_record_matching_fields_noupdate(self):
         "Test check_xml_record with record and matching fields but no update"
-        pool = Pool()
+        pool = tx.pool
         Model = pool.get('test.modelstorage')
         ModelData = pool.get('ir.model.data')
         record, = Model.create([{'name': "Foo"}])
@@ -653,7 +653,7 @@ class ModelStorageTestCase(TestCase):
     @with_transaction(user=0)
     def test_check_xml_record_with_record_matching_fields_root(self):
         "Test check_xml_record with record with matching values as root"
-        pool = Pool()
+        pool = tx.pool
         Model = pool.get('test.modelstorage')
         ModelData = pool.get('ir.model.data')
         record, = Model.create([{'name': "Foo"}])
@@ -671,7 +671,7 @@ class ModelStorageTestCase(TestCase):
     @with_transaction()
     def test_check_xml_record_with_record_no_fields(self):
         "Test check_xml_record with record and no values"
-        pool = Pool()
+        pool = tx.pool
         Model = pool.get('test.modelstorage')
         ModelData = pool.get('ir.model.data')
         record, = Model.create([{'name': "Foo"}])
@@ -690,7 +690,7 @@ class ModelStorageTestCase(TestCase):
     @with_transaction()
     def test_check_xml_record_with_record_no_fields_noupdate(self):
         "Test check_xml_record with record and no fields but no update"
-        pool = Pool()
+        pool = tx.pool
         Model = pool.get('test.modelstorage')
         ModelData = pool.get('ir.model.data')
         record, = Model.create([{'name': "Foo"}])
@@ -708,7 +708,7 @@ class ModelStorageTestCase(TestCase):
     @with_transaction()
     def test_delete_clear_db_id_model_data_noupdate(self):
         "Test delete record clear DB id from model data"
-        pool = Pool()
+        pool = tx.pool
         Model = pool.get('test.modelstorage')
         ModelData = pool.get('ir.model.data')
         record, = Model.create([{'name': "Foo"}])
@@ -728,7 +728,7 @@ class ModelStorageTestCase(TestCase):
     @with_transaction(user=0)
     def test_delete_model_data_without_noupdate(self):
         "Test delete record from model data without no update"
-        pool = Pool()
+        pool = tx.pool
         Model = pool.get('test.modelstorage')
         ModelData = pool.get('ir.model.data')
         record, = Model.create([{'name': "Foo"}])
@@ -746,10 +746,10 @@ class ModelStorageTestCase(TestCase):
     @with_transaction()
     def test_notify_user(self):
         "Test notify user"
-        pool = Pool()
+        pool = tx.pool
         Model = pool.get('test.modelstorage')
         Notification = pool.get('res.notification')
-        transaction = Transaction()
+        transaction = tx.transaction
 
         record = Model(name="Foo")
         record.save()
@@ -779,7 +779,7 @@ class EvalEnvironmentTestCase(TestCase):
     @with_transaction()
     def test_char_field(self):
         "Test eval simple field"
-        pool = Pool()
+        pool = tx.pool
         Model = pool.get('test.modelstorage.eval_environment')
 
         record = Model(char="Test")
@@ -790,7 +790,7 @@ class EvalEnvironmentTestCase(TestCase):
     @with_transaction()
     def test_reference_field(self):
         "Test eval reference field"
-        pool = Pool()
+        pool = tx.pool
         Model = pool.get('test.modelstorage.eval_environment')
 
         record = Model(reference=Model(id=1))
@@ -802,7 +802,7 @@ class EvalEnvironmentTestCase(TestCase):
     @with_transaction()
     def test_many2one_field(self):
         "Test eval many2one field"
-        pool = Pool()
+        pool = tx.pool
         Model = pool.get('test.modelstorage.eval_environment')
 
         record = Model(many2one=Model(id=1))
@@ -813,7 +813,7 @@ class EvalEnvironmentTestCase(TestCase):
     @with_transaction()
     def test_one2many_field(self):
         "Test eval one2many field"
-        pool = Pool()
+        pool = tx.pool
         Model = pool.get('test.modelstorage.eval_environment')
 
         record = Model(one2many=[Model(id=1), Model(id=2)])
@@ -824,7 +824,7 @@ class EvalEnvironmentTestCase(TestCase):
     @with_transaction()
     def test_multiselection_field(self):
         "Test eval multiselection field"
-        pool = Pool()
+        pool = tx.pool
         Model = pool.get('test.modelstorage.eval_environment')
 
         record = Model(multiselection=['value1', 'value2'])
@@ -835,7 +835,7 @@ class EvalEnvironmentTestCase(TestCase):
     @with_transaction()
     def test_parent_field(self):
         "Test eval parent field"
-        pool = Pool()
+        pool = tx.pool
         Model = pool.get('test.modelstorage.eval_environment')
 
         record = Model(many2one=Model(char="Test"))
@@ -846,7 +846,7 @@ class EvalEnvironmentTestCase(TestCase):
     @with_transaction()
     def test_model_save_skip_check_access(self):
         "Test model save skips check access"
-        pool = Pool()
+        pool = tx.pool
         Model = pool.get('test.modelstorage')
         IrModelAccess = pool.get('ir.model.access')
 
@@ -864,7 +864,7 @@ class EvalEnvironmentTestCase(TestCase):
     @with_transaction()
     def test_model_getattr_skip_check_access(self):
         "Test model getattr skips check access"
-        pool = Pool()
+        pool = tx.pool
         Model = pool.get('test.modelstorage')
         IrModelAccess = pool.get('ir.model.access')
 
@@ -885,7 +885,7 @@ class EvalEnvironmentTestCase(TestCase):
     @with_transaction()
     def test_compute_fields_on_create(self):
         "Test compute fields on create"
-        pool = Pool()
+        pool = tx.pool
         Model = pool.get('test.modelstorage.compute_fields')
 
         record, = Model.create([{'value': 1}])
@@ -895,7 +895,7 @@ class EvalEnvironmentTestCase(TestCase):
     @with_transaction()
     def test_compute_fields_on_write(self):
         "Test compute fields on write"
-        pool = Pool()
+        pool = tx.pool
         Model = pool.get('test.modelstorage.compute_fields')
 
         record, = Model.create([{'value': 1}])
@@ -906,7 +906,7 @@ class EvalEnvironmentTestCase(TestCase):
     @with_transaction()
     def test_compute_fields_in_save_values(self):
         "Test compute fields in save values"
-        pool = Pool()
+        pool = tx.pool
         Model = pool.get('test.modelstorage.compute_fields')
 
         record = Model()
@@ -920,7 +920,7 @@ class EvalEnvironmentTestCase(TestCase):
     @with_transaction()
     def test_compute_fields_in_save_values_without_attribute(self):
         "Test compute fields in save values"
-        pool = Pool()
+        pool = tx.pool
         Model = pool.get('test.modelstorage.compute_fields')
 
         record = Model()

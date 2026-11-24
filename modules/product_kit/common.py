@@ -4,8 +4,8 @@ from collections import defaultdict
 from decimal import Decimal
 from functools import wraps
 
+from trytond import tx
 from trytond.model import ModelStorage, ModelView, Workflow, fields
-from trytond.pool import Pool
 from trytond.pyson import Eval
 
 
@@ -13,7 +13,7 @@ def get_shipments_returns(model_name):
     def _get_shipments_returns(func):
         @wraps(func)
         def wrapper(self, name):
-            pool = Pool()
+            pool = tx.pool
             Model = pool.get(model_name)
             shipments = set(func(self, name))
             for line in self.lines:
@@ -70,7 +70,7 @@ def order_mixin(prefix):
 
         @classmethod
         def copy(cls, records, default=None):
-            pool = Pool()
+            pool = tx.pool
             Line = pool.get(prefix + '.line')
             if default is None:
                 default = {}
@@ -92,7 +92,7 @@ def order_mixin(prefix):
         @ModelView.button
         @Workflow.transition('draft')
         def draft(cls, records):
-            pool = Pool()
+            pool = tx.pool
             Line = pool.get(prefix + '.line')
             to_delete = []
             to_save = []
@@ -111,7 +111,7 @@ def order_mixin(prefix):
         @ModelView.button
         @Workflow.transition('quotation')
         def quote(cls, records):
-            pool = Pool()
+            pool = tx.pool
             Line = pool.get(prefix + '.line')
             removed = []
             for record in records:
@@ -121,7 +121,7 @@ def order_mixin(prefix):
             super().quote(records)
 
         def set_components(self):
-            pool = Pool()
+            pool = tx.pool
             Component = pool.get(prefix + '.line.component')
             removed = []
             lines = []
@@ -197,7 +197,7 @@ def order_line_mixin(prefix):
             return super().copy(lines, default=default)
 
         def get_component(self, component, **kwargs):
-            pool = Pool()
+            pool = tx.pool
             Component = pool.get(prefix + '.line.component')
             line = component.get_line(
                 Component, self.quantity, self.unit, **kwargs)
@@ -289,7 +289,7 @@ def order_line_component_mixin(prefix):
 
         @classmethod
         def get_line_states(cls):
-            pool = Pool()
+            pool = tx.pool
             Line = pool.get(f'{prefix}.line')
             return getattr(Line, f'get_{prefix}_states')()
 
@@ -310,7 +310,7 @@ def order_line_component_mixin(prefix):
         @classmethod
         def set_price_ratio(cls, components, quantity):
             "Set price ratio between components"
-            pool = Pool()
+            pool = tx.pool
             Uom = pool.get('product.uom')
             list_prices = defaultdict(Decimal)
             sum_ = 0
@@ -342,7 +342,7 @@ def order_line_component_mixin(prefix):
 
         def _get_shipped_quantity(self, shipment_type):
             'Return the quantity already shipped'
-            pool = Pool()
+            pool = tx.pool
             Uom = pool.get('product.uom')
 
             quantity = 0
@@ -356,7 +356,7 @@ def order_line_component_mixin(prefix):
         @property
         def _move_remaining_quantity(self):
             "Compute the remaining quantity to ship"
-            pool = Pool()
+            pool = tx.pool
             Uom = pool.get('product.uom')
             ignored = set(self.moves_ignored)
             quantity = abs(self.quantity)
@@ -382,7 +382,7 @@ def order_line_component_mixin(prefix):
             return progress
 
         def get_moved_ratio(self):
-            pool = Pool()
+            pool = tx.pool
             Uom = pool.get('product.uom')
 
             quantity = 0
@@ -428,7 +428,7 @@ def handle_shipment_exception_mixin(prefix):
             return values
 
         def transition_handle(self):
-            pool = Pool()
+            pool = tx.pool
             Component = pool.get(prefix + '.line.component')
 
             result = super().transition_handle()
@@ -464,7 +464,7 @@ class AmendmentLineMixin:
     __slots__ = ()
 
     def _apply_line(self, record, line):
-        pool = Pool()
+        pool = tx.pool
         Uom = pool.get('product.uom')
         super()._apply_line(record, line)
         if line.components:

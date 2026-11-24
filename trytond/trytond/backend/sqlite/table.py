@@ -5,9 +5,9 @@ import logging
 import re
 from weakref import WeakKeyDictionary
 
+from trytond import tx
 from trytond.backend.table import (
     IndexTranslatorInterface, TableHandlerInterface)
-from trytond.transaction import Transaction
 
 from .database import sqlite
 
@@ -30,7 +30,7 @@ class TableHandler(TableHandlerInterface):
         self.__columns = None
         self.__indexes = None
 
-        cursor = Transaction().connection.cursor()
+        cursor = tx.transaction.connection.cursor()
         # Create new table if necessary
         if not self.table_exist(self.table_name):
             if not self.history:
@@ -46,7 +46,7 @@ class TableHandler(TableHandlerInterface):
 
     @classmethod
     def table_exist(cls, table_name):
-        cursor = Transaction().connection.cursor()
+        cursor = tx.transaction.connection.cursor()
         cursor.execute("SELECT sql FROM sqlite_master "
             "WHERE type = 'table' AND name = ?",
             (table_name,))
@@ -61,7 +61,7 @@ class TableHandler(TableHandlerInterface):
 
     @classmethod
     def table_rename(cls, old_name, new_name):
-        cursor = Transaction().connection.cursor()
+        cursor = tx.transaction.connection.cursor()
         if (cls.table_exist(old_name)
                 and not cls.table_exist(new_name)):
             cursor.execute('ALTER TABLE %s RENAME TO %s'
@@ -83,7 +83,7 @@ class TableHandler(TableHandlerInterface):
             update_columns = {}
         if drop_columns is None:
             drop_columns = []
-        transaction = Transaction()
+        transaction = tx.transaction
         database = transaction.database
         cursor = transaction.connection.cursor()
         temp_table = '__temp_%s' % self.table_name
@@ -113,7 +113,7 @@ class TableHandler(TableHandlerInterface):
         self._update_definitions()
 
     def column_rename(self, old_name, new_name):
-        cursor = Transaction().connection.cursor()
+        cursor = tx.transaction.connection.cursor()
         if self.column_exist(old_name):
             if not self.column_exist(new_name):
                 cursor.execute('ALTER TABLE %s RENAME COLUMN %s TO %s' % (
@@ -134,7 +134,7 @@ class TableHandler(TableHandlerInterface):
     @property
     def _columns(self):
         if self.__columns is None:
-            cursor = Transaction().connection.cursor()
+            cursor = tx.transaction.connection.cursor()
             cursor.execute('PRAGMA table_info("' + self.table_name + '")')
             self.__columns = {}
             for _, column, type_, notnull, hasdef, _ in cursor:
@@ -157,7 +157,7 @@ class TableHandler(TableHandlerInterface):
     @property
     def _indexes(self):
         if self.__indexes is None:
-            cursor = Transaction().connection.cursor()
+            cursor = tx.transaction.connection.cursor()
             try:
                 cursor.execute('PRAGMA index_list("' + self.table_name + '")')
             except IndexError:  # There is sometimes IndexError
@@ -178,7 +178,7 @@ class TableHandler(TableHandlerInterface):
     def column_is_type(self, column_name, type_, *, size=-1):
         db_type = self._columns[column_name]['typname'].upper()
 
-        database = Transaction().database
+        database = tx.transaction.database
         base_type = database.sql_type(type_).base.upper()
         if base_type == 'VARCHAR' and (size is None or size >= 0):
             same_size = self._columns[column_name]['size'] == size
@@ -191,7 +191,7 @@ class TableHandler(TableHandlerInterface):
         pass
 
     def add_column(self, column_name, sql_type, default=None):
-        database = Transaction().database
+        database = tx.transaction.database
         column_type = database.sql_type(sql_type)
         match = VARCHAR_SIZE_RE.match(sql_type)
         field_size = int(match.group(1)) if match else None
@@ -239,7 +239,7 @@ class TableHandler(TableHandlerInterface):
                         field_size)
             return
 
-        cursor = Transaction().connection.cursor()
+        cursor = tx.transaction.connection.cursor()
         column_type = column_type[1]
         cursor.execute(('ALTER TABLE %s ADD COLUMN %s %s') % (
                 _escape_identifier(self.table_name),
@@ -271,7 +271,7 @@ class TableHandler(TableHandlerInterface):
             raise Exception('Not null action not supported!')
 
     def add_constraint(self, ident, constraint):
-        transaction = Transaction()
+        transaction = tx.transaction
         database = transaction.database
         cursor = transaction.connection.cursor()
         ident = self.convert_name(self.table_name + "_" + ident)
@@ -287,12 +287,12 @@ class TableHandler(TableHandlerInterface):
                     where))
 
     def drop_constraint(self, ident, table=None):
-        cursor = Transaction().connection.cursor()
+        cursor = tx.transaction.connection.cursor()
         ident = self.convert_name(self.table_name + "_" + ident)
         cursor.execute('DROP INDEX IF EXISTS %s' % _escape_identifier(ident))
 
     def set_indexes(self, indexes, concurrently=False):
-        cursor = Transaction().connection.cursor()
+        cursor = tx.transaction.connection.cursor()
         old = set(self._indexes)
         for index in indexes:
             translator = self.index_translator_for(index)
@@ -333,7 +333,7 @@ class TableHandler(TableHandlerInterface):
     def drop_column(self, column_name):
         if not self.column_exist(column_name):
             return
-        transaction = Transaction()
+        transaction = tx.transaction
         cursor = transaction.connection.cursor()
         if sqlite.sqlite_version_info >= (3, 35, 0):
             cursor.execute('ALTER TABLE %s DROP COLUMN %s' % (
@@ -345,7 +345,7 @@ class TableHandler(TableHandlerInterface):
 
     @classmethod
     def drop_table(cls, model, table, cascade=False):
-        cursor = Transaction().connection.cursor()
+        cursor = tx.transaction.connection.cursor()
         cursor.execute('DELETE from ir_model_data where model = ?',
             (model,))
 

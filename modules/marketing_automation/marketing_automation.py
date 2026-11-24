@@ -18,18 +18,17 @@ from genshi.template import TextTemplate
 from sql.aggregate import Count
 
 import trytond.config as config
+from trytond import tx
 from trytond.i18n import gettext
 from trytond.model import (
     EvalEnvironment, Index, ModelSQL, ModelView, Unique, Workflow, dualmethod,
     fields)
-from trytond.pool import Pool
 from trytond.pyson import Eval, If, PYSONDecoder, TimeDelta
 from trytond.report import Report, html_to_text, mjml_to_html
 from trytond.sendmail import SMTPDataManager, send_message_transactional
 from trytond.tools import pairwise_longest
 from trytond.tools.chart import sparkline
 from trytond.tools.email_ import format_address, has_rcpt, set_from_header
-from trytond.transaction import Transaction
 from trytond.url import http_base
 from trytond.wsgi import Base64Converter
 
@@ -50,7 +49,7 @@ def trend_mixin(model_name, field_name):
 
         @property
         def trends(self):
-            pool = Pool()
+            pool = tx.pool
             Model = pool.get(model_name)
             Date = pool.get('ir.date')
 
@@ -73,7 +72,7 @@ def trend_mixin(model_name, field_name):
 
         @classmethod
         def _trend_period_delta(cls):
-            context = Transaction().context
+            context = tx.transaction.context
             return {
                 'year': relativedelta(years=1),
                 'month': relativedelta(months=1),
@@ -155,7 +154,7 @@ class Scenario(
 
     @classmethod
     def get_models(cls):
-        pool = Pool()
+        pool = tx.pool
         Model = pool.get('ir.model')
         get_name = Model.get_name
         models = (name for name, klass in pool.iterobject()
@@ -164,10 +163,10 @@ class Scenario(
 
     @classmethod
     def get_record_count(cls, scenarios, names):
-        pool = Pool()
+        pool = tx.pool
         Record = pool.get('marketing.automation.record')
         record = Record.__table__()
-        cursor = Transaction().connection.cursor()
+        cursor = tx.transaction.connection.cursor()
 
         drafts = []
         others = []
@@ -216,7 +215,7 @@ class Scenario(
 
     @classmethod
     def check_domain(cls, scenarios, field_names=None):
-        pool = Pool()
+        pool = tx.pool
         if field_names and not (field_names & {'model', 'domain'}):
             return
         for scenario in scenarios:
@@ -251,7 +250,7 @@ class Scenario(
 
     @classmethod
     def trigger(cls, scenarios=None):
-        pool = Pool()
+        pool = tx.pool
         Record = pool.get('marketing.automation.record')
         RecordActivity = pool.get('marketing.automation.record.activity')
 
@@ -263,7 +262,7 @@ class Scenario(
         for scenario in scenarios:
             Model = pool.get(scenario.model)
             record = Record.__table__()
-            cursor = Transaction().connection.cursor()
+            cursor = tx.transaction.connection.cursor()
             domain = PYSONDecoder({}).decode(scenario.domain)
             domain = [
                 domain,
@@ -515,10 +514,10 @@ class Activity(
 
     @classmethod
     def get_record_count(cls, activities, names):
-        pool = Pool()
+        pool = tx.pool
         RecordActivity = pool.get('marketing.automation.record.activity')
         record_activity = RecordActivity.__table__()
-        cursor = Transaction().connection.cursor()
+        cursor = tx.transaction.connection.cursor()
 
         count = {name: defaultdict(int) for name in names}
         cursor.execute(*record_activity.select(
@@ -604,7 +603,7 @@ class Activity(
                     exception=exception)) from exception
 
     def execute(self, record_activity, **kwargs):
-        pool = Pool()
+        pool = tx.pool
         RecordActivity = pool.get('marketing.automation.record.activity')
         record = record_activity.record
 
@@ -631,7 +630,7 @@ class Activity(
 
     def execute_send_email(
             self, record_activity, smtpd_datamanager=None, **kwargs):
-        pool = Pool()
+        pool = tx.pool
         WebShortener = pool.get('web.shortened_url')
         Email = pool.get('ir.email')
         record = record_activity.record
@@ -639,7 +638,7 @@ class Activity(
             'marketing', 'automation_base', default=http_base())
         url_open = urljoin(url_base, '/m/empty.gif')
 
-        with Transaction().set_context(language=record.language):
+        with tx.transaction.set_context(language=record.language):
             record = record.__class__(record.id)
             translated = self.__class__(self.id)
 
@@ -649,7 +648,7 @@ class Activity(
             parts = urlsplit(urljoin(
                     url_base, quote('/m/%(database)s/unsubscribe' % {
                             'database': Base64Converter(None).to_url(
-                                Transaction().database.name),
+                                tx.transaction.database.name),
                             })))
             query = parse_qsl(parts.query)
             query.append(('r', record.uuid))
@@ -796,7 +795,7 @@ class Record(ModelSQL, ModelView):
 
     @fields.depends('scenario')
     def get_models(self):
-        pool = Pool()
+        pool = tx.pool
         Model = pool.get('ir.model')
         Scenario = pool.get('marketing.automation.scenario')
 
@@ -810,7 +809,7 @@ class Record(ModelSQL, ModelView):
         env = {}
         env['current_date'] = datetime.datetime.today()
         env['time'] = time
-        env['context'] = Transaction().context
+        env['context'] = tx.transaction.context
         env['self'] = EvalEnvironment(self.record, self.record.__class__)
         return PYSONDecoder(env).decode(expression)
 
@@ -824,7 +823,7 @@ class Record(ModelSQL, ModelView):
     @dualmethod
     @ModelView.button
     def block(cls, records):
-        pool = Pool()
+        pool = tx.pool
         Party = pool.get('party.party')
 
         cls.write(records, {'blocked': True})
@@ -935,7 +934,7 @@ class RecordActivity(Workflow, ModelSQL, ModelView):
 
     @classmethod
     def get_activity_actions(cls):
-        pool = Pool()
+        pool = tx.pool
         Activity = pool.get('marketing.automation.activity')
         return Activity.fields_get(['action'])['action']['selection']
 
@@ -959,7 +958,7 @@ class RecordActivity(Workflow, ModelSQL, ModelView):
 
     @classmethod
     def process(cls):
-        transaction = Transaction()
+        transaction = tx.transaction
         context = transaction.context
         now = datetime.datetime.now()
         activities = cls.search([
@@ -1022,7 +1021,7 @@ class RecordActivity(Workflow, ModelSQL, ModelView):
         cls._cancel_opposite(record_activities)
 
         now = datetime.datetime.now()
-        smtpd_datamanager = Transaction().join(SMTPDataManager())
+        smtpd_datamanager = tx.transaction.join(SMTPDataManager())
         for record_activity in record_activities:
             record_activity.activity.execute(
                 record_activity, smtpd_datamanager=smtpd_datamanager, **kwargs)

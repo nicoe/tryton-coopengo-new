@@ -3,12 +3,10 @@
 import unittest
 from unittest.mock import Mock
 
-from trytond import backend
-from trytond.pool import Pool
+from trytond import backend, tx
 from trytond.tests.test_tryton import (
     CONTEXT, DB_NAME, USER, TestCase, activate_module, with_transaction)
-from trytond.transaction import (
-    SavepointAwareProperty, SavepointRollback, Transaction)
+from trytond.transaction import SavepointAwareProperty, SavepointRollback
 
 
 def empty_transaction(*args, **kwargs):
@@ -18,7 +16,7 @@ def empty_transaction(*args, **kwargs):
 
     All positional arguments are passed to `start` method of transaction
     '''
-    with Transaction().start(*args, **kwargs):
+    with tx.transaction.start(*args, **kwargs):
         return True
 
 
@@ -41,51 +39,51 @@ class TransactionTestCase(TestCase):
 
     def test_set_user(self):
         'Test set_user'
-        with Transaction().start(DB_NAME, USER, context=CONTEXT) \
+        with tx.transaction.start(DB_NAME, USER, context=CONTEXT) \
                 as transaction:
             self.assertEqual(transaction.user, USER)
             self.assertEqual(transaction.context.get('user'), None)
 
-            with Transaction().set_user(0):
+            with tx.transaction.set_user(0):
                 self.assertEqual(transaction.user, 0)
                 self.assertEqual(transaction.context.get('user'), None)
 
-            with Transaction().set_user(0, set_context=True):
+            with tx.transaction.set_user(0, set_context=True):
                 self.assertEqual(transaction.user, 0)
                 self.assertEqual(transaction.context.get('user'), USER)
 
                 # Nested same set_user should keep original context user
-                with Transaction().set_user(0, set_context=True):
+                with tx.transaction.set_user(0, set_context=True):
                     self.assertEqual(transaction.user, 0)
                     self.assertEqual(transaction.context.get('user'), USER)
 
                 # Unset user context
-                with Transaction().set_user(0, set_context=False):
+                with tx.transaction.set_user(0, set_context=False):
                     self.assertEqual(transaction.user, 0)
                     self.assertEqual(transaction.context.get('user'), None)
 
             # set context for non root
             self.assertRaises(ValueError,
-                Transaction().set_user, 2, set_context=True)
+                tx.transaction.set_user, 2, set_context=True)
 
             # not set context for non root
-            with Transaction().set_user(2):
+            with tx.transaction.set_user(2):
                 self.assertEqual(transaction.user, 2)
 
     def test_stacked_transactions(self):
         'Test that transactions are stacked / unstacked correctly'
-        with Transaction().start(DB_NAME, USER, context=CONTEXT) \
+        with tx.transaction.start(DB_NAME, USER, context=CONTEXT) \
                 as transaction:
             with transaction.new_transaction() as new_transaction:
                 self.assertIsNot(new_transaction, transaction)
-                self.assertIsNot(Transaction(), transaction)
-                self.assertIs(Transaction(), new_transaction)
-            self.assertIs(Transaction(), transaction)
+                self.assertIsNot(tx.transaction, transaction)
+                self.assertIs(tx.transaction, new_transaction)
+            self.assertIs(tx.transaction, transaction)
 
     def test_two_phase_commit(self):
         # A successful transaction
         dm = Mock()
-        with Transaction().start(DB_NAME, USER, context=CONTEXT) \
+        with tx.transaction.start(DB_NAME, USER, context=CONTEXT) \
                 as transaction:
             transaction.join(dm)
 
@@ -99,7 +97,7 @@ class TransactionTestCase(TestCase):
         dm.reset_mock()
         dm.tpc_vote.side_effect = ValueError('Failing the datamanager')
         try:
-            with Transaction().start(DB_NAME, USER, context=CONTEXT) \
+            with tx.transaction.start(DB_NAME, USER, context=CONTEXT) \
                     as transaction:
                 transaction.join(dm)
         except ValueError:
@@ -114,7 +112,7 @@ class TransactionTestCase(TestCase):
         # Failing in tryton
         dm.reset_mock()
         try:
-            with Transaction().start(DB_NAME, USER, context=CONTEXT) \
+            with tx.transaction.start(DB_NAME, USER, context=CONTEXT) \
                     as transaction:
                 transaction.join(dm)
                 raise ValueError('Failing in tryton')
@@ -133,12 +131,12 @@ class TransactionTestCase(TestCase):
             "SELECT setting FROM pg_settings "
             "WHERE name='statement_timeout'")
 
-        with Transaction().start(DB_NAME, USER) as transaction:
+        with tx.transaction.start(DB_NAME, USER) as transaction:
             cursor = transaction.connection.cursor()
             cursor.execute(get_timeout)
             self.assertEqual('0', cursor.fetchone()[0])
 
-        with Transaction().start(DB_NAME, USER, timeout=1) as transaction:
+        with tx.transaction.start(DB_NAME, USER, timeout=1) as transaction:
             cursor = transaction.connection.cursor()
             cursor.execute(get_timeout)
             self.assertEqual('1000', cursor.fetchone()[0])
@@ -146,7 +144,7 @@ class TransactionTestCase(TestCase):
     @unittest.skipUnless(backend.name == 'postgresql', "Use pg_sleep")
     def test_postgresql_statement_timeout_exception(self):
         with self.assertRaises(backend.DatabaseTimeoutError):
-            with Transaction().start(DB_NAME, USER, timeout=1) as transaction:
+            with tx.transaction.start(DB_NAME, USER, timeout=1) as transaction:
                 cursor = transaction.connection.cursor()
                 cursor.execute("SELECT pg_sleep(2)")
 
@@ -157,7 +155,7 @@ class TransactionTestCase(TestCase):
                 ('64:ff9b:1::', ('64:ff9b:1::', '64:ff9b:1::/56')),
                 ]:
             with self.subTest(remote_addr=remote_addr):
-                with Transaction().start(DB_NAME, USER, context={
+                with tx.transaction.start(DB_NAME, USER, context={
                             '_request': {
                                 'remote_addr': remote_addr,
                                 },
@@ -166,7 +164,7 @@ class TransactionTestCase(TestCase):
                         tuple(map(str, transaction.remote_address())),
                         (ip_address, ip_network))
 
-        with Transaction().start(DB_NAME, USER) as transaction:
+        with tx.transaction.start(DB_NAME, USER) as transaction:
             self.assertEqual(transaction.remote_address(), (None, None))
 
 
@@ -188,7 +186,7 @@ class SavepointTestCase(TestCase):
                 self.current_savepoint = 'foo'
                 self.savepoints = []
 
-        transaction = Transaction()
+        transaction = tx.transaction
         self.assertEqual(transaction.p_list, [])
 
         transaction.p_list = [1, 2, 3]
@@ -204,7 +202,7 @@ class SavepointTestCase(TestCase):
                 self.current_savepoint = 'foo'
                 self.savepoints = []
 
-        transaction = Transaction()
+        transaction = tx.transaction
         transaction.p_list = [1, 2, 3]
 
         transaction.current_savepoint = 'bar'
@@ -219,20 +217,20 @@ class SavepointTestCase(TestCase):
     def test_release(self):
         "Test savepoint release"
 
-        with Transaction().start(DB_NAME, USER):
-            pool = Pool()
+        with tx.transaction.start(DB_NAME, USER):
+            pool = tx.pool
             Model = pool.get('test.savepoint')
 
             record = Model(value=1)
             record.save()
             record_id = record.id
-            with Transaction().savepoint():
+            with tx.transaction.savepoint():
                 record = Model(record_id)
                 record.value = 2
                 record.save()
 
-        with Transaction().start(DB_NAME, USER):
-            pool = Pool()
+        with tx.transaction.start(DB_NAME, USER):
+            pool = tx.pool
             Model = pool.get('test.savepoint')
             record = Model(record_id)
             self.assertEqual(record.value, 2)
@@ -240,66 +238,66 @@ class SavepointTestCase(TestCase):
     def test_rollback(self):
         "Test savepoint rollback"
 
-        with Transaction().start(DB_NAME, USER):
-            pool = Pool()
+        with tx.transaction.start(DB_NAME, USER):
+            pool = tx.pool
             Model = pool.get('test.savepoint')
 
             record = Model(value=1)
             record.save()
             record_id = record.id
-            with Transaction().savepoint():
+            with tx.transaction.savepoint():
                 record = Model(record_id)
                 record.value = 2
                 record.save()
-                with Transaction().savepoint():
+                with tx.transaction.savepoint():
                     record = Model(record_id)
                     record.value = 3
                     record.save()
-                    with Transaction().savepoint() as sp:
+                    with tx.transaction.savepoint() as sp:
                         record = Model(record_id)
                         record.value = 4
                         record.save()
                         sp.rollback()
 
-        with Transaction().start(DB_NAME, USER):
-            pool = Pool()
+        with tx.transaction.start(DB_NAME, USER):
+            pool = tx.pool
             Model = pool.get('test.savepoint')
             record = Model(record_id)
             self.assertEqual(record.value, 3)
 
     def test_named_rollback(self):
         "Test rollbacking a named savepoint"
-        with Transaction().start(DB_NAME, USER):
-            pool = Pool()
+        with tx.transaction.start(DB_NAME, USER):
+            pool = tx.pool
             Model = pool.get('test.savepoint')
 
             record = Model(value=1)
             record.save()
             record_id = record.id
-            with Transaction().savepoint():
+            with tx.transaction.savepoint():
                 record = Model(record_id)
                 record.value = 2
                 record.save()
-                with Transaction().savepoint() as sp:
+                with tx.transaction.savepoint() as sp:
                     record = Model(record_id)
                     record.value = 3
                     record.save()
-                    with Transaction().savepoint():
+                    with tx.transaction.savepoint():
                         record = Model(record_id)
                         record.value = 4
                         record.save()
                         raise SavepointRollback(name=sp.name)
 
-        with Transaction().start(DB_NAME, USER):
-            pool = Pool()
+        with tx.transaction.start(DB_NAME, USER):
+            pool = tx.pool
             Model = pool.get('test.savepoint')
             record = Model(record_id)
             self.assertEqual(record.value, 2)
 
     def test_transaction_rollback(self):
         "Test rollbacking the whole transaction while using a savepoint"
-        with Transaction().start(DB_NAME, USER) as transaction:
-            pool = Pool()
+        with tx.transaction.start(DB_NAME, USER) as transaction:
+            pool = tx.pool
             Model = pool.get('test.savepoint')
 
             record = Model(value=1)
@@ -308,30 +306,30 @@ class SavepointTestCase(TestCase):
             with transaction.savepoint():
                 transaction.rollback()
 
-        with Transaction().start(DB_NAME, USER) as transaction:
-            pool = Pool()
+        with tx.transaction.start(DB_NAME, USER) as transaction:
+            pool = tx.pool
             Model = pool.get('test.savepoint')
 
             self.assertEqual(Model.search([('id', '=', record_id)]), [])
 
     def test_context_manager_with_exception(self):
         "Test using a context manager rollbacking on some exceptions"
-        with Transaction().start(DB_NAME, USER):
-            pool = Pool()
+        with tx.transaction.start(DB_NAME, USER):
+            pool = tx.pool
             Model = pool.get('test.savepoint')
 
             record = Model(value=1)
             record.save()
             record_id = record.id
 
-            with Transaction().savepoint(rollback_on=KeyError):
+            with tx.transaction.savepoint(rollback_on=KeyError):
                 record = Model(record_id)
                 record.value = 2
                 record.save()
                 raise KeyError
 
-        with Transaction().start(DB_NAME, USER):
-            pool = Pool()
+        with tx.transaction.start(DB_NAME, USER):
+            pool = tx.pool
             Model = pool.get('test.savepoint')
             record = Model(record_id)
             self.assertEqual(record.value, 1)
@@ -339,21 +337,21 @@ class SavepointTestCase(TestCase):
     def test_rollback_ir_log(self):
         "Test rollbacking a named savepoint when ir.log are involved"
 
-        with Transaction().start(DB_NAME, USER):
-            pool = Pool()
+        with tx.transaction.start(DB_NAME, USER):
+            pool = tx.pool
             Model = pool.get('test.savepoint.logging')
 
             Model.new(1)
-            with Transaction().savepoint():
+            with tx.transaction.savepoint():
                 Model.new(2)
-                with Transaction().savepoint() as sp:
+                with tx.transaction.savepoint() as sp:
                     Model.new(3)
-                    with Transaction().savepoint():
+                    with tx.transaction.savepoint():
                         Model.new(4)
                         sp.rollback()
 
-        with Transaction().start(DB_NAME, USER):
-            pool = Pool()
+        with tx.transaction.start(DB_NAME, USER):
+            pool = tx.pool
             Log = pool.get('ir.model.log')
 
             logs = Log.search([
@@ -364,22 +362,22 @@ class SavepointTestCase(TestCase):
     @with_transaction()
     def test_record_set_property(self):
         "Test setting a property on a record with a different savepoint"
-        pool = Pool()
+        pool = tx.pool
         Model = pool.get('test.savepoint')
 
         record = Model(value=1)
         record.save()
         with self.assertRaises(AssertionError):
-            with Transaction().savepoint():
+            with tx.transaction.savepoint():
                 record.value = 2
 
     @with_transaction()
     def test_rollback_cache_invalidation(self):
         "Test rollbacking a savepoint does not pollute the cache"
-        pool = Pool()
+        pool = tx.pool
         Model = pool.get('test.savepoint.cache_read')
 
-        with Transaction().savepoint() as sp:
+        with tx.transaction.savepoint() as sp:
             record, = Model.create([{
                         'value': 1,
                         }])
@@ -388,13 +386,13 @@ class SavepointTestCase(TestCase):
             Model.search([('value', '=', 1)])
             sp.rollback()
 
-        cache = Transaction().get_cache()
+        cache = tx.transaction.get_cache()
         self.assertNotIn(record_id, cache[Model.__name__])
 
     @with_transaction()
     def test_cache_copy_on_savepoint(self):
         "Test the copy of the cache when using a savepoint"
-        pool = Pool()
+        pool = tx.pool
         Model = pool.get('test.savepoint')
 
         record = Model(value=1)
@@ -402,7 +400,7 @@ class SavepointTestCase(TestCase):
         record_id = record.id
         Model.search([('value', '=', 1)])
 
-        transaction = Transaction()
+        transaction = tx.transaction
 
         with transaction.savepoint():
             cache = transaction.get_cache()
@@ -421,7 +419,7 @@ class SavepointTestCase(TestCase):
     @with_transaction()
     def test_decorator(self):
         "Test with_savepoint decorator"
-        pool = Pool()
+        pool = tx.pool
         Model = pool.get('test.savepoint.decorator')
 
         Model.method(1)
@@ -432,7 +430,7 @@ class SavepointTestCase(TestCase):
     @with_transaction()
     def test_decorator_rollback(self):
         "Test with_savepoint decorator doing a rollback"
-        pool = Pool()
+        pool = tx.pool
         Model = pool.get('test.savepoint.decorator')
 
         Model.method(2, AttributeError)
@@ -443,7 +441,7 @@ class SavepointTestCase(TestCase):
     @with_transaction()
     def test_decorator_exception(self):
         "Test with_savepoint decorator accepting exceptions"
-        pool = Pool()
+        pool = tx.pool
         Model = pool.get('test.savepoint.decorator')
 
         Model.method_w_exception(3, ZeroDivisionError)
@@ -454,7 +452,7 @@ class SavepointTestCase(TestCase):
     @with_transaction()
     def test_decorator_exception_rollback(self):
         "Test with_savepoint decorator raising an exception"
-        pool = Pool()
+        pool = tx.pool
         Model = pool.get('test.savepoint.decorator')
 
         with self.assertRaises(AttributeError):

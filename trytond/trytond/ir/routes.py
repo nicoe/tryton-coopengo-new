@@ -7,12 +7,12 @@ import json
 from numbers import Number
 
 import trytond.config as config
+from trytond import tx
 from trytond.i18n import gettext
 from trytond.protocols.jsonrpc import JSONDecoder
 from trytond.protocols.wrappers import (
     HTTPStatus, Response, abort, redirect, with_pool, with_transaction)
 from trytond.tools import slugify
-from trytond.transaction import Transaction
 from trytond.wsgi import app
 
 
@@ -43,7 +43,7 @@ def html_editor(request, pool, model, record, field):
             ('model.name', '=', model),
             ])
 
-    transaction = Transaction()
+    transaction = tx.transaction
     language = request.args.get('language', transaction.language)
     with transaction.set_context(language=language):
         Model = pool.get(model)
@@ -196,7 +196,7 @@ def data(request, pool, model):
         Model = pool.get(model)
     except KeyError:
         abort(HTTPStatus.NOT_FOUND)
-    transaction = Transaction()
+    transaction = tx.transaction
     context = User(transaction.user).get_preferences(context_only=True)
     language = request.args.get('l')
     if language:

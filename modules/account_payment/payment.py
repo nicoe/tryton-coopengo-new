@@ -10,7 +10,7 @@ from sql.functions import CharLength
 from sql.operators import Abs
 from stdnum import iso11649
 
-from trytond import backend
+from trytond import backend, tx
 from trytond.i18n import gettext
 from trytond.model import (
     ChatMixin, DeactivableMixin, Index, ModelSQL, ModelView, Workflow, fields)
@@ -18,11 +18,10 @@ from trytond.model.exceptions import AccessError
 from trytond.modules.company.model import (
     employee_field, reset_employee, set_employee)
 from trytond.modules.currency.fields import Monetary
-from trytond.pool import Pool, PoolMeta
+from trytond.pool import PoolMeta
 from trytond.pyson import Eval, If
 from trytond.rpc import RPC
 from trytond.tools import cursor_dict, sortable_values, sqlite_apply_types
-from trytond.transaction import Transaction
 from trytond.wizard import StateAction, Wizard
 
 from .exceptions import (
@@ -51,14 +50,14 @@ class Journal(DeactivableMixin, ModelSQL, ModelView):
 
     @staticmethod
     def default_currency():
-        if Transaction().context.get('company'):
-            Company = Pool().get('company.company')
-            company = Company(Transaction().context['company'])
+        if tx.transaction.context.get('company'):
+            Company = tx.pool.get('company.company')
+            company = Company(tx.transaction.context['company'])
             return company.currency.id
 
     @staticmethod
     def default_company():
-        return Transaction().context.get('company')
+        return tx.transaction.context.get('company')
 
 
 class Group(ModelSQL, ModelView, ChatMixin):
@@ -121,11 +120,11 @@ class Group(ModelSQL, ModelView, ChatMixin):
 
     @staticmethod
     def default_company():
-        return Transaction().context.get('company')
+        return tx.transaction.context.get('company')
 
     @classmethod
     def get_process_methods(cls):
-        pool = Pool()
+        pool = tx.pool
         Journal = pool.get('account.payment.journal')
         field_name = 'process_method'
         return Journal.fields_get([field_name])[field_name]['selection']
@@ -144,7 +143,7 @@ class Group(ModelSQL, ModelView, ChatMixin):
 
     @classmethod
     def preprocess_values(cls, mode, values):
-        pool = Pool()
+        pool = tx.pool
         Configuration = pool.get('account.configuration')
         values = super().preprocess_values(mode, values)
         if mode == 'create' and not values.get('number'):
@@ -169,7 +168,7 @@ class Group(ModelSQL, ModelView, ChatMixin):
     @classmethod
     @ModelView.button
     def succeed(cls, groups):
-        pool = Pool()
+        pool = tx.pool
         Payment = pool.get('account.payment')
         payments = sum((g.payments for g in groups), ())
         Payment.succeed(payments)
@@ -180,9 +179,9 @@ class Group(ModelSQL, ModelView, ChatMixin):
 
     @classmethod
     def get_payment_aggregated(cls, groups, names):
-        pool = Pool()
+        pool = tx.pool
         Payment = pool.get('account.payment')
-        cursor = Transaction().connection.cursor()
+        cursor = tx.transaction.connection.cursor()
 
         payment = Payment.__table__()
 
@@ -234,7 +233,7 @@ class Group(ModelSQL, ModelView, ChatMixin):
 
     @classmethod
     def search_complete(cls, name, clause):
-        pool = Pool()
+        pool = tx.pool
         Payment = pool.get('account.payment')
         payment = Payment.__table__()
 
@@ -484,7 +483,7 @@ class Payment(Workflow, ModelSQL, ModelView, ChatMixin):
 
     @classmethod
     def __register__(cls, module):
-        cursor = Transaction().connection.cursor()
+        cursor = tx.transaction.connection.cursor()
         table = cls.__table__()
         table_h = cls.__table_handler__(module)
         number_exist = table_h.column_exist('number')
@@ -522,7 +521,7 @@ class Payment(Workflow, ModelSQL, ModelView, ChatMixin):
 
     @staticmethod
     def default_company():
-        return Transaction().context.get('company')
+        return tx.transaction.context.get('company')
 
     @staticmethod
     def default_kind():
@@ -530,7 +529,7 @@ class Payment(Workflow, ModelSQL, ModelView, ChatMixin):
 
     @staticmethod
     def default_date():
-        pool = Pool()
+        pool = tx.pool
         Date = pool.get('ir.date')
         return Date.today()
 
@@ -549,7 +548,7 @@ class Payment(Workflow, ModelSQL, ModelView, ChatMixin):
     @classmethod
     def order_amount(cls, tables):
         table, _ = tables[None]
-        context = Transaction().context
+        context = tx.transaction.context
         column = cls.amount.sql_column(tables, cls)
         if isinstance(context.get('amount_order'), Decimal):
             return [Abs(column - abs(context['amount_order']))]
@@ -578,7 +577,7 @@ class Payment(Workflow, ModelSQL, ModelView, ChatMixin):
 
     @classmethod
     def get_origin(cls):
-        Model = Pool().get('ir.model')
+        Model = tx.pool.get('ir.model')
         get_name = Model.get_name
         models = cls._get_origin()
         return [(None, '')] + [(m, get_name(m)) for m in models]
@@ -594,7 +593,7 @@ class Payment(Workflow, ModelSQL, ModelView, ChatMixin):
 
     @classmethod
     def get_process_methods(cls):
-        pool = Pool()
+        pool = tx.pool
         Journal = pool.get('account.payment.journal')
         field_name = 'process_method'
         return Journal.fields_get([field_name])[field_name]['selection']
@@ -625,7 +624,7 @@ class Payment(Workflow, ModelSQL, ModelView, ChatMixin):
 
     @classmethod
     def view_attributes(cls):
-        context = Transaction().context
+        context = tx.transaction.context
         attributes = super().view_attributes()
         if context.get('kind') == 'receivable':
             attributes.append(
@@ -649,7 +648,7 @@ class Payment(Workflow, ModelSQL, ModelView, ChatMixin):
 
     @classmethod
     def preprocess_values(cls, mode, values):
-        pool = Pool()
+        pool = tx.pool
         Configuration = pool.get('account.configuration')
         values = super().preprocess_values(mode, values)
         if mode == 'create' and not values.get('number'):
@@ -674,7 +673,7 @@ class Payment(Workflow, ModelSQL, ModelView, ChatMixin):
 
     @classmethod
     def on_modification(cls, mode, payments, field_names=None):
-        pool = Pool()
+        pool = tx.pool
         Line = pool.get('account.move.line')
         super().on_modification(mode, payments, field_names=field_names)
         if mode in {'create', 'write'}:
@@ -684,7 +683,7 @@ class Payment(Workflow, ModelSQL, ModelView, ChatMixin):
 
     @classmethod
     def on_write(cls, payments, values):
-        pool = Pool()
+        pool = tx.pool
         Line = pool.get('account.move.line')
         callback = super().on_write(payments, values)
         if values.keys() & {'line', 'amount', 'state'}:
@@ -694,7 +693,7 @@ class Payment(Workflow, ModelSQL, ModelView, ChatMixin):
 
     @classmethod
     def on_delete(cls, payments):
-        pool = Pool()
+        pool = tx.pool
         Line = pool.get('account.move.line')
         callback = super().on_delete(payments)
         if lines := Line.browse({p.line for p in payments if p.line}):
@@ -798,7 +797,7 @@ class Payment(Workflow, ModelSQL, ModelView, ChatMixin):
 
     @classmethod
     def _check_reconciled(cls, payments):
-        pool = Pool()
+        pool = tx.pool
         Warning = pool.get('res.user.warning')
         for payment in payments:
             if payment.line and payment.line.reconciliation:
@@ -816,7 +815,7 @@ class Payment_Invoice(metaclass=PoolMeta):
 
     @property
     def reference_used(self):
-        pool = Pool()
+        pool = tx.pool
         Invoice = pool.get('account.invoice')
         reference = super().reference_used
         if (not self.reference
@@ -838,7 +837,7 @@ class Payment_Invoice(metaclass=PoolMeta):
 
     @classmethod
     def _check_payment_means(cls, payments):
-        pool = Pool()
+        pool = tx.pool
         Warning = pool.get('res.user.warning')
         Invoice = pool.get('account.invoice')
         for payment in payments:
@@ -872,12 +871,12 @@ class ProcessPayment(Wizard):
             )
 
     def _new_group(self, values):
-        pool = Pool()
+        pool = tx.pool
         Group = pool.get('account.payment.group')
         return Group(**values)
 
     def do_process(self, action):
-        pool = Pool()
+        pool = tx.pool
         Payment = pool.get('account.payment')
         Warning = pool.get('res.user.warning')
         payments = self.records

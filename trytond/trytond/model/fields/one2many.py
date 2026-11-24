@@ -8,10 +8,9 @@ from sql.conditionals import Coalesce
 from sql.operators import Exists
 
 import trytond.config as config
-from trytond.pool import Pool
+from trytond import tx
 from trytond.pyson import PYSONEncoder
 from trytond.tools import cached_property
-from trytond.transaction import Transaction
 
 from .field import (
     Field, context_validate, domain_method, domain_validate, get_eval_fields,
@@ -293,7 +292,7 @@ class One2Many(Field):
 
     def get_target(self):
         'Return the target Model'
-        return Pool().get(self.model_name)
+        return tx.pool.get(self.model_name)
 
     def __set__(self, inst, value):
         Target = self.get_target()
@@ -301,7 +300,7 @@ class One2Many(Field):
         extra = {}
         if self.field:
             extra[self.field] = inst
-        with Transaction().set_context(ctx):
+        with tx.transaction.set_context(ctx):
             records = instanciate_values(Target, value, **extra)
         super().__set__(inst, records)
 
@@ -316,10 +315,10 @@ class One2Many(Field):
 
     def _convert_domain(self, domain, tables, Model):
         from ..modelsql import convert_from
-        pool = Pool()
+        pool = tx.pool
         Rule = pool.get('ir.rule')
         Target = self.get_target()
-        transaction = Transaction()
+        transaction = tx.transaction
         table, _ = tables[None]
         name, operator, value = domain[:3]
         assert operator not in {'where', 'not where'} or '.' not in name

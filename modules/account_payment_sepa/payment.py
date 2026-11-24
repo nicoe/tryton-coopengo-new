@@ -17,18 +17,18 @@ from lxml import etree
 from sql import Literal, Null
 
 import trytond.config as config
+from trytond import tx
 from trytond.i18n import gettext
 from trytond.model import (
     Index, ModelSQL, ModelView, Unique, Workflow, dualmethod, fields)
 from trytond.model.exceptions import AccessError
 from trytond.modules.account_payment.exceptions import ProcessError
 from trytond.modules.company import CompanyReport
-from trytond.pool import Pool, PoolMeta
+from trytond.pool import PoolMeta
 from trytond.pyson import Eval, If
 from trytond.report import Report
 from trytond.tools import (
     cached_property, is_full_text, lstrip_wildcard, sortable_values)
-from trytond.transaction import Transaction
 
 from .sepa_handler import CAMT054
 
@@ -137,7 +137,7 @@ class Journal(metaclass=PoolMeta):
 
     @classmethod
     def __register__(cls, module_name):
-        cursor = Transaction().connection.cursor()
+        cursor = tx.transaction.connection.cursor()
         sql_table = cls.__table__()
         super().__register__(module_name)
 
@@ -153,7 +153,7 @@ class Journal(metaclass=PoolMeta):
 
     @classmethod
     def default_company_party(cls):
-        pool = Pool()
+        pool = tx.pool
         Company = pool.get('company.company')
         company_id = cls.default_company()
         if company_id is not None and company_id >= 0:
@@ -210,7 +210,7 @@ class Group(metaclass=PoolMeta):
             return loader.load('%s.xml' % self.journal.sepa_receivable_flavor)
 
     def process_sepa(self):
-        pool = Pool()
+        pool = tx.pool
         Payment = pool.get('account.payment')
         Mandate = pool.get('account.payment.sepa.mandate')
         assert self.process_method == 'sepa'
@@ -275,7 +275,7 @@ class Group(metaclass=PoolMeta):
     @dualmethod
     @ModelView.button
     def sepa_generate_message(cls, groups):
-        pool = Pool()
+        pool = tx.pool
         Message = pool.get('account.payment.sepa.message')
         for group in groups:
             if group.journal.process_method not in cls.sepa_like_methods():
@@ -312,7 +312,7 @@ class Group(metaclass=PoolMeta):
 
     @property
     def sepa_payments(self):
-        pool = Pool()
+        pool = tx.pool
         Payment = pool.get('account.payment')
         keyfunc = self.sepa_group_payment_key
         # re-browse to align cache
@@ -467,7 +467,7 @@ class Payment(metaclass=PoolMeta):
 
     def _get_clearing_move(self, date=None):
         if not date:
-            date = Transaction().context.get('date_value')
+            date = tx.transaction.context.get('date_value')
         return super()._get_clearing_move(date=date)
 
     @classmethod
@@ -516,7 +516,7 @@ class Payment_Invoice(metaclass=PoolMeta):
 
     @property
     def sepa_bank_account_number(self):
-        pool = Pool()
+        pool = tx.pool
         Invoice = pool.get('account.invoice')
         BankAccount = pool.get('bank.account')
         sepa_number = super().sepa_bank_account_number
@@ -536,7 +536,7 @@ class Payment_Invoice(metaclass=PoolMeta):
 
     @classmethod
     def get_sepa_mandates(cls, payments):
-        pool = Pool()
+        pool = tx.pool
         Invoice = pool.get('account.invoice')
         ReceptionDirectDebit = pool.get('party.party.reception_direct_debit')
         mandates = []
@@ -688,7 +688,7 @@ class Mandate(Workflow, ModelSQL, ModelView):
 
     @staticmethod
     def default_company():
-        return Transaction().context.get('company')
+        return tx.transaction.context.get('company')
 
     @fields.depends('company')
     def on_change_company(self):
@@ -717,7 +717,7 @@ class Mandate(Workflow, ModelSQL, ModelView):
 
     @classmethod
     def default_identification_readonly(cls, **pattern):
-        pool = Pool()
+        pool = tx.pool
         Configuration = pool.get('account.configuration')
         config = Configuration(1)
         return bool(config.get_multivalue('sepa_mandate_sequence', **pattern))
@@ -746,7 +746,7 @@ class Mandate(Workflow, ModelSQL, ModelView):
 
     @classmethod
     def preprocess_values(cls, mode, values):
-        pool = Pool()
+        pool = tx.pool
         Configuration = pool.get('account.configuration')
         values = super().preprocess_values(mode, values)
         if mode == 'create' and not values.get('identification'):
@@ -805,10 +805,10 @@ class Mandate(Workflow, ModelSQL, ModelView):
 
     @classmethod
     def get_has_payments(cls, mandates, name):
-        pool = Pool()
+        pool = tx.pool
         Payment = pool.get('account.payment')
         payment = Payment.__table__()
-        cursor = Transaction().connection.cursor()
+        cursor = tx.transaction.connection.cursor()
 
         has_payments = defaultdict(lambda: False)
         cursor.execute(*payment.select(payment.sepa_mandate, Literal(True),
@@ -821,10 +821,10 @@ class Mandate(Workflow, ModelSQL, ModelView):
 
     @classmethod
     def get_is_first_payment(cls, mandates, name):
-        pool = Pool()
+        pool = tx.pool
         Payment = pool.get('account.payment')
         payment = Payment.__table__()
-        cursor = Transaction().connection.cursor()
+        cursor = tx.transaction.connection.cursor()
 
         is_first = defaultdict(lambda: True)
         cursor.execute(*payment.select(
@@ -944,14 +944,14 @@ class Message(Workflow, ModelSQL, ModelView):
 
     @staticmethod
     def default_company():
-        return Transaction().context.get('company')
+        return tx.transaction.context.get('company')
 
     @staticmethod
     def default_state():
         return 'draft'
 
     def get_filename(self, name):
-        pool = Pool()
+        pool = tx.pool
         Group = pool.get('account.payment.group')
         if isinstance(self.origin, Group):
             return self.origin.rec_name + '.xml'
@@ -963,7 +963,7 @@ class Message(Workflow, ModelSQL, ModelView):
 
     @classmethod
     def get_origin(cls):
-        IrModel = Pool().get('ir.model')
+        IrModel = tx.pool.get('ir.model')
         get_name = IrModel.get_name
         models = cls._get_origin()
         return [(None, '')] + [(m, get_name(m)) for m in models]
@@ -1004,7 +1004,7 @@ class Message(Workflow, ModelSQL, ModelView):
 
     @staticmethod
     def _get_handlers():
-        pool = Pool()
+        pool = tx.pool
         Payment = pool.get('account.payment')
         return {
             'urn:iso:std:iso:20022:tech:xsd:camt.054.001.01':

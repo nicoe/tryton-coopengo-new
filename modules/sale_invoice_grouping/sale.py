@@ -3,8 +3,8 @@
 
 from itertools import groupby
 
+from trytond import tx
 from trytond.pool import PoolMeta
-from trytond.transaction import Transaction
 
 
 class InvoiceGroupingMixin:
@@ -44,7 +44,7 @@ class InvoiceGroupingMixin:
         return invoice_domain
 
     def _get_invoice(self):
-        transaction = Transaction()
+        transaction = tx.transaction
         context = transaction.context
         invoice = super()._get_invoice()
         if (not context.get('skip_grouping', False)

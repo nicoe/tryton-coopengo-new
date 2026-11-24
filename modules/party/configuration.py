@@ -1,12 +1,11 @@
 # This file is part of Tryton.  The COPYRIGHT file at the top level of
 # this repository contains the full copyright notices and license terms.
+from trytond import tx
 from trytond.i18n import gettext
 from trytond.model import (
     ModelSingleton, ModelSQL, ModelView, MultiValueMixin, ValueMixin, fields)
 from trytond.model.exceptions import AccessError
-from trytond.pool import Pool
 from trytond.pyson import Id
-from trytond.transaction import Transaction
 
 from .party import IDENTIFIER_TYPES, replace_vat
 
@@ -31,7 +30,7 @@ class Configuration(ModelSingleton, ModelSQL, ModelView, MultiValueMixin):
 
     @classmethod
     def __register__(cls, module):
-        cursor = Transaction().connection.cursor()
+        cursor = tx.transaction.connection.cursor()
         super().__register__(module)
 
         # Migration from 6.8: Use vat alias
@@ -48,7 +47,7 @@ class Configuration(ModelSingleton, ModelSQL, ModelView, MultiValueMixin):
 
     @classmethod
     def default_party_sequence(cls, **pattern):
-        pool = Pool()
+        pool = tx.pool
         ModelData = pool.get('ir.model.data')
         try:
             return ModelData.get_id('party', 'sequence_party')
@@ -74,7 +73,7 @@ class Configuration(ModelSingleton, ModelSQL, ModelView, MultiValueMixin):
         cls(1).check_identifier_types(field_names)
 
     def check_identifier_types(self, field_names=None):
-        pool = Pool()
+        pool = tx.pool
         Identifier = pool.get('party.identifier')
         if field_names and 'identifier_types' not in field_names:
             return

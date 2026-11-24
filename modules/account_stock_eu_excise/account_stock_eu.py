@@ -12,14 +12,14 @@ from sql.aggregate import Sum
 from sql.conditionals import Case
 from sql.operators import Exists
 
+from trytond import tx
 from trytond.i18n import gettext
 from trytond.model import (
     DeactivableMixin, MatchMixin, ModelSQL, ModelView, fields)
-from trytond.pool import Pool, PoolMeta
+from trytond.pool import PoolMeta
 from trytond.pyson import Bool, Eval, Id, If
 from trytond.tools import cursor_dict, decistmt
 from trytond.tools.decimal_ import DecimalNull
-from trytond.transaction import Transaction
 
 from .exceptions import FormulaError
 
@@ -60,7 +60,7 @@ class ExciseTax(DeactivableMixin, ModelSQL, ModelView):
 
     @fields.depends('quantity', 'uom')
     def on_change_quantity(self):
-        pool = Pool()
+        pool = tx.pool
         ModelData = pool.get('ir.model.data')
         if self.uom:
             if self.quantity == 'measurement_volume':
@@ -73,7 +73,7 @@ class ExciseTax(DeactivableMixin, ModelSQL, ModelView):
                     self.uom = None
 
     def convert_quantity(self, product, quantity):
-        pool = Pool()
+        pool = tx.pool
         UoM = pool.get('product.uom')
 
         if self.quantity == 'measurement_volume':
@@ -172,7 +172,7 @@ class ExciseTaxRate(MatchMixin, ModelSQL, ModelView):
             }
 
     def compute(self, product, quantity, unit=None):
-        pool = Pool()
+        pool = tx.pool
         UoM = pool.get('product.uom')
         if unit:
             quantity = UoM.compute_qty(
@@ -221,13 +221,13 @@ class ExciseDeclarationContext(ModelView):
 
     @classmethod
     def default_company(cls):
-        return Transaction().context.get('company')
+        return tx.transaction.context.get('company')
 
     @classmethod
     def default_warehouse(cls):
-        pool = Pool()
+        pool = tx.pool
         Location = pool.get('stock.location')
-        context = Transaction().context
+        context = tx.transaction.context
         if 'warehouse' in context:
             return context.get('warehouse')
         company_id = context.get('company')
@@ -243,18 +243,18 @@ class ExciseDeclarationContext(ModelView):
 
     @classmethod
     def default_from_date(cls):
-        pool = Pool()
+        pool = tx.pool
         Date = pool.get('ir.date')
-        context = Transaction().context
+        context = tx.transaction.context
         today = Date.today()
         return context.get(
             'from_date', today + relativedelta(months=-1, day=1))
 
     @classmethod
     def default_to_date(cls):
-        pool = Pool()
+        pool = tx.pool
         Date = pool.get('ir.date')
-        context = Transaction().context
+        context = tx.transaction.context
         today = Date.today()
         return context.get(
             'to_date', today + relativedelta(months=-1, day=31))
@@ -321,7 +321,7 @@ class ExciseDeclaration(ModelSQL, ModelView):
 
     @classmethod
     def table_query(cls):
-        pool = Pool()
+        pool = tx.pool
         ExciseTax = pool.get('account.stock.eu.excise.tax')
         Product_ExciseTax = pool.get('product-account.stock.eu.excise.tax')
         Location = pool.get('stock.location')
@@ -329,7 +329,7 @@ class ExciseDeclaration(ModelSQL, ModelView):
         excise_tax = ExciseTax.__table__()
         product_excise_tax = Product_ExciseTax.__table__()
 
-        context = Transaction().context
+        context = tx.transaction.context
         country = None
         if warehouse := context.get('warehouse'):
             warehouse = Location(warehouse)
@@ -346,7 +346,7 @@ class ExciseDeclaration(ModelSQL, ModelView):
 
     @classmethod
     def _columns(cls, excise_tax):
-        context = Transaction().context
+        context = tx.transaction.context
         return [
             Literal(context.get('company')).as_('company'),
             excise_tax.id.as_('eu_excise_tax'),
@@ -433,14 +433,14 @@ class ExciseDeclarationProduct(ModelSQL, ModelView):
 
     @classmethod
     def _joins(cls):
-        pool = Pool()
+        pool = tx.pool
         Product = pool.get('product.product')
         ProductTemplate = pool.get('product.template')
         Location = pool.get('stock.location')
         Product_ExciseTax = pool.get('product-account.stock.eu.excise.tax')
         ExciseTax = pool.get('account.stock.eu.excise.tax')
 
-        context = Transaction().context
+        context = tx.transaction.context
         country = None
         if warehouse := context.get('warehouse'):
             warehouse = Location(warehouse)
@@ -466,7 +466,7 @@ class ExciseDeclarationProduct(ModelSQL, ModelView):
 
     @classmethod
     def _columns(cls, tables):
-        context = Transaction().context
+        context = tx.transaction.context
         product = tables['product']
         template = tables['template']
         excise_tax = tables['excise_tax']
@@ -481,11 +481,11 @@ class ExciseDeclarationProduct(ModelSQL, ModelView):
 
     @classmethod
     def _where(cls, tables):
-        pool = Pool()
+        pool = tx.pool
         Company = pool.get('company.company')
         Location = pool.get('stock.location')
 
-        context = Transaction().context
+        context = tx.transaction.context
         product = tables['product']
         template = tables['template']
 
@@ -503,9 +503,9 @@ class ExciseDeclarationProduct(ModelSQL, ModelView):
 
     @classmethod
     def get_quantity(cls, declarations, name):
-        pool = Pool()
+        pool = tx.pool
         Product = pool.get('product.product')
-        transaction = Transaction()
+        transaction = tx.transaction
         context = transaction.context
         quantities = defaultdict(type(None))
         if name == 'start_quantity':
@@ -536,10 +536,10 @@ class ExciseDeclarationProduct(ModelSQL, ModelView):
 
     @classmethod
     def get_input(cls, declarations, names):
-        pool = Pool()
+        pool = tx.pool
         Location = pool.get('stock.location')
         Move = pool.get('stock.move')
-        transaction = Transaction()
+        transaction = tx.transaction
         context = transaction.context
         cursor = transaction.connection.cursor()
 
@@ -609,10 +609,10 @@ class ExciseDeclarationProduct(ModelSQL, ModelView):
 
     @classmethod
     def get_output(cls, declarations, names):
-        pool = Pool()
+        pool = tx.pool
         Location = pool.get('stock.location')
         Move = pool.get('stock.move')
-        transaction = Transaction()
+        transaction = tx.transaction
         context = transaction.context
         cursor = transaction.connection.cursor()
 
@@ -735,10 +735,10 @@ class ExciseDeclarationProductLine(ModelSQL, ModelView):
 
     @classmethod
     def table_query(cls):
-        pool = Pool()
+        pool = tx.pool
         Move = pool.get('stock.move')
         Location = pool.get('stock.location')
-        context = Transaction().context
+        context = tx.transaction.context
 
         move = Move.__table__()
 
@@ -793,9 +793,9 @@ class ExciseDeclarationProductLine(ModelSQL, ModelView):
 
     @fields.depends('product')
     def on_change_with_eu_excise_tax(self, name=None):
-        pool = Pool()
+        pool = tx.pool
         Location = pool.get('stock.location')
-        context = Transaction().context
+        context = tx.transaction.context
         if self.product:
             country = None
             if warehouse := context.get('warehouse'):
@@ -811,26 +811,26 @@ class ExciseDeclarationProductLine(ModelSQL, ModelView):
 
     @classmethod
     def get_origin(cls):
-        pool = Pool()
+        pool = tx.pool
         Move = pool.get('stock.move')
         return Move.get_origin()
 
     @classmethod
     def _get_document_models(cls):
-        pool = Pool()
+        pool = tx.pool
         Move = pool.get('stock.move')
         return [m for m, _ in Move.get_shipment() if m] + ['stock.inventory']
 
     @classmethod
     def get_documents(cls):
-        pool = Pool()
+        pool = tx.pool
         Model = pool.get('ir.model')
         get_name = Model.get_name
         models = cls._get_document_models()
         return [(None, '')] + [(m, get_name(m)) for m in models]
 
     def get_document(self, name):
-        pool = Pool()
+        pool = tx.pool
         InventoryLine = pool.get('stock.inventory.line')
         if self.move:
             if self.move.shipment:

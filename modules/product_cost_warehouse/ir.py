@@ -1,8 +1,8 @@
 # This file is part of Tryton.  The COPYRIGHT file at the top level of
 # this repository contains the full copyright notices and license terms.
+from trytond import tx
 from trytond.model import ModelSQL, ModelView, dualmethod, fields
 from trytond.pool import PoolMeta
-from trytond.transaction import Transaction
 
 
 class Cron(metaclass=PoolMeta):
@@ -23,7 +23,7 @@ class Cron(metaclass=PoolMeta):
                 super().run_once([cron])
             else:
                 for warehouse in cron.warehouses:
-                    with Transaction().set_context(warehouse=warehouse.id):
+                    with tx.transaction.set_context(warehouse=warehouse.id):
                         super().run_once([cron])
 
 

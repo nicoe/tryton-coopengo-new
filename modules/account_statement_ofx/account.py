@@ -4,9 +4,10 @@ from io import BytesIO
 
 import ofxparse
 
+from trytond import tx
 from trytond.i18n import gettext
 from trytond.modules.account_statement.exceptions import ImportStatementError
-from trytond.pool import Pool, PoolMeta
+from trytond.pool import PoolMeta
 
 
 class StatementImportStart(metaclass=PoolMeta):
@@ -34,7 +35,7 @@ class StatementImport(metaclass=PoolMeta):
             yield statement
 
     def ofx_statement(self, ofx, ofx_account):
-        pool = Pool()
+        pool = tx.pool
         Statement = pool.get('account.statement')
         Journal = pool.get('account.statement.journal')
 
@@ -66,7 +67,7 @@ class StatementImport(metaclass=PoolMeta):
         return statement
 
     def ofx_origin(self, ofx_account, transaction):
-        pool = Pool()
+        pool = tx.pool
         Origin = pool.get('account.statement.origin')
 
         origin = Origin()
@@ -83,7 +84,7 @@ class StatementImport(metaclass=PoolMeta):
         return [origin]
 
     def ofx_party(self, ofx_account, transaction):
-        pool = Pool()
+        pool = tx.pool
         Party = pool.get('party.party')
 
         if not transaction.payee:

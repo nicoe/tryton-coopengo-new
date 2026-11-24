@@ -2,8 +2,9 @@
 # this repository contains the full copyright notices and license terms.
 import logging
 
+from trytond import tx
 from trytond.model import sequence_reorder
-from trytond.pool import Pool, PoolMeta
+from trytond.pool import PoolMeta
 from trytond.tools import remove_forbidden_chars
 from trytond.tools.email_ import EmailNotValidError, validate_email
 
@@ -27,7 +28,7 @@ class Party(IdentifiersMixin, metaclass=PoolMeta):
 
     @classmethod
     def get_from_shopify(cls, shop, customer):
-        pool = Pool()
+        pool = tx.pool
         ContactMechanism = pool.get('party.contact_mechanism')
         Lang = pool.get('ir.lang')
         party = cls.search_shopify_identifier(
@@ -75,7 +76,7 @@ class Party(IdentifiersMixin, metaclass=PoolMeta):
         return party
 
     def get_address_from_shopify(self, shopify_address):
-        pool = Pool()
+        pool = tx.pool
         Address = pool.get('party.address')
         ContactMechanism = pool.get('party.contact_mechanism')
         shopify_values = Address.get_shopify_values(shopify_address)
@@ -129,7 +130,7 @@ class Address(metaclass=PoolMeta):
 
     @classmethod
     def get_shopify_values(self, address):
-        pool = Pool()
+        pool = tx.pool
         Country = pool.get('country.country')
         Subdivision = pool.get('country.subdivision')
         SubdivisionType = pool.get('party.address.subdivision_type')

@@ -3,11 +3,11 @@
 
 import os
 
+from trytond import tx
 from trytond.cache import Cache
 from trytond.model import ModelSQL, ModelView, fields, sequence_ordered
 from trytond.rpc import RPC
 from trytond.tools import file_open
-from trytond.transaction import Transaction
 
 
 class Icon(
@@ -32,7 +32,7 @@ class Icon(
 
     @staticmethod
     def default_module():
-        return Transaction().context.get('module') or ''
+        return tx.transaction.context.get('module') or ''
 
     @staticmethod
     def default_sequence():

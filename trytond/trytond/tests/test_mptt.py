@@ -4,7 +4,7 @@
 import sys
 from unittest.mock import patch
 
-from trytond.pool import Pool
+from trytond import tx
 from trytond.tests.test_tryton import (
     TestCase, activate_module, with_transaction)
 from trytond.transaction import inactive_records
@@ -22,7 +22,7 @@ class MPTTTestCase(TreeTestCaseMixin, TestCase):
         activate_module('tests')
 
     def check_tree(self, parent_id=None, left=-1, right=sys.maxsize):
-        pool = Pool()
+        pool = tx.pool
         Mptt = pool.get(self.model_name)
 
         with inactive_records():
@@ -56,14 +56,14 @@ class MPTTTestCase(TreeTestCaseMixin, TestCase):
             previous_right = child.left
 
     def rebuild(self):
-        pool = Pool()
+        pool = tx.pool
         Mptt = pool.get(self.model_name)
         Mptt._rebuild_tree('parent', None, 0)
 
     @with_transaction()
     def test_update_only_if_parent_is_modified(self):
         'The left and right fields must only be updated if parent is modified'
-        pool = Pool()
+        pool = tx.pool
         Mptt = pool.get('test.mptt')
 
         self.create()
@@ -86,7 +86,7 @@ class MPTTTestCase(TreeTestCaseMixin, TestCase):
 
     @with_transaction()
     def test_nested_create(self):
-        pool = Pool()
+        pool = tx.pool
         Mptt = pool.get('test.mptt')
 
         record, = Mptt.create([{

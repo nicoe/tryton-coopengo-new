@@ -20,7 +20,6 @@ from sql.operators import Concat
 from trytond import __series__, config, convert, tools
 from trytond.const import MODULES_GROUP
 from trytond.exceptions import MissingDependenciesException
-from trytond.transaction import Transaction
 
 logger = logging.getLogger(__name__)
 
@@ -263,6 +262,7 @@ def load_translations(pool, node, languages, prefix):
 
 def load_module_graph(graph, pool, update=None, lang=None, indexes=None):
     # Prevent to import backend when importing module
+    from trytond import tx
     from trytond.cache import Cache
     from trytond.ir.lang import get_parent_language
 
@@ -282,7 +282,7 @@ def load_module_graph(graph, pool, update=None, lang=None, indexes=None):
             lang.add(code)
             code = get_parent_language(code)
 
-    transaction = Transaction()
+    transaction = tx.transaction
     # Do not force to lock table at the transaction start
     # as the table may not exist yet
     transaction.lock_table = lambda t: transaction.database.lock(
@@ -544,6 +544,8 @@ def register_classes(with_test=False):
 def load_modules(
         database_name, pool, update=None, lang=None, indexes=None,
         activatedeps=False):
+    from trytond import tx
+
     # Do not import backend when importing module
     res = True
     if update:
@@ -686,7 +688,7 @@ def load_modules(
 
     def _load_modules(update):
         global res
-        transaction = Transaction()
+        transaction = tx.transaction
 
         with transaction.set_context(_no_trigger=True), \
                 transaction.connection.cursor() as cursor:
@@ -739,13 +741,13 @@ def load_modules(
                 Module = pool.get('ir.module')
                 Module.update_list()
 
-    if not Transaction().connection:
-        with Transaction().start(database_name, 0, readonly=not update):
+    if not tx.transaction.connection:
+        with tx.transaction.start(database_name, 0, readonly=not update):
             _load_modules(update)
     else:
-        with Transaction().new_transaction(readonly=not update), \
-                Transaction().set_user(0), \
-                Transaction().reset_context():
+        with tx.transaction.new_transaction(readonly=not update), \
+                tx.transaction.set_user(0), \
+                tx.transaction.reset_context():
             _load_modules(update)
 
     return res

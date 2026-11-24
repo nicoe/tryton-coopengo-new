@@ -5,11 +5,10 @@ import time
 import unittest
 from unittest.mock import patch
 
-from trytond import backend, config
+from trytond import backend, config, tx
 from trytond.bus import Bus, _MessageQueue, notify
 from trytond.tests.test_tryton import (
     DB_NAME, TestCase, activate_module, with_transaction)
-from trytond.transaction import Transaction
 
 
 class MessageQueueTestCase(TestCase):
@@ -121,7 +120,7 @@ class BusTestCase(TestCase):
         "Test subscribe with message"
         Bus.subscribe(DB_NAME, ['user:1'])
 
-        transaction = Transaction()
+        transaction = tx.transaction
         with transaction.start(DB_NAME, 1):
             notify("Test", "Message", user=1)
             transaction.commit()

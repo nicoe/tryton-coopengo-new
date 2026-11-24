@@ -10,11 +10,11 @@ try:
 except ImportError:
     BIC = IBAN = None
 
+from trytond import tx
 from trytond.i18n import gettext
 from trytond.model import (
     DeactivableMixin, Exclude, Index, ModelSQL, ModelView, fields,
     sequence_ordered)
-from trytond.pool import Pool
 from trytond.pyson import Eval, If
 from trytond.tools import is_full_text, lstrip_wildcard
 
@@ -65,7 +65,7 @@ class Bank(ModelSQL, ModelView):
     @classmethod
     def from_bic(cls, bic):
         "Return or create bank from BIC instance"
-        pool = Pool()
+        pool = tx.pool
         Party = pool.get('party.party')
         if IBAN:
             if not isinstance(bic, BIC):
@@ -185,7 +185,7 @@ class Account(DeactivableMixin, ModelSQL, ModelView):
             cls.save(accounts)
 
     def guess_bank(self):
-        pool = Pool()
+        pool = tx.pool
         Bank = pool.get('bank')
         if IBAN and self.iban:
             iban = IBAN(self.iban)

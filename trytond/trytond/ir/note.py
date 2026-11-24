@@ -6,11 +6,10 @@ from textwrap import TextWrapper
 from sql import Null
 from sql.conditionals import Case
 
+from trytond import tx
 from trytond.i18n import lazy_gettext
 from trytond.model import ModelSQL, ModelView, fields
-from trytond.pool import Pool
 from trytond.pyson import Eval
-from trytond.transaction import Transaction
 
 from .resource import ResourceMixin, resource_copy
 
@@ -43,10 +42,10 @@ class Note(ResourceMixin, ModelSQL, ModelView):
 
     @classmethod
     def get_unread(cls, notes, name):
-        pool = Pool()
+        pool = tx.pool
         Read = pool.get('ir.note.read')
-        cursor = Transaction().connection.cursor()
-        user_id = Transaction().user
+        cursor = tx.transaction.connection.cursor()
+        user_id = tx.transaction.user
         table = cls.__table__()
         read = Read.__table__()
 
@@ -64,9 +63,9 @@ class Note(ResourceMixin, ModelSQL, ModelView):
 
     @classmethod
     def search_unread(cls, name, clause):
-        pool = Pool()
+        pool = tx.pool
         Read = pool.get('ir.note.read')
-        user_id = Transaction().user
+        user_id = tx.transaction.user
         table = cls.__table__()
         read = Read.__table__()
 
@@ -83,9 +82,9 @@ class Note(ResourceMixin, ModelSQL, ModelView):
 
     @classmethod
     def set_unread(cls, notes, name, value):
-        pool = Pool()
+        pool = tx.pool
         Read = pool.get('ir.note.read')
-        user_id = Transaction().user
+        user_id = tx.transaction.user
         if not value:
             Read.create([{'note': n.id, 'user': user_id} for n in notes])
         else:

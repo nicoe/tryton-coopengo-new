@@ -2,11 +2,11 @@
 # this repository contains the full copyright notices and license terms.
 from collections import defaultdict
 
+from trytond import tx
 from trytond.model import DeactivableMixin, ModelSQL, ModelView, Unique, fields
 from trytond.modules.currency.fields import Monetary
-from trytond.pool import Pool, PoolMeta
+from trytond.pool import PoolMeta
 from trytond.pyson import Eval
-from trytond.transaction import Transaction
 
 
 class Fee(DeactivableMixin, ModelSQL, ModelView):
@@ -31,9 +31,9 @@ class Fee(DeactivableMixin, ModelSQL, ModelView):
             })
 
     def get_list_price(self, dunning):
-        pool = Pool()
+        pool = tx.pool
         Product = pool.get('product.product')
-        with Transaction().set_context(company=dunning.company.id):
+        with tx.transaction.set_context(company=dunning.company.id):
             product = Product(self.product)
             return product.list_price_used
 
@@ -67,7 +67,7 @@ class Dunning(metaclass=PoolMeta):
 
     @classmethod
     def process(cls, dunnings):
-        pool = Pool()
+        pool = tx.pool
         FeeDunningLevel = pool.get('account.dunning.fee.dunning_level')
 
         fees = []
@@ -122,7 +122,7 @@ class FeeDunningLevel(ModelSQL, ModelView):
 
     @classmethod
     def process(cls, fees):
-        pool = Pool()
+        pool = tx.pool
         Move = pool.get('account.move')
         moves = []
         for fee in fees:
@@ -132,14 +132,14 @@ class FeeDunningLevel(ModelSQL, ModelView):
         Move.post(moves)
 
     def get_move_process(self):
-        pool = Pool()
+        pool = tx.pool
         Move = pool.get('account.move')
         Line = pool.get('account.move.line')
         Date = pool.get('ir.date')
         Period = pool.get('account.period')
         Currency = pool.get('currency.currency')
 
-        with Transaction().set_context(company=self.dunning.company.id):
+        with tx.transaction.set_context(company=self.dunning.company.id):
             today = Date.today()
         move = Move()
         move.company = self.dunning.company

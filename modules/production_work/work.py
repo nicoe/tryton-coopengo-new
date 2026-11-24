@@ -9,7 +9,7 @@ from functools import wraps
 from sql.aggregate import Sum
 from sql.conditionals import Coalesce
 
-from trytond import backend
+from trytond import backend, tx
 from trytond.i18n import gettext
 from trytond.model import (
     ChatMixin, DeactivableMixin, Index, ModelSQL, ModelView, Workflow, fields,
@@ -17,10 +17,8 @@ from trytond.model import (
 from trytond.model.exceptions import AccessError
 from trytond.modules.company.model import employee_field, set_employee
 from trytond.modules.product import price_digits, round_price
-from trytond.pool import Pool
 from trytond.pyson import Bool, Eval, If, TimeDelta
 from trytond.tools import sqlite_apply_types
-from trytond.transaction import Transaction
 
 from .exceptions import PickerError
 
@@ -69,11 +67,11 @@ class WorkCenter(DeactivableMixin, tree(separator=' / '), ModelSQL, ModelView):
 
     @classmethod
     def default_company(cls):
-        return Transaction().context.get('company')
+        return tx.transaction.context.get('company')
 
     @classmethod
     def default_warehouse(cls):
-        Location = Pool().get('stock.location')
+        Location = tx.pool.get('stock.location')
         return Location.get_default_warehouse()
 
     @classmethod
@@ -172,7 +170,7 @@ class Work(sequence_ordered(), ModelSQL, ModelView, ChatMixin):
 
     @classmethod
     def default_company(cls):
-        return Transaction().context.get('company')
+        return tx.transaction.context.get('company')
 
     @fields.depends('production', '_parent_production.warehouse')
     def on_change_with_warehouse(self, name=None):
@@ -185,7 +183,7 @@ class Work(sequence_ordered(), ModelSQL, ModelView, ChatMixin):
     @classmethod
     @ModelView.button
     def start(cls, works):
-        pool = Pool()
+        pool = tx.pool
         Cycle = pool.get('production.work.cycle')
         cycles = [Cycle(work=w) for w in works]
         Cycle.save(cycles)
@@ -194,7 +192,7 @@ class Work(sequence_ordered(), ModelSQL, ModelView, ChatMixin):
     @classmethod
     @ModelView.button
     def stop(cls, works):
-        pool = Pool()
+        pool = tx.pool
         Cycle = pool.get('production.work.cycle')
 
         to_do = []
@@ -243,10 +241,10 @@ class Work(sequence_ordered(), ModelSQL, ModelView, ChatMixin):
 
     @classmethod
     def _get_cost(cls, works):
-        pool = Pool()
+        pool = tx.pool
         Cycle = pool.get('production.work.cycle')
         cycle = Cycle.__table__()
-        cursor = Transaction().connection.cursor()
+        cursor = tx.transaction.connection.cursor()
 
         query = cycle.select(
             cycle.work, Sum(Coalesce(cycle.cost, 0)).as_('cost'),
@@ -286,7 +284,7 @@ class Work(sequence_ordered(), ModelSQL, ModelView, ChatMixin):
 def set_work_state(func):
     @wraps(func)
     def wrapper(cls, cycles):
-        pool = Pool()
+        pool = tx.pool
         Work = pool.get('production.work')
         result = func(cls, cycles)
         Work.set_state(Work.browse({c.work.id for c in cycles}))

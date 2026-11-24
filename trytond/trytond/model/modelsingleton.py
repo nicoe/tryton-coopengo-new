@@ -3,7 +3,8 @@
 
 from sql.operators import Equal
 
-from trytond.transaction import Transaction, without_check_access
+from trytond import tx
+from trytond.transaction import without_check_access
 
 from .modelsql import Exclude, ModelSQL
 from .modelstorage import ModelStorage
@@ -83,7 +84,7 @@ class ModelSingleton(ModelStorage):
         for record in sum(actions[0:None:2], []):
             record._local_cache.pop(record.id, None)
         # Clean transaction cache of all ids
-        for cache in Transaction().cache.values():
+        for cache in tx.transaction.cache.values():
             if cls.__name__ in cache:
                 cache[cls.__name__].clear()
 
@@ -93,7 +94,7 @@ class ModelSingleton(ModelStorage):
         if singleton:
             super().delete([singleton])
         # Clean transaction cache of all ids
-        for cache in Transaction().cache.values():
+        for cache in tx.transaction.cache.values():
             if cls.__name__ in cache:
                 cache[cls.__name__].clear()
 

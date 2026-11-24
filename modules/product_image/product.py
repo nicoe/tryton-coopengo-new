@@ -9,6 +9,7 @@ import PIL
 import PIL.Image
 
 import trytond.config as config
+from trytond import tx
 from trytond.i18n import gettext
 from trytond.model import (
     MatchMixin, ModelSQL, ModelView, Unique, fields, sequence_ordered)
@@ -17,7 +18,6 @@ from trytond.modules.product import (
 from trytond.pool import PoolMeta
 from trytond.pyson import Bool, Eval, If
 from trytond.tools import slugify
-from trytond.transaction import Transaction
 from trytond.url import http_base
 from trytond.wsgi import Base64Converter
 
@@ -47,7 +47,7 @@ class ImageURLMixin:
                 base, quote('%(prefix)s/%(code)s/%(database)s/%(name)s' % {
                         'prefix': self.__image_url__,
                         'database': Base64Converter(None).to_url(
-                            Transaction().database.name),
+                            tx.transaction.database.name),
                         'code': quote(self.code, ''),
                         'name': slugify(self.name),
                         }))
@@ -172,7 +172,7 @@ class ImageMixin(_ImageMixin):
             if (cache.width, cache.height) == size:
                 # re-instantiate to fetch only one image
                 return cache.__class__(cache.id).image
-        with Transaction().new_transaction():
+        with tx.transaction.new_transaction():
             cache = self._store_cache(size, self._resize(size))
             # Save cache only if record is already committed
             if self.__class__.search([('id', '=', self.id)]):
@@ -287,7 +287,7 @@ class ImageCache(ImageCacheMixin, ModelSQL):
 
     @classmethod
     def __register__(cls, module):
-        cursor = Transaction().connection.cursor()
+        cursor = tx.transaction.connection.cursor()
         table = cls.__table__()
         table_h = cls.__table_handler__(module)
 

@@ -1,11 +1,11 @@
 # This file is part of Tryton.  The COPYRIGHT file at the top level of
 # this repository contains the full copyright notices and license terms.
+from trytond import tx
 from trytond.i18n import gettext
 from trytond.model import ModelSQL, ModelView, Workflow, fields
 from trytond.modules.product import price_digits, round_price
-from trytond.pool import Pool, PoolMeta
+from trytond.pool import PoolMeta
 from trytond.pyson import Bool, Eval
-from trytond.transaction import Transaction
 
 from .exceptions import InvoiceShipmentCostError
 
@@ -68,7 +68,7 @@ class ShipmentCostSaleMixin:
                 'cost_sale_currency': None,
                 })
         if self.carrier and self.cost_sale_method == 'shipment':
-            with Transaction().set_context(self._get_carrier_context()):
+            with tx.transaction.set_context(self._get_carrier_context()):
                 cost_sale, sale_currency_id = self.carrier.get_sale_price()
             if cost_sale is not None:
                 costs['cost_sale'] = round_price(cost_sale)
@@ -95,13 +95,13 @@ class ShipmentCostSaleMixin:
 
     @classmethod
     def get_cost_sale_methods(cls):
-        pool = Pool()
+        pool = tx.pool
         Sale = pool.get('sale.sale')
         fieldname = 'shipment_cost_method'
         return Sale.fields_get([fieldname])[fieldname]['selection']
 
     def get_cost_sale_invoice_line(self, invoice, origin=None):
-        pool = Pool()
+        pool = tx.pool
         Currency = pool.get('currency.currency')
         InvoiceLine = pool.get('account.invoice.line')
 
@@ -119,7 +119,7 @@ class ShipmentCostSaleMixin:
         invoice_line.unit = product.sale_uom.id
         cost = self.cost_sale_used
         if invoice.currency != self.cost_sale_currency_used:
-            with Transaction().set_context(date=invoice.currency_date):
+            with tx.transaction.set_context(date=invoice.currency_date):
                 cost = Currency.compute(
                     self.cost_sale_currency_used, cost,
                     invoice.currency, round=False)
@@ -140,9 +140,9 @@ class ShipmentCostSaleMixin:
         raise NotImplementedError
 
     def _get_shipment_cost(self):
-        pool = Pool()
+        pool = tx.pool
         Currency = pool.get('currency.currency')
-        transaction = Transaction()
+        transaction = tx.transaction
         cost = super()._get_shipment_cost()
         if self.cost_sale:
             with transaction.set_context(
@@ -178,7 +178,7 @@ class ShipmentOut(ShipmentCostSaleMixin, metaclass=PoolMeta):
     @classmethod
     def __register__(cls, module):
         table_h = cls.__table_handler__(module)
-        cursor = Transaction().connection.cursor()
+        cursor = tx.transaction.connection.cursor()
         table = cls.__table__()
 
         # Migration from 7.2: use suffix sale

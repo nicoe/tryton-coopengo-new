@@ -3,10 +3,10 @@
 from itertools import groupby
 from operator import attrgetter
 
+from trytond import tx
 from trytond.model import fields
 from trytond.modules.company import CompanyReport
-from trytond.pool import Pool, PoolMeta
-from trytond.transaction import Transaction
+from trytond.pool import PoolMeta
 from trytond.wizard import StateReport
 
 
@@ -46,14 +46,14 @@ class Letter(CompanyReport, metaclass=PoolMeta):
 
     @classmethod
     def execute(cls, ids, data):
-        with Transaction().set_context(address_with_party=True):
+        with tx.transaction.set_context(address_with_party=True):
             return super().execute(ids, data)
 
     @classmethod
     def get_context(cls, records, header, data):
         report_context = super().get_context(records, header, data)
 
-        pool = Pool()
+        pool = tx.pool
         Date = pool.get('ir.date')
 
         dunnings = [d for d in records
@@ -79,7 +79,7 @@ class Letter(CompanyReport, metaclass=PoolMeta):
             letters[party] = PartyLetter(dunnings=current_dunnings,
                 payments=current_payments)
         report_context['letters'] = letters
-        with Transaction().set_context(company=header['company'].id):
+        with tx.transaction.set_context(company=header['company'].id):
             report_context['today'] = Date.today()
         report_context['get_payment_amount'] = cls.get_payment_amount
         report_context['get_payment_currency'] = cls.get_payment_currency
@@ -117,7 +117,7 @@ class Letter(CompanyReport, metaclass=PoolMeta):
         Return a dictionary with party as key and the list of pending payments
         as value.
         """
-        pool = Pool()
+        pool = tx.pool
         Line = pool.get('account.move.line')
         payments = Line.search([
                 ('account.type.receivable', '=', True),

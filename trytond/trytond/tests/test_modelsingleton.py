@@ -4,10 +4,9 @@
 
 from datetime import datetime
 
-from trytond.pool import Pool
+from trytond import tx
 from trytond.tests.test_tryton import (
     TestCase, activate_module, with_transaction)
-from trytond.transaction import Transaction
 
 
 class ModelSingletonTestCase(TestCase):
@@ -21,7 +20,7 @@ class ModelSingletonTestCase(TestCase):
     @with_transaction()
     def test_read(self):
         'Test read method'
-        pool = Pool()
+        pool = tx.pool
         Singleton = pool.get('test.singleton')
 
         singleton, = Singleton.read([1], ['name'])
@@ -39,7 +38,7 @@ class ModelSingletonTestCase(TestCase):
             'write_uid',
             'write_date',
             ])
-        self.assertEqual(singleton['create_uid'], Transaction().user)
+        self.assertEqual(singleton['create_uid'], tx.transaction.user)
         self.assertEqual(singleton['create_uid.']['rec_name'], 'Administrator')
         self.assertTrue(isinstance(singleton['create_date'], datetime))
         self.assertEqual(singleton['write_uid'], None)
@@ -48,7 +47,7 @@ class ModelSingletonTestCase(TestCase):
     @with_transaction()
     def test_create(self):
         'Test create method'
-        pool = Pool()
+        pool = tx.pool
         Singleton = pool.get('test.singleton')
 
         singleton, = Singleton.create([{'name': 'bar'}])
@@ -66,7 +65,7 @@ class ModelSingletonTestCase(TestCase):
     @with_transaction()
     def test_copy(self):
         'Test copy method'
-        pool = Pool()
+        pool = tx.pool
         Singleton = pool.get('test.singleton')
 
         singleton, = Singleton.search([])
@@ -86,7 +85,7 @@ class ModelSingletonTestCase(TestCase):
     @with_transaction()
     def test_default_get(self):
         'Test default_get method'
-        pool = Pool()
+        pool = tx.pool
         Singleton = pool.get('test.singleton')
 
         default = Singleton.default_get(['name'])
@@ -114,7 +113,7 @@ class ModelSingletonTestCase(TestCase):
     @with_transaction()
     def test_search(self):
         'Test search method'
-        pool = Pool()
+        pool = tx.pool
         Singleton = pool.get('test.singleton')
 
         singletons = Singleton.search([])
@@ -135,7 +134,7 @@ class ModelSingletonTestCase(TestCase):
     @with_transaction()
     def test_all_cache_cleared(self):
         "Test all cache cleared"
-        pool = Pool()
+        pool = tx.pool
         Singleton = pool.get('test.singleton')
 
         singleton, = Singleton.create([{'name': 'foo'}])

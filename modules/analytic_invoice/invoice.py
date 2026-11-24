@@ -1,8 +1,9 @@
 # This file is part of Tryton.  The COPYRIGHT file at the top level of
 # this repository contains the full copyright notices and license terms.
+from trytond import tx
 from trytond.model import fields
 from trytond.modules.analytic_account import AnalyticMixin
-from trytond.pool import Pool, PoolMeta
+from trytond.pool import PoolMeta
 from trytond.pyson import Eval
 
 
@@ -21,7 +22,7 @@ class InvoiceLine(AnalyticMixin, metaclass=PoolMeta):
             }
 
     def _credit(self):
-        pool = Pool()
+        pool = tx.pool
         AnalyticAccountEntry = pool.get('analytic.account.entry')
 
         line = super()._credit()
@@ -75,7 +76,7 @@ class AnalyticAccountEntry(metaclass=PoolMeta):
 
     @classmethod
     def _get_origin(cls):
-        pool = Pool()
+        pool = tx.pool
         origins = super()._get_origin()
         origins.append('account.invoice.line')
         try:
@@ -87,7 +88,7 @@ class AnalyticAccountEntry(metaclass=PoolMeta):
 
     @fields.depends('origin')
     def on_change_with_company(self, name=None):
-        pool = Pool()
+        pool = tx.pool
         InvoiceLine = pool.get('account.invoice.line')
         try:
             Asset = pool.get('account.asset')
@@ -101,7 +102,7 @@ class AnalyticAccountEntry(metaclass=PoolMeta):
 
     @classmethod
     def search_company(cls, name, clause):
-        pool = Pool()
+        pool = tx.pool
         domain = super().search_company(name, clause),
         domain = ['OR',
             domain,
@@ -119,7 +120,7 @@ class AnalyticAccountEntry(metaclass=PoolMeta):
 
     @fields.depends('origin')
     def on_change_with_editable(self, name=None):
-        pool = Pool()
+        pool = tx.pool
         InvoiceLine = pool.get('account.invoice.line')
         try:
             Asset = pool.get('account.asset')

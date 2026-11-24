@@ -1,13 +1,14 @@
 # This file is part of Tryton.  The COPYRIGHT file at the top level of
 # this repository contains the full copyright notices and license terms.
+
+from trytond import tx
 from trytond.i18n import gettext
 from trytond.model import ModelSQL, ValueMixin, fields
 from trytond.modules.company.model import (
     CompanyMultiValueMixin, CompanyValueMixin)
 from trytond.modules.party.exceptions import EraseError
-from trytond.pool import Pool, PoolMeta
+from trytond.pool import PoolMeta
 from trytond.pyson import Eval
-from trytond.transaction import Transaction
 
 customer_currency = fields.Many2One(
     'currency.currency', "Customer Currency", ondelete='RESTRICT',
@@ -17,7 +18,7 @@ customer_currency = fields.Many2One(
 def get_sale_methods(field_name):
     @classmethod
     def func(cls):
-        pool = Pool()
+        pool = tx.pool
         Sale = pool.get('sale.sale')
         return Sale.fields_get([field_name])[field_name]['selection'] + [
             (None, '')]
@@ -43,7 +44,7 @@ class Party(CompanyMultiValueMixin, metaclass=PoolMeta):
 
     @classmethod
     def multivalue_model(cls, field):
-        pool = Pool()
+        pool = tx.pool
         if field in {'sale_invoice_method', 'sale_shipment_method'}:
             return pool.get('party.party.sale_method')
         return super().multivalue_model(field)
@@ -54,7 +55,7 @@ class Party(CompanyMultiValueMixin, metaclass=PoolMeta):
     @classmethod
     def copy(cls, parties, default=None):
         default = default.copy() if default else {}
-        if Transaction().check_access:
+        if tx.transaction.check_access:
             fields = [
                 'sale_methods', 'sale_invoice_method', 'sale_shipment_method']
             default_values = cls.default_get(fields, with_rec_name=False)
@@ -82,7 +83,7 @@ class PartySaleMethod(ModelSQL, CompanyValueMixin):
 
     @classmethod
     def __register__(cls, module_name):
-        cursor = Transaction().connection.cursor()
+        cursor = tx.transaction.connection.cursor()
         table = cls.__table__()
 
         super().__register__(module_name)
@@ -116,7 +117,7 @@ class Erase(metaclass=PoolMeta):
     __name__ = 'party.erase'
 
     def check_erase_company(self, party, company):
-        pool = Pool()
+        pool = tx.pool
         Sale = pool.get('sale.sale')
         super().check_erase_company(party, company)
 

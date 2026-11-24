@@ -1,9 +1,10 @@
 # This file is part of Tryton.  The COPYRIGHT file at the top level of
 # this repository contains the full copyright notices and license terms.
 
+from trytond import tx
 from trytond.model import fields
-from trytond.pool import Pool, PoolMeta
-from trytond.transaction import Transaction, without_check_access
+from trytond.pool import PoolMeta
+from trytond.transaction import without_check_access
 
 
 class Request(metaclass=PoolMeta):
@@ -18,9 +19,9 @@ class Request(metaclass=PoolMeta):
 
     @classmethod
     def update_state(cls, requests):
-        pool = Pool()
+        pool = tx.pool
         Sale = pool.get('sale.sale')
-        transaction = Transaction()
+        transaction = tx.transaction
         context = transaction.context
 
         super().update_state(requests)
@@ -39,10 +40,10 @@ class Request(metaclass=PoolMeta):
 
     @classmethod
     def on_delete(cls, requests):
-        pool = Pool()
+        pool = tx.pool
         Sale = pool.get('sale.sale')
         SaleLine = pool.get('sale.line')
-        transaction = Transaction()
+        transaction = tx.transaction
         context = transaction.context
 
         with without_check_access():

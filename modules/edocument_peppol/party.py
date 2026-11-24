@@ -1,9 +1,10 @@
 # This file is part of Tryton.  The COPYRIGHT file at the top level of
 # this repository contains the full copyright notices and license terms.
 
+from trytond import tx
 from trytond.model import ModelSQL, fields
 from trytond.modules.company.model import CompanyValueMixin
-from trytond.pool import Pool, PoolMeta
+from trytond.pool import PoolMeta
 
 
 class Party(metaclass=PoolMeta):
@@ -16,14 +17,14 @@ class Party(metaclass=PoolMeta):
 
     @classmethod
     def multivalue_model(cls, field):
-        pool = Pool()
+        pool = tx.pool
         if field == 'peppol_types':
             return pool.get('party.party.peppol')
         return super().multivalue_model(field)
 
     @classmethod
     def get_peppol_types(cls):
-        pool = Pool()
+        pool = tx.pool
         Peppol = pool.get('edocument.peppol')
         return [
             (v, l) for v, l in Peppol.fields_get(['type'])['type']['selection']
@@ -39,7 +40,7 @@ class PartyPeppol(ModelSQL, CompanyValueMixin):
 
     @classmethod
     def get_peppol_types(cls):
-        pool = Pool()
+        pool = tx.pool
         Peppol = pool.get('edocument.peppol')
         return [
             (v, l) for v, l in Peppol.fields_get(['type'])['type']['selection']

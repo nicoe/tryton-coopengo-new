@@ -4,11 +4,10 @@
 from sql import Table
 from sql.operators import Concat
 
-from trytond import backend, config
+from trytond import backend, config, tx
 from trytond.model import fields
 from trytond.pool import PoolMeta
 from trytond.pyson import Eval
-from trytond.transaction import Transaction
 
 
 class Email(metaclass=PoolMeta):
@@ -28,7 +27,7 @@ class Email(metaclass=PoolMeta):
             'table', log_name, default=log_name.replace('.', '_'))
         log = Table(log_table_name)
 
-        cursor = Transaction().connection.cursor()
+        cursor = tx.transaction.connection.cursor()
 
         super().__register__(module)
 

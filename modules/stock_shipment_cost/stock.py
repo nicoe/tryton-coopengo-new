@@ -4,11 +4,11 @@ from decimal import Decimal
 
 from sql import Null
 
+from trytond import tx
 from trytond.model import ModelView, Workflow, fields
 from trytond.modules.product import price_digits, round_price
-from trytond.pool import Pool, PoolMeta
+from trytond.pool import PoolMeta
 from trytond.pyson import Bool, Eval
-from trytond.transaction import Transaction
 
 
 class Move(metaclass=PoolMeta):
@@ -89,7 +89,7 @@ class ShipmentCostMixin:
             'cost_currency': None,
             }
         if self.carrier:
-            with Transaction().set_context(self._get_carrier_context()):
+            with tx.transaction.set_context(self._get_carrier_context()):
                 cost, currency_id = self.carrier.get_purchase_price()
             if cost is not None:
                 costs['cost'] = round_price(cost)
@@ -140,7 +140,7 @@ class ShipmentCostMixin:
 
     def _get_shipment_cost(self):
         "Return the cost for the shipment in the company currency"
-        pool = Pool()
+        pool = tx.pool
         Currency = pool.get('currency.currency')
         if self.cost_used:
             return Currency.compute(
@@ -154,12 +154,12 @@ class ShipmentOutCostMixin(ShipmentCostMixin):
 
     @classmethod
     def __register__(cls, module):
-        pool = Pool()
+        pool = tx.pool
         Company = pool.get('company.company')
         table = cls.__table__()
         table_h = cls.__table_handler__(module)
         company = Company.__table__()
-        cursor = Transaction().connection.cursor()
+        cursor = tx.transaction.connection.cursor()
 
         cost_currency_exists = table_h.column_exist('cost_currency')
 
@@ -180,7 +180,7 @@ class ShipmentOutCostMixin(ShipmentCostMixin):
 
     @classmethod
     def set_shipment_cost(cls, shipments):
-        pool = Pool()
+        pool = tx.pool
         Move = pool.get('stock.move')
         moves = []
         for shipment in shipments:

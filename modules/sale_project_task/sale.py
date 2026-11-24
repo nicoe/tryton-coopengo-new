@@ -3,13 +3,13 @@
 
 from collections import defaultdict
 
+from trytond import tx
 from trytond.i18n import gettext
 from trytond.model import Index, ModelView, fields
 from trytond.modules.currency.fields import Monetary
 from trytond.modules.sale.exceptions import SaleValidationError
-from trytond.pool import Pool, PoolMeta
+from trytond.pool import PoolMeta
 from trytond.pyson import Eval, If
-from trytond.transaction import Transaction
 
 sale_task_creation_method = fields.Selection(
     'get_sale_task_creation_methods', "Sale Task Creation Method")
@@ -18,7 +18,7 @@ sale_task_creation_method = fields.Selection(
 def get_sale_methods(field_name):
     @classmethod
     def func(cls):
-        pool = Pool()
+        pool = tx.pool
         Sale = pool.get('sale.sale')
         return Sale.fields_get([field_name])[field_name]['selection']
     return func
@@ -41,7 +41,7 @@ class Configuration(metaclass=PoolMeta):
 
     @classmethod
     def multivalue_model(cls, field):
-        pool = Pool()
+        pool = tx.pool
         if field == 'sale_task_creation_method':
             return pool.get('sale.configuration.sale_method')
         return super().multivalue_model(field)
@@ -123,7 +123,7 @@ class Sale(metaclass=PoolMeta):
 
     @classmethod
     def default_task_creation_method(cls, **pattern):
-        pool = Pool()
+        pool = tx.pool
         Configuration = pool.get('sale.configuration')
         return Configuration(1).get_multivalue(
             'sale_task_creation_method', **pattern)
@@ -155,21 +155,21 @@ class Sale(metaclass=PoolMeta):
     @ModelView.button
     def manual_task_creation(cls, sales):
         sales = [s for s in sales if s.task_creation_method == 'manual']
-        with Transaction().set_context(_sale_manual_task_creation=True):
+        with tx.transaction.set_context(_sale_manual_task_creation=True):
             cls.process(sales)
 
     @classmethod
     @ModelView.button
     def manual_task_invoice(cls, sales):
         sales = [s for s in sales if s.invoice_method == 'fulfillment']
-        with Transaction().set_context(_sale_manual_task_invoice=True):
+        with tx.transaction.set_context(_sale_manual_task_invoice=True):
             cls.process(sales)
 
     @classmethod
     def _process_fulfillment(cls, sales):
-        pool = Pool()
+        pool = tx.pool
         Work = pool.get('project.work')
-        context = Transaction().context
+        context = tx.transaction.context
         works = []
         super()._process_fulfillment(sales)
         for sale in sales:
@@ -279,7 +279,7 @@ class Line(metaclass=PoolMeta):
             yield from task.get_sold_works(self)
 
     def _get_work_quantity(self):
-        pool = Pool()
+        pool = tx.pool
         UoM = pool.get('product.uom')
 
         quantity = 0.
@@ -301,7 +301,7 @@ class Line(metaclass=PoolMeta):
         return quantity
 
     def get_invoice_line(self):
-        context = Transaction().context
+        context = tx.transaction.context
         lines = super().get_invoice_line()
         if (self.product
                 and self.product.type == 'service'
@@ -355,7 +355,7 @@ class Line_Revenue(metaclass=PoolMeta):
         'get_tasks_revenue')
 
     def get_tasks_revenue(self, name):
-        pool = Pool()
+        pool = tx.pool
         Work = pool.get('project.work')
         return self.currency.round(sum(Work._get_revenue(self.tasks).values()))
 

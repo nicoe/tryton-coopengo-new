@@ -6,16 +6,15 @@ from decimal import Decimal
 
 from sql import Column
 
+from trytond import tx
 from trytond.cache import Cache
 from trytond.i18n import gettext
 from trytond.model import (
     DeactivableMixin, Index, MatchMixin, Model, ModelSQL, ModelView, fields,
     sequence_ordered, tree)
 from trytond.modules.product import price_digits, round_price
-from trytond.pool import Pool
 from trytond.pyson import Eval, If, TimeDelta
-from trytond.transaction import (
-    Transaction, inactive_records, without_check_access)
+from trytond.transaction import inactive_records, without_check_access
 
 from .exceptions import LocationValidationError
 
@@ -260,7 +259,7 @@ class Location(DeactivableMixin, tree(), ModelSQL, ModelView):
 
     def check_type_for_moves(self, field_names=None):
         """ Check locations with moves have types compatible with moves. """
-        pool = Pool()
+        pool = tx.pool
         Move = pool.get('stock.move')
         if field_names and 'type' not in field_names:
             return
@@ -293,7 +292,7 @@ class Location(DeactivableMixin, tree(), ModelSQL, ModelView):
 
     @classmethod
     def get_empty_locations(cls, locations=None):
-        pool = Pool()
+        pool = tx.pool
         Move = pool.get('stock.move')
         Product = pool.get('product.product')
         if locations is None:
@@ -353,7 +352,7 @@ class Location(DeactivableMixin, tree(), ModelSQL, ModelView):
 
     @classmethod
     def get_default_warehouse(cls):
-        warehouse = Transaction().context.get('warehouse')
+        warehouse = tx.transaction.context.get('warehouse')
         if warehouse:
             return warehouse
 
@@ -393,7 +392,7 @@ class Location(DeactivableMixin, tree(), ModelSQL, ModelView):
 
     @classmethod
     def _get_quantity_grouping(cls):
-        context = Transaction().context
+        context = tx.transaction.context
         grouping, grouping_filter, key = (), (), []
         if context.get('product') is not None:
             grouping = ('product',)
@@ -407,10 +406,10 @@ class Location(DeactivableMixin, tree(), ModelSQL, ModelView):
 
     @classmethod
     def get_quantity(cls, locations, name):
-        pool = Pool()
+        pool = tx.pool
         Product = pool.get('product.product')
         Date_ = pool.get('ir.date')
-        trans_context = Transaction().context
+        trans_context = tx.transaction.context
 
         def valid_context(name):
             return (trans_context.get(name) is not None
@@ -432,7 +431,7 @@ class Location(DeactivableMixin, tree(), ModelSQL, ModelView):
             return {loc.id: None for loc in locations}
 
         location_ids = [l.id for l in locations]
-        with Transaction().set_context(context):
+        with tx.transaction.set_context(context):
             pbl = Product.products_by_location(
                 location_ids,
                 grouping=grouping,
@@ -463,10 +462,10 @@ class Location(DeactivableMixin, tree(), ModelSQL, ModelView):
 
     @classmethod
     def get_quantity_uom(cls, locations, name):
-        pool = Pool()
+        pool = tx.pool
         Product = pool.get('product.product')
         Template = pool.get('product.template')
-        context = Transaction().context
+        context = tx.transaction.context
         value = None
         uom = None
         if context.get('product') is not None:
@@ -481,10 +480,10 @@ class Location(DeactivableMixin, tree(), ModelSQL, ModelView):
 
     @classmethod
     def get_cost_value(cls, locations, name):
-        pool = Pool()
+        pool = tx.pool
         Product = pool.get('product.product')
         Template = pool.get('product.template')
-        trans_context = Transaction().context
+        trans_context = tx.transaction.context
         cost_values = {l.id: None for l in locations}
 
         def valid_context(name):
@@ -509,7 +508,7 @@ class Location(DeactivableMixin, tree(), ModelSQL, ModelView):
             record = get_record()
             if record.create_date > context['_datetime']:
                 return cost_values
-        with Transaction().set_context(context):
+        with tx.transaction.set_context(context):
             cost_price = get_record().cost_price
         # The template may have more than one product
         if cost_price is not None:
@@ -592,7 +591,7 @@ class Location(DeactivableMixin, tree(), ModelSQL, ModelView):
                 new_location, = super().copy([location],
                     default=wh_default)
 
-                with Transaction().set_context(
+                with tx.transaction.set_context(
                         cp_warehouse_locations={
                             'input_location': location.input_location.id,
                             'output_location': location.output_location.id,
@@ -607,11 +606,11 @@ class Location(DeactivableMixin, tree(), ModelSQL, ModelView):
             else:
                 new_location, = super().copy([location],
                     default=default)
-                warehouse_locations = Transaction().context.get(
+                warehouse_locations = tx.transaction.context.get(
                     'cp_warehouse_locations') or {}
                 if location.id in warehouse_locations.values():
                     cp_warehouse = cls(
-                        Transaction().context['cp_warehouse_id'])
+                        tx.transaction.context['cp_warehouse_id'])
                     for field, loc_id in warehouse_locations.items():
                         if loc_id == location.id:
                             cls.write([cp_warehouse], {
@@ -651,11 +650,11 @@ class ProductsByLocationsContext(ModelView):
 
     @classmethod
     def default_company(cls):
-        return Transaction().context.get('company')
+        return tx.transaction.context.get('company')
 
     @staticmethod
     def default_forecast_date():
-        Date_ = Pool().get('ir.date')
+        Date_ = tx.pool.get('ir.date')
         return Date_.today()
 
     @fields.depends('forecast_date')
@@ -693,7 +692,7 @@ class ProductsByLocations(DeactivableMixin, ModelSQL, ModelView):
 
     @classmethod
     def table_query(cls):
-        pool = Pool()
+        pool = tx.pool
         Product = pool.get('product.product')
         product = Product.__table__()
         columns = []

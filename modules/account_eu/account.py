@@ -3,12 +3,12 @@
 from sql import Null
 from sql.aggregate import Min, Sum
 
+from trytond import tx
 from trytond.model import ModelSQL, ModelView, fields
 from trytond.modules.account.exceptions import FiscalYearNotFoundError
 from trytond.modules.currency.fields import Monetary
-from trytond.pool import Pool, PoolMeta
+from trytond.pool import PoolMeta
 from trytond.pyson import Bool, Eval
-from trytond.transaction import Transaction
 
 VATEX_CODES = [
     ('VATEX-EU-79-C',
@@ -190,7 +190,7 @@ class TaxTemplate(metaclass=PoolMeta):
 
     @classmethod
     def get_vatex_codes(cls):
-        pool = Pool()
+        pool = tx.pool
         Tax = pool.get('account.tax')
         return Tax.fields_get(['vatex_code'])['vatex_code']['selection']
 
@@ -227,7 +227,7 @@ class ECSalesList(ModelSQL, ModelView):
 
     @classmethod
     def table_query(cls):
-        pool = Pool()
+        pool = tx.pool
         Company = pool.get('company.company')
         Invoice = pool.get('account.invoice')
         Move = pool.get('account.move')
@@ -235,7 +235,7 @@ class ECSalesList(ModelSQL, ModelView):
         TaxLine = pool.get('account.tax.line')
         Period = pool.get('account.period')
         Tax = pool.get('account.tax')
-        context = Transaction().context
+        context = tx.transaction.context
         company = Company.__table__()
         invoice = Invoice.__table__()
         move = Move.__table__()
@@ -298,13 +298,13 @@ class ECSalesListContext(ModelView):
 
     @classmethod
     def default_company(cls):
-        return Transaction().context.get('company')
+        return tx.transaction.context.get('company')
 
     @classmethod
     def default_fiscalyear(cls):
-        pool = Pool()
+        pool = tx.pool
         FiscalYear = pool.get('account.fiscalyear')
-        context = Transaction().context
+        context = tx.transaction.context
         if 'fiscalyear' not in context:
             try:
                 fiscalyear = FiscalYear.find(

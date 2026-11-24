@@ -1,13 +1,13 @@
 # This file is part of Tryton.  The COPYRIGHT file at the top level of
 # this repository contains the full copyright notices and license terms.
+from trytond import tx
 from trytond.i18n import gettext
 from trytond.model import (
     MatchMixin, ModelSQL, ModelView, fields, sequence_ordered)
 from trytond.modules.company.model import CompanyValueMixin
 from trytond.modules.party.exceptions import EraseError
-from trytond.pool import Pool, PoolMeta
+from trytond.pool import PoolMeta
 from trytond.pyson import Eval
-from trytond.transaction import Transaction
 
 payment_direct_debit = fields.Boolean(
     "Direct Debit", help="Check if supplier does direct debit.")
@@ -107,7 +107,7 @@ class PartyReceptionDirectDebit(
 
     @classmethod
     def get_process_methods(cls):
-        pool = Pool()
+        pool = tx.pool
         Journal = pool.get('account.payment.journal')
         name = 'process_method'
         return Journal.fields_get([name])[name]['selection']
@@ -133,11 +133,11 @@ class PartyReceptionDirectDebit(
             }
 
     def get_payments(self, line=None, amount=None, date=None):
-        pool = Pool()
+        pool = tx.pool
         Date = pool.get('ir.date')
         assert not line or self.type == 'line'
         if date is None:
-            with Transaction().set_context(company=self.company.id):
+            with tx.transaction.set_context(company=self.company.id):
                 date = Date.today()
         if line:
             date = min(line.maturity_date or date, date)
@@ -151,7 +151,7 @@ class PartyReceptionDirectDebit(
         yield date, amount
 
     def _get_payment(self, line, date, amount):
-        pool = Pool()
+        pool = tx.pool
         Payment = pool.get('account.payment')
         return Payment(
             company=self.company,
@@ -206,7 +206,7 @@ class Erase(metaclass=PoolMeta):
     __name__ = 'party.erase'
 
     def check_erase_company(self, party, company):
-        pool = Pool()
+        pool = tx.pool
         Payment = pool.get('account.payment')
         super().check_erase_company(party, company)
 

@@ -7,11 +7,10 @@ from collections import defaultdict
 from sql import Literal
 from sql.aggregate import Sum
 
+from trytond import tx
 from trytond.i18n import gettext
 from trytond.model import ModelSQL, ModelStorage, ModelView, Unique, fields
-from trytond.pool import Pool
 from trytond.pyson import Bool, Eval, If
-from trytond.transaction import Transaction
 
 from .exceptions import CompanyValidationError
 
@@ -68,7 +67,7 @@ class Work(ModelSQL, ModelView):
 
     @staticmethod
     def default_company():
-        return Transaction().context.get('company')
+        return tx.transaction.context.get('company')
 
     @classmethod
     def _get_origin(cls):
@@ -77,16 +76,16 @@ class Work(ModelSQL, ModelView):
 
     @classmethod
     def get_origin(cls):
-        Model = Pool().get('ir.model')
+        Model = tx.pool.get('ir.model')
         get_name = Model.get_name
         models = cls._get_origin()
         return [('', '')] + [(m, get_name(m)) for m in models]
 
     @classmethod
     def get_duration(cls, works, name):
-        pool = Pool()
+        pool = tx.pool
         Line = pool.get('timesheet.line')
-        transaction = Transaction()
+        transaction = tx.transaction
         cursor = transaction.connection.cursor()
         context = transaction.context
 

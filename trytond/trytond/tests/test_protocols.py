@@ -6,7 +6,7 @@ import json
 from base64 import b64encode
 from decimal import Decimal
 
-from trytond.pool import Pool
+from trytond import tx
 from trytond.protocols.jsonrpc import JSONDecoder, JSONEncoder, JSONRequest
 from trytond.protocols.wrappers import (
     HTTPStatus, Response, user_application, with_pool, with_transaction)
@@ -142,7 +142,7 @@ class UserApplication(RouteTestCase):
 
     @classmethod
     def setUpDatabase(cls):
-        pool = Pool()
+        pool = tx.pool
         User = pool.get('res.user')
         UserApplication = pool.get('res.user.application')
 

@@ -4,9 +4,10 @@ from io import BytesIO, TextIOWrapper
 
 from aeb43 import AEB43
 
+from trytond import tx
 from trytond.i18n import gettext
 from trytond.modules.account_statement.exceptions import ImportStatementError
-from trytond.pool import Pool, PoolMeta
+from trytond.pool import PoolMeta
 
 
 class ImportStatementStart(metaclass=PoolMeta):
@@ -35,7 +36,7 @@ class ImportStatement(metaclass=PoolMeta):
             yield statement
 
     def aeb43_statement(self, account):
-        pool = Pool()
+        pool = tx.pool
         Statement = pool.get('account.statement')
         Journal = pool.get('account.statement.journal')
 
@@ -65,7 +66,7 @@ class ImportStatement(metaclass=PoolMeta):
         return statement
 
     def aeb43_origin(self, statement, transaction):
-        pool = Pool()
+        pool = tx.pool
         Origin = pool.get('account.statement.origin')
         origin = Origin()
         origin.date = transaction.transaction_date

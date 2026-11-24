@@ -4,12 +4,12 @@ import datetime as dt
 from collections import defaultdict
 from itertools import groupby
 
+from trytond import tx
 from trytond.model import Index, Model, ModelSQL, ModelView, Workflow, fields
 from trytond.modules.company.model import (
     employee_field, reset_employee, set_employee)
-from trytond.pool import Pool, PoolMeta
+from trytond.pool import PoolMeta
 from trytond.pyson import Eval
-from trytond.transaction import Transaction
 from trytond.wizard import Button, StateAction, StateView, Wizard
 
 
@@ -118,7 +118,7 @@ class QuantityEarlyPlan(Workflow, ModelSQL, ModelView):
 
     @classmethod
     def get_origins(cls):
-        pool = Pool()
+        pool = tx.pool
         Model = pool.get('ir.model')
         get_name = Model.get_name
         models = cls._get_origins()
@@ -151,7 +151,7 @@ class QuantityEarlyPlan(Workflow, ModelSQL, ModelView):
         return True
 
     def _get_dates(self, aggregate):
-        pool = Pool()
+        pool = tx.pool
         Move = pool.get('stock.move')
         if isinstance(self.origin, Move) and self.origin.id >= 0:
             if (aggregate == max
@@ -176,7 +176,7 @@ class QuantityEarlyPlan(Workflow, ModelSQL, ModelView):
                 return self.origin.internal_quantity
 
     def get_earliest_percentage(self, name):
-        pool = Pool()
+        pool = tx.pool
         Move = pool.get('stock.move')
         if isinstance(self.origin, Move) and self.origin.id >= 0:
             return round(
@@ -194,13 +194,13 @@ class QuantityEarlyPlan(Workflow, ModelSQL, ModelView):
 
     @classmethod
     def default_warehouse(cls):
-        pool = Pool()
+        pool = tx.pool
         Location = pool.get('stock.location')
         return Location.get_default_warehouse()
 
     @fields.depends('origin')
     def on_change_with_warehouse(self, name=None):
-        pool = Pool()
+        pool = tx.pool
         Move = pool.get('stock.move')
         if isinstance(self.origin, Move) and self.origin.id >= 0:
             return self.origin.from_location.warehouse
@@ -209,7 +209,7 @@ class QuantityEarlyPlan(Workflow, ModelSQL, ModelView):
             return self.origin.warehouse
 
     def get_moves(self, name):
-        pool = Pool()
+        pool = tx.pool
         ShipmentOut = pool.get('stock.shipment.out')
         ShipmentInReturn = pool.get('stock.shipment.in.return')
         ShipmentInternal = pool.get('stock.shipment.internal')
@@ -264,7 +264,7 @@ class QuantityEarlyPlan(Workflow, ModelSQL, ModelView):
 
         If warehouses is specified it searches only for moves from them.
         """
-        pool = Pool()
+        pool = tx.pool
         Date = pool.get('ir.date')
         Location = pool.get('stock.location')
         Move = pool.get('stock.move')
@@ -275,9 +275,9 @@ class QuantityEarlyPlan(Workflow, ModelSQL, ModelView):
                     ('type', '=', 'warehouse'),
                     ])
         if company is None:
-            company = User(Transaction().user).company
+            company = User(tx.transaction.user).company
 
-        with Transaction().set_context(company=company.id):
+        with tx.transaction.set_context(company=company.id):
             today = Date.today()
 
         # Do not keep former plan as the may no more be valid
@@ -383,19 +383,19 @@ class QuantityEarlyPlan(Workflow, ModelSQL, ModelView):
 
     @classmethod
     def _get_earlier_date(cls, move, warehouse):
-        pool = Pool()
+        pool = tx.pool
         Date = pool.get('ir.date')
         ProductQuantitiesByWarehouse = pool.get(
             'stock.product_quantities_warehouse')
         product = move.product
-        with Transaction().set_context(company=move.company.id):
+        with tx.transaction.set_context(company=move.company.id):
             today = Date.today()
 
         quantity = move.internal_quantity
         if product.consumable:
             return today, quantity
 
-        with Transaction().set_context(
+        with tx.transaction.set_context(
                 product=product.id,
                 warehouse=warehouse.id,
                 stock_skip_warehouse=False,
@@ -463,7 +463,7 @@ class QuantityEarlyPlan(Workflow, ModelSQL, ModelView):
             ]
 
     def _incoming_quantities(self, warehouse):
-        pool = Pool()
+        pool = tx.pool
         ShipmentInternal = pool.get('stock.shipment.internal')
         if isinstance(self.origin, ShipmentInternal):
             shipment = self.origin
@@ -496,7 +496,7 @@ class QuantityEarlyPlanProduction(metaclass=PoolMeta):
 
     @property
     def _allow_partial_moves(self):
-        pool = Pool()
+        pool = tx.pool
         Production = pool.get('production')
         allow = super()._allow_partial_moves
         if (isinstance(self.origin, Production)
@@ -505,7 +505,7 @@ class QuantityEarlyPlanProduction(metaclass=PoolMeta):
         return allow
 
     def get_moves(self, name):
-        pool = Pool()
+        pool = tx.pool
         Production = pool.get('production')
         moves = super().get_moves(name)
         if isinstance(self.origin, Production):
@@ -528,7 +528,7 @@ class QuantityEarlyPlanProduction(metaclass=PoolMeta):
             ]
 
     def _incoming_quantities(self, warehouse):
-        pool = Pool()
+        pool = tx.pool
         Production = pool.get('production')
         yield from super()._incoming_quantities(warehouse)
         if isinstance(self.origin, Production):
@@ -560,7 +560,7 @@ class QuantityEarlyPlanGenerate(Wizard):
         'stock_quantity_early_planning.act_quantity_early_plan_form')
 
     def transition_generate(self):
-        pool = Pool()
+        pool = tx.pool
         QuantityEarlyPlan = pool.get('stock.quantity.early_plan')
         QuantityEarlyPlan.generate_plans(
             warehouses=self.start.warehouses or None)
@@ -578,7 +578,7 @@ class QuantityEarlyPlanGenerateStart(ModelView):
 
     @classmethod
     def default_warehouses(cls):
-        pool = Pool()
+        pool = tx.pool
         Location = pool.get('stock.location')
         warehouse = Location.get_default_warehouse()
         if warehouse:

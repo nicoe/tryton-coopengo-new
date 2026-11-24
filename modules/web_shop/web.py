@@ -5,22 +5,22 @@ from collections import defaultdict
 from sql import Literal
 from sql.operators import Equal
 
+from trytond import tx
 from trytond.cache import Cache
 from trytond.model import (
     DeactivableMixin, Exclude, ModelSQL, ModelView, fields)
-from trytond.pool import Pool, PoolMeta
+from trytond.pool import PoolMeta
 from trytond.pyson import Eval
-from trytond.transaction import Transaction
 
 
 class Many2ManyInactive(fields.Many2Many):
 
     def get(self, ids, model, name, values=None):
-        with Transaction().set_context(inactive_test=True):
+        with tx.transaction.set_context(inactive_test=True):
             return super().get(ids, model, name, values=values)
 
     def set(self, Model, name, ids, values, *args):
-        with Transaction().set_context(inactive_test=True):
+        with tx.transaction.set_context(inactive_test=True):
             return super().set(Model, name, ids, values, *args)
 
 
@@ -28,7 +28,7 @@ class Inactivate(ModelSQL, DeactivableMixin):
 
     @classmethod
     def search_domain(cls, domain, active_test=None, tables=None):
-        context = Transaction().context
+        context = tx.transaction.context
         if context.get('inactive_test'):
             domain = [domain, ('active', '=', False)]
         return super().search_domain(
@@ -126,11 +126,11 @@ class Shop(DeactivableMixin, ModelSQL, ModelView):
 
     @classmethod
     def default_company(cls):
-        return Transaction().context.get('company')
+        return tx.transaction.context.get('company')
 
     @classmethod
     def default_currency(cls):
-        pool = Pool()
+        pool = tx.pool
         Company = pool.get('company.company')
         company_id = cls.default_company()
         if company_id is not None and company_id >= 0:
@@ -168,16 +168,16 @@ class Shop(DeactivableMixin, ModelSQL, ModelView):
         return False
 
     def _customer_taxe_rule(self):
-        pool = Pool()
+        pool = tx.pool
         Configuration = pool.get('account.configuration')
         config = Configuration(1)
         return config.get_multivalue(
             'default_customer_tax_rule', company=self.company.id)
 
     def get_context(self):
-        pool = Pool()
+        pool = tx.pool
         Date = pool.get('ir.date')
-        with Transaction().set_context(company=self.company.id):
+        with tx.transaction.set_context(company=self.company.id):
             today = Date.today()
         return {
             'language': self.language.code if self.language else None,
@@ -193,14 +193,14 @@ class Shop(DeactivableMixin, ModelSQL, ModelView):
         prices and taxes according to the tax pattern.
         If a key function is supplied, the products will be sorted in ascending
         order based on the key applied to each product."""
-        pool = Pool()
+        pool = tx.pool
         Date = pool.get('ir.date')
         Product = pool.get('product.product')
         Tax = pool.get('account.tax')
         if pattern is None:
             pattern = {}
 
-        with Transaction().set_context(**self.get_context()):
+        with tx.transaction.set_context(**self.get_context()):
             if key is not None:
                 all_products = sorted(self.products, key=key)
             else:
@@ -227,10 +227,10 @@ class Shop(DeactivableMixin, ModelSQL, ModelView):
 
         prices, taxes = {}, {}
         for tax_ids, products in taxes2products.items():
-            with Transaction().set_context(**self.get_context()):
+            with tx.transaction.set_context(**self.get_context()):
                 products = Product.browse(products)
                 taxes_ = Tax.browse(tax_ids)
-                with Transaction().set_context(taxes=tax_ids):
+                with tx.transaction.set_context(taxes=tax_ids):
                     prices.update(Product.get_sale_price(products))
             for product in products:
                 price = prices[product.id]
@@ -245,13 +245,13 @@ class Shop(DeactivableMixin, ModelSQL, ModelView):
 
     def get_categories(self):
         "Return the list of categories"
-        pool = Pool()
+        pool = tx.pool
         Category = pool.get('product.category')
-        with Transaction().set_context(**self.get_context()):
+        with tx.transaction.set_context(**self.get_context()):
             return Category.browse(self.categories)
 
     def get_sale(self, party=None):
-        pool = Pool()
+        pool = tx.pool
         Sale = pool.get('sale.sale')
         if not party:
             party = self.guest_party
@@ -262,7 +262,7 @@ class Shop(DeactivableMixin, ModelSQL, ModelView):
         if party:
             sale.party = party
             sale.invoice_address = party.address_get(type='invoice')
-            with Transaction().set_context(
+            with tx.transaction.set_context(
                     warehouse=self.warehouse.id if self.warehouse else None):
                 sale.shipment_address = party.address_get(type='delivery')
         sale.on_change_web_shop()
@@ -272,7 +272,7 @@ class Shop(DeactivableMixin, ModelSQL, ModelView):
         return sale
 
     def update_sale_ids(self, sale_ids):
-        pool = Pool()
+        pool = tx.pool
         Sale = pool.get('sale.sale')
         return self.update_sales(Sale.browse(sale_ids))
 
@@ -307,7 +307,7 @@ class Shop_PriceList(metaclass=PoolMeta):
         if self.sale_price_list:
             context['price_list'] = self.sale_price_list.id
         if (self.non_sale_price_list
-                and Transaction().context.get('_non_sale_price', False)):
+                and tx.transaction.context.get('_non_sale_price', False)):
             context['price_list'] = self.non_sale_price_list.id
         return context
 
@@ -395,9 +395,9 @@ class ShopAttribute(metaclass=PoolMeta):
 
     def get_attributes(self):
         "Return the list of attributes"
-        pool = Pool()
+        pool = tx.pool
         Attribute = pool.get('product.attribute')
-        with Transaction().set_context(**self.get_context()):
+        with tx.transaction.set_context(**self.get_context()):
             return Attribute.browse(self.attributes)
 
 

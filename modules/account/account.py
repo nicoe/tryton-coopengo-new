@@ -11,19 +11,18 @@ from sql import Column, Literal, Null, Window
 from sql.aggregate import Count, Sum
 from sql.conditionals import Case, Coalesce
 
-from trytond import backend
+from trytond import backend, tx
 from trytond.i18n import gettext
 from trytond.model import (
     Check, Index, ModelSQL, ModelView, Unique, fields, sequence_ordered,
     sum_tree, tree)
 from trytond.model.exceptions import AccessError
 from trytond.modules.currency.fields import Monetary
-from trytond.pool import Pool
 from trytond.pyson import Bool, Eval, Id, If, PYSONEncoder
 from trytond.report import Report
 from trytond.tools import (
     is_full_text, lstrip_wildcard, pair, sql_pairing, sqlite_apply_types)
-from trytond.transaction import Transaction, check_access, inactive_records
+from trytond.transaction import check_access, inactive_records
 from trytond.wizard import (
     Button, StateAction, StateTransition, StateView, Wizard)
 
@@ -177,7 +176,7 @@ class TypeTemplate(
         value, used to convert template id into type. The dictionary is filled
         with new types.
         '''
-        pool = Pool()
+        pool = tx.pool
         Type = pool.get('account.account.type')
         assert self.parent is None
 
@@ -272,7 +271,7 @@ class Type(
 
     @classmethod
     def default_company(cls):
-        return Transaction().context.get('company')
+        return tx.transaction.context.get('company')
 
     @fields.depends('parent', '_parent_parent.statement')
     def on_change_parent(self):
@@ -288,10 +287,10 @@ class Type(
 
     @classmethod
     def get_amount(cls, types, name):
-        pool = Pool()
+        pool = tx.pool
         Account = pool.get('account.account')
         GeneralLedger = pool.get('account.general_ledger.account')
-        context = Transaction().context
+        context = tx.transaction.context
 
         childs = cls.search([
                 ('parent', 'child_of', [t.id for t in types]),
@@ -307,7 +306,7 @@ class Type(
             from_date = context.get('from_date')
             to_date = context.get('to_date')
 
-        with Transaction().set_context(
+        with tx.transaction.set_context(
                 periods=period_ids, from_date=from_date, to_date=to_date):
             accounts = Account.search([
                     ('type', 'in', [t.id for t in childs]),
@@ -342,7 +341,7 @@ class Type(
 
     @classmethod
     def get_amount_cmp(cls, types, name):
-        transaction = Transaction()
+        transaction = tx.transaction
         current = transaction.context
         if not current.get('comparison'):
             return dict.fromkeys([t.id for t in types], None)
@@ -426,7 +425,7 @@ class OpenType(Wizard):
     ledger_account = StateAction('account.act_account_general_ledger')
 
     def transition_start(self):
-        context_model = Transaction().context.get('context_model')
+        context_model = tx.transaction.context.get('context_model')
         if context_model == 'account.balance_sheet.comparison.context':
             return 'account'
         elif context_model == 'account.income_statement.context':
@@ -434,9 +433,9 @@ class OpenType(Wizard):
         return 'end'
 
     def open_action(self, action):
-        pool = Pool()
+        pool = tx.pool
         action['name'] = '%s (%s)' % (action['name'], self.record.rec_name)
-        trans_context = Transaction().context
+        trans_context = tx.transaction.context
         context = {
             'active_id': trans_context.get('active_id'),
             'active_ids': trans_context.get('active_ids', []),
@@ -461,9 +460,9 @@ class AccountTypeStatement(Report):
 
     @classmethod
     def get_context(cls, records, header, data):
-        pool = Pool()
+        pool = tx.pool
         Company = pool.get('company.company')
-        context = Transaction().context
+        context = tx.transaction.context
 
         report_context = super().get_context(records, header, data)
         report_context['company'] = Company(context['company'])
@@ -711,7 +710,7 @@ class AccountTemplate(
         template2type is a dictionary with type template id as key and type id
         as value, used to convert type template id into type.
         '''
-        pool = Pool()
+        pool = tx.pool
         Account = pool.get('account.account')
         assert self.parent is None
 
@@ -769,7 +768,7 @@ class AccountTemplate(
         template_done is a list of template id already updated. The list is
         filled.
         '''
-        Account = Pool().get('account.account')
+        Account = tx.pool.get('account.account')
 
         if template2account is None:
             template2account = {}
@@ -986,7 +985,7 @@ class Account(
 
     @staticmethod
     def default_company():
-        return Transaction().context.get('company') or None
+        return tx.transaction.context.get('company') or None
 
     @classmethod
     def default_template_override(cls):
@@ -996,7 +995,7 @@ class Account(
     def key_get_field(cls, name):
         key = super().key_get_field(name)
         if name == 'amount_second_currency':
-            if not Transaction().context.get('cumulate'):
+            if not tx.transaction.context.get('cumulate'):
                 key = 'amount_second_currency'
         return key
 
@@ -1009,10 +1008,10 @@ class Account(
 
     @classmethod
     def get_balance(cls, accounts, name):
-        pool = Pool()
+        pool = tx.pool
         MoveLine = pool.get('account.move.line')
         FiscalYear = pool.get('account.fiscalyear')
-        transaction = Transaction()
+        transaction = tx.transaction
         cursor = transaction.connection.cursor()
         context = transaction.context
 
@@ -1065,10 +1064,10 @@ class Account(
         If cumulate is set in the context, it is the cumulate amount over all
         previous fiscal year.
         '''
-        pool = Pool()
+        pool = tx.pool
         MoveLine = pool.get('account.move.line')
         FiscalYear = pool.get('account.fiscalyear')
-        transaction = Transaction()
+        transaction = tx.transaction
         cursor = transaction.connection.cursor()
 
         result = {}
@@ -1141,7 +1140,7 @@ class Account(
         Cumulate previous fiscalyear values into values
         func is the method to compute values
         """
-        pool = Pool()
+        pool = tx.pool
         FiscalYear = pool.get('account.fiscalyear')
 
         youngest_fiscalyear = None
@@ -1179,7 +1178,7 @@ class Account(
                     for name in names:
                         values[name][account.id] += getattr(deferral, name)
         else:
-            with Transaction().set_context(fiscalyear=fiscalyear.id,
+            with tx.transaction.set_context(fiscalyear=fiscalyear.id,
                     date=None, periods=None, from_date=None, to_date=None):
                 previous_result = func(accounts, names)
             for name in names:
@@ -1208,7 +1207,7 @@ class Account(
 
     @classmethod
     def check_second_currency(cls, accounts, field_names=None):
-        pool = Pool()
+        pool = tx.pool
         Line = pool.get('account.move.line')
         if field_names and not (
                 field_names & (
@@ -1244,7 +1243,7 @@ class Account(
 
     @classmethod
     def check_move_domain(cls, accounts, field_names=None):
-        pool = Pool()
+        pool = tx.pool
         Line = pool.get('account.move.line')
         if field_names and not (field_names & {'closed', 'type'}):
             return
@@ -1393,11 +1392,11 @@ class Account(
 
     def current(self, date=None):
         "Return the actual account for the date"
-        pool = Pool()
+        pool = tx.pool
         Date = pool.get('ir.date')
-        context = Transaction().context
+        context = tx.transaction.context
         if date is None:
-            with Transaction().set_context(company=self.company.id):
+            with tx.transaction.set_context(company=self.company.id):
                 date = context.get('date') or Date.today()
         if self.start_date and date < self.start_date:
             return None
@@ -1470,13 +1469,13 @@ class AccountParty(ActivePeriodMixin, ModelSQL):
     def key_get_field(cls, name):
         key = super().key_get_field(name)
         if name == 'amount_second_currency':
-            if not Transaction().context.get('cumulate'):
+            if not tx.transaction.context.get('cumulate'):
                 key = 'amount_second_currency'
         return key
 
     @classmethod
     def table_query(cls):
-        pool = Pool()
+        pool = tx.pool
         Line = pool.get('account.move.line')
         Account = pool.get('account.account')
         line = Line.__table__()
@@ -1520,11 +1519,11 @@ class AccountParty(ActivePeriodMixin, ModelSQL):
 
     @classmethod
     def get_balance(cls, records, name):
-        pool = Pool()
+        pool = tx.pool
         Account = pool.get('account.account')
         MoveLine = pool.get('account.move.line')
         FiscalYear = pool.get('account.fiscalyear')
-        transaction = Transaction()
+        transaction = tx.transaction
         cursor = transaction.connection.cursor()
         context = transaction.context
 
@@ -1579,11 +1578,11 @@ class AccountParty(ActivePeriodMixin, ModelSQL):
 
     @classmethod
     def get_credit_debit(cls, records, names):
-        pool = Pool()
+        pool = tx.pool
         Account = pool.get('account.account')
         MoveLine = pool.get('account.move.line')
         FiscalYear = pool.get('account.fiscalyear')
-        transaction = Transaction()
+        transaction = tx.transaction
         cursor = transaction.connection.cursor()
 
         result = {}
@@ -1702,12 +1701,12 @@ class AccountDeferral(ModelSQL, ModelView):
 
     @classmethod
     def __register__(cls, module_name):
-        pool = Pool()
+        pool = tx.pool
         MoveLine = pool.get('account.move.line')
         Move = pool.get('account.move')
         Period = pool.get('account.period')
 
-        cursor = Transaction().connection.cursor()
+        cursor = tx.transaction.connection.cursor()
         deferral = cls.__table__()
         move_line = MoveLine.__table__()
         move = Move.__table__()
@@ -1744,9 +1743,9 @@ class AccountDeferral(ModelSQL, ModelView):
 
     @classmethod
     def get_balance(cls, deferrals, name):
-        pool = Pool()
+        pool = tx.pool
         Account = pool.get('account.account')
-        cursor = Transaction().connection.cursor()
+        cursor = tx.transaction.connection.cursor()
 
         table = cls.__table__()
         table_child = cls.__table__()
@@ -1834,7 +1833,7 @@ class AccountContext(ModelView):
 
     @classmethod
     def default_company(cls):
-        return Transaction().context.get('company')
+        return tx.transaction.context.get('company')
 
     @fields.depends('company', 'fiscalyear')
     def on_change_company(self):
@@ -1906,7 +1905,7 @@ class _GeneralLedgerAccount(ActivePeriodMixin, ModelSQL, ModelView):
 
     @classmethod
     def table_query(cls):
-        pool = Pool()
+        pool = tx.pool
         LedgerAccountContext = pool.get(
             'account.general_ledger.account.context')
         context = LedgerAccountContext.get_context()
@@ -1928,7 +1927,7 @@ class _GeneralLedgerAccount(ActivePeriodMixin, ModelSQL, ModelView):
 
     @classmethod
     def get_period_ids(cls, name):
-        pool = Pool()
+        pool = tx.pool
         Period = pool.get('account.period')
         LedgerAccountContext = pool.get(
             'account.general_ledger.account.context')
@@ -1975,7 +1974,7 @@ class _GeneralLedgerAccount(ActivePeriodMixin, ModelSQL, ModelView):
 
     @classmethod
     def get_dates(cls, name):
-        pool = Pool()
+        pool = tx.pool
         LedgerAccountContext = pool.get(
             'account.general_ledger.account.context')
         context = LedgerAccountContext.get_context()
@@ -1993,7 +1992,7 @@ class _GeneralLedgerAccount(ActivePeriodMixin, ModelSQL, ModelView):
 
     @classmethod
     def _account_context(cls, name):
-        pool = Pool()
+        pool = tx.pool
         LedgerAccountContext = pool.get(
             'account.general_ledger.account.context')
         period_ids, from_date, to_date = None, None, None
@@ -2016,7 +2015,7 @@ class _GeneralLedgerAccount(ActivePeriodMixin, ModelSQL, ModelView):
     def get_account(cls, records, name):
         Account = cls._get_account()
 
-        with Transaction().set_context(cls._account_context(name)):
+        with tx.transaction.set_context(cls._account_context(name)):
             accounts = Account.browse(records)
         fname = name
         for test in ['start_', 'end_']:
@@ -2029,7 +2028,7 @@ class _GeneralLedgerAccount(ActivePeriodMixin, ModelSQL, ModelView):
     def search_account(cls, name, domain):
         Account = cls._get_account()
 
-        with Transaction().set_context(cls._account_context(name)):
+        with tx.transaction.set_context(cls._account_context(name)):
             accounts = Account.search([], order=[])
 
         _, operator_, operand = domain
@@ -2055,7 +2054,7 @@ class _GeneralLedgerAccount(ActivePeriodMixin, ModelSQL, ModelView):
 
     @classmethod
     def _debit_credit_context(cls):
-        pool = Pool()
+        pool = tx.pool
         LedgerAccountContext = pool.get(
             'account.general_ledger.account.context')
         period_ids, from_date, to_date = None, None, None
@@ -2077,7 +2076,7 @@ class _GeneralLedgerAccount(ActivePeriodMixin, ModelSQL, ModelView):
     def get_debit_credit(cls, records, name):
         Account = cls._get_account()
 
-        with Transaction().set_context(cls._debit_credit_context()):
+        with tx.transaction.set_context(cls._debit_credit_context()):
             accounts = Account.browse(records)
         return {a.id: getattr(a, name) for a in accounts}
 
@@ -2085,7 +2084,7 @@ class _GeneralLedgerAccount(ActivePeriodMixin, ModelSQL, ModelView):
     def search_debit_credit(cls, name, domain):
         Account = cls._get_account()
 
-        with Transaction().set_context(cls._debit_credit_context()):
+        with tx.transaction.set_context(cls._debit_credit_context()):
             accounts = Account.search([], order=[])
 
         _, operator_, operand = domain
@@ -2131,7 +2130,7 @@ class GeneralLedgerAccount(_GeneralLedgerAccount):
 
     @classmethod
     def _get_account(cls):
-        pool = Pool()
+        pool = tx.pool
         return pool.get('account.account')
 
 
@@ -2191,10 +2190,10 @@ class GeneralLedgerAccountContext(ModelView):
 
     @classmethod
     def default_fiscalyear(cls):
-        pool = Pool()
+        pool = tx.pool
         FiscalYear = pool.get('account.fiscalyear')
         Period = pool.get('account.period')
-        context = Transaction().context
+        context = tx.transaction.context
         fiscalyear_id = context.get('fiscalyear')
         period_id = context.get('period')
         if fiscalyear_id is not None and fiscalyear_id >= 0:
@@ -2212,35 +2211,35 @@ class GeneralLedgerAccountContext(ModelView):
 
     @classmethod
     def default_start_period(cls):
-        return Transaction().context.get('start_period')
+        return tx.transaction.context.get('start_period')
 
     @classmethod
     def default_end_period(cls):
-        return Transaction().context.get('end_period')
+        return tx.transaction.context.get('end_period')
 
     @classmethod
     def default_company(cls):
-        return Transaction().context.get('company')
+        return tx.transaction.context.get('company')
 
     @classmethod
     def default_posted(cls):
-        return Transaction().context.get('posted', False)
+        return tx.transaction.context.get('posted', False)
 
     @classmethod
     def default_journal(cls):
-        return Transaction().context.get('journal')
+        return tx.transaction.context.get('journal')
 
     @classmethod
     def default_from_date(cls):
-        return Transaction().context.get('from_date')
+        return tx.transaction.context.get('from_date')
 
     @classmethod
     def default_to_date(cls):
-        return Transaction().context.get('to_date')
+        return tx.transaction.context.get('to_date')
 
     @fields.depends('company', 'fiscalyear', methods=['on_change_fiscalyear'])
     def on_change_company(self):
-        pool = Pool()
+        pool = tx.pool
         FiscalYear = pool.get('account.fiscalyear')
         if not self.company:
             self.fiscalyear = None
@@ -2308,7 +2307,7 @@ class GeneralLedgerAccountParty(_GeneralLedgerAccount):
 
     @classmethod
     def _get_account(cls):
-        pool = Pool()
+        pool = tx.pool
         return pool.get('account.account.party')
 
     def get_rec_name(self, name):
@@ -2402,7 +2401,7 @@ class GeneralLedgerLine(DescriptionOriginMixin, ModelSQL, ModelView):
 
     @classmethod
     def table_query(cls):
-        pool = Pool()
+        pool = tx.pool
         Line = pool.get('account.move.line')
         Move = pool.get('account.move')
         LedgerAccount = pool.get('account.general_ledger.account')
@@ -2438,7 +2437,7 @@ class GeneralLedgerLine(DescriptionOriginMixin, ModelSQL, ModelView):
             else:
                 column = Column(line, fname).as_(fname)
             columns.append(column)
-        with Transaction().set_context(
+        with tx.transaction.set_context(
                 context, **LedgerAccount._debit_credit_context()):
             line_query, fiscalyear_ids = Line.query_get(line)
         return line.join(move, condition=line.move == move.id
@@ -2454,13 +2453,13 @@ class GeneralLedgerLine(DescriptionOriginMixin, ModelSQL, ModelView):
 
     @classmethod
     def get_origin(cls):
-        pool = Pool()
+        pool = tx.pool
         Move = pool.get('account.move')
         Line = pool.get('account.move.line')
         return list(set(Move.get_origin()) | set(Line.get_origin()))
 
     def get_balance(self, name):
-        pool = Pool()
+        pool = tx.pool
         LedgerLineContext = pool.get(
             'account.general_ledger.line.context')
         context = LedgerLineContext.get_context()
@@ -2473,10 +2472,10 @@ class GeneralLedgerLine(DescriptionOriginMixin, ModelSQL, ModelView):
 
     @classmethod
     def get_account_party(cls, records, name):
-        pool = Pool()
+        pool = tx.pool
         AccountParty = pool.get('account.general_ledger.account.party')
         account_party = AccountParty.__table__()
-        cursor = Transaction().connection.cursor()
+        cursor = tx.transaction.connection.cursor()
 
         account_parties = {}
         account_party2ids = defaultdict(list)
@@ -2510,7 +2509,7 @@ class GeneralLedgerLine(DescriptionOriginMixin, ModelSQL, ModelView):
 
     @classmethod
     def reconcile(cls, *lines_list, **kwargs):
-        pool = Pool()
+        pool = tx.pool
         Line = pool.get('account.move.line')
         lines_list = [Line.browse(l) for l in lines_list]
         return Line.reconcile(*lines_list, **kwargs)
@@ -2523,7 +2522,7 @@ class GeneralLedgerLineContext(GeneralLedgerAccountContext):
 
     @classmethod
     def default_party_cumulate(cls):
-        return Transaction().context.get('party_cumulate', False)
+        return tx.transaction.context.get('party_cumulate', False)
 
     @classmethod
     def get_context(cls, fields_names=None):
@@ -2537,11 +2536,11 @@ class GeneralLedger(Report):
 
     @classmethod
     def get_context(cls, records, header, data):
-        pool = Pool()
+        pool = tx.pool
         Company = pool.get('company.company')
         Fiscalyear = pool.get('account.fiscalyear')
         Period = pool.get('account.period')
-        context = Transaction().context
+        context = tx.transaction.context
 
         report_context = super().get_context(records, header, data)
 
@@ -2565,11 +2564,11 @@ class TrialBalance(Report):
 
     @classmethod
     def get_context(cls, records, header, data):
-        pool = Pool()
+        pool = tx.pool
         Company = pool.get('company.company')
         Fiscalyear = pool.get('account.fiscalyear')
         Period = pool.get('account.period')
-        context = Transaction().context
+        context = tx.transaction.context
 
         report_context = super().get_context(records, header, data)
 
@@ -2601,16 +2600,16 @@ class BalanceSheetContext(ModelView):
 
     @staticmethod
     def default_date():
-        Date_ = Pool().get('ir.date')
-        return Transaction().context.get('date', Date_.today())
+        Date_ = tx.pool.get('ir.date')
+        return tx.transaction.context.get('date', Date_.today())
 
     @staticmethod
     def default_company():
-        return Transaction().context.get('company')
+        return tx.transaction.context.get('company')
 
     @staticmethod
     def default_posted():
-        return Transaction().context.get('posted', False)
+        return tx.transaction.context.get('posted', False)
 
 
 class BalanceSheetComparisonContext(BalanceSheetContext):
@@ -2741,7 +2740,7 @@ class IncomeStatementContext(ModelView):
 
     @classmethod
     def default_fiscalyear(cls):
-        pool = Pool()
+        pool = tx.pool
         FiscalYear = pool.get('account.fiscalyear')
         try:
             fiscalyear = FiscalYear.find(
@@ -2752,7 +2751,7 @@ class IncomeStatementContext(ModelView):
 
     @staticmethod
     def default_company():
-        return Transaction().context.get('company')
+        return tx.transaction.context.get('company')
 
     @staticmethod
     def default_posted():
@@ -2764,7 +2763,7 @@ class IncomeStatementContext(ModelView):
 
     @fields.depends('company', 'fiscalyear', methods=['on_change_fiscalyear'])
     def on_change_company(self):
-        pool = Pool()
+        pool = tx.pool
         FiscalYear = pool.get('account.fiscalyear')
         if not self.company:
             self.fiscalyear = None
@@ -2883,7 +2882,7 @@ class AgedBalanceContext(ModelView):
 
     @classmethod
     def default_date(cls):
-        return Pool().get('ir.date').today()
+        return tx.pool.get('ir.date').today()
 
     @classmethod
     def default_term1(cls):
@@ -2918,7 +2917,7 @@ class AgedBalanceContext(ModelView):
 
     @staticmethod
     def default_company():
-        return Transaction().context.get('company')
+        return tx.transaction.context.get('company')
 
 
 class AgedBalance(ModelSQL, ModelView):
@@ -2952,8 +2951,8 @@ class AgedBalance(ModelSQL, ModelView):
 
     @classmethod
     def table_query(cls):
-        pool = Pool()
-        context = Transaction().context
+        pool = tx.pool
+        context = tx.transaction.context
         MoveLine = pool.get('account.move.line')
         Move = pool.get('account.move')
         Reconciliation = pool.get('account.move.reconciliation')
@@ -3024,7 +3023,7 @@ class AgedBalance(ModelSQL, ModelView):
 
     @classmethod
     def get_terms(cls):
-        context = Transaction().context
+        context = tx.transaction.context
         return {
             'term0': 0,
             'term1': context.get('term1'),
@@ -3034,7 +3033,7 @@ class AgedBalance(ModelSQL, ModelView):
 
     @classmethod
     def get_unit_factor(cls):
-        context = Transaction().context
+        context = tx.transaction.context
         return {
             'year': relativedelta(years=1),
             'month': relativedelta(months=1),
@@ -3044,7 +3043,7 @@ class AgedBalance(ModelSQL, ModelView):
 
     @classmethod
     def get_kind(cls, account_type):
-        context = Transaction().context
+        context = tx.transaction.context
         type_ = context.get('type', 'customer')
         if type_ == 'customer_supplier':
             return account_type.payable | account_type.receivable
@@ -3068,11 +3067,11 @@ class AgedBalanceReport(Report):
 
     @classmethod
     def get_context(cls, records, header, data):
-        pool = Pool()
+        pool = tx.pool
         Company = pool.get('company.company')
         Context = pool.get('account.aged_balance.context')
         AgedBalance = pool.get('account.aged_balance')
-        context = Transaction().context
+        context = tx.transaction.context
 
         report_context = super().get_context(records, header, data)
 
@@ -3105,7 +3104,7 @@ class CreateChartAccount(ModelView):
 
     @staticmethod
     def default_company():
-        return Transaction().context.get('company')
+        return tx.transaction.context.get('company')
 
 
 class CreateChartProperties(ModelView):
@@ -3150,7 +3149,7 @@ class CreateChart(Wizard):
     create_properties = StateTransition()
 
     def transition_create_account(self):
-        pool = Pool()
+        pool = tx.pool
         TaxCodeTemplate = pool.get('account.tax.code.template')
         TaxCodeLineTemplate = pool.get('account.tax.code.line.template')
         TaxTemplate = pool.get('account.tax.template')
@@ -3160,7 +3159,7 @@ class CreateChart(Wizard):
         Config = pool.get('ir.configuration')
         Account = pool.get('account.account')
         Warning = pool.get('res.user.warning')
-        transaction = Transaction()
+        transaction = tx.transaction
 
         company = self.account.company
         accounts = Account.search([('company', '=', company.id)], limit=1)
@@ -3226,7 +3225,7 @@ class CreateChart(Wizard):
         return 'properties'
 
     def get_account(self, template_id):
-        pool = Pool()
+        pool = tx.pool
         Account = pool.get('account.account')
         ModelData = pool.get('ir.model.data')
         template_id = ModelData.get_id(template_id)
@@ -3237,7 +3236,7 @@ class CreateChart(Wizard):
         return account.id
 
     def default_properties(self, fields):
-        pool = Pool()
+        pool = tx.pool
         Account = pool.get('account.account')
 
         defaults = {
@@ -3265,10 +3264,10 @@ class CreateChart(Wizard):
         return defaults
 
     def transition_create_properties(self):
-        pool = Pool()
+        pool = tx.pool
         Configuration = pool.get('account.configuration')
 
-        with Transaction().set_context(company=self.properties.company.id):
+        with tx.transaction.set_context(company=self.properties.company.id):
             account_receivable = self.properties.account_receivable
             account_payable = self.properties.account_payable
             config = Configuration(1)
@@ -3307,7 +3306,7 @@ class UpdateChart(Wizard):
 
     @check_access
     def default_start(self, fields):
-        pool = Pool()
+        pool = tx.pool
         Account = pool.get('account.account')
 
         defaults = {}
@@ -3321,7 +3320,7 @@ class UpdateChart(Wizard):
 
     @inactive_records
     def transition_update(self):
-        pool = Pool()
+        pool = tx.pool
         Account = pool.get('account.account')
         TaxCode = pool.get('account.tax.code')
         TaxCodeTemplate = pool.get('account.tax.code.template')

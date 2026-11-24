@@ -12,11 +12,11 @@ except ImportError:
     PIL = None
 
 import trytond.config as config
+from trytond import tx
 from trytond.i18n import gettext
 from trytond.model import (
     MatchMixin, ModelSQL, ModelView, Unique, fields, sequence_ordered)
 from trytond.model.exceptions import SQLConstraintError
-from trytond.pool import Pool
 from trytond.pyson import Bool, Eval, If
 from trytond.report import Report
 from trytond.tools import timezone as tz
@@ -122,7 +122,7 @@ class Company(ModelSQL, ModelView):
 
     @classmethod
     def on_modification(cls, mode, companies, field_names=None):
-        pool = Pool()
+        pool = tx.pool
         Rule = pool.get('ir.rule')
         super().on_modification(mode, companies, field_names=field_names)
         if mode == 'write':
@@ -161,7 +161,7 @@ class Company(ModelSQL, ModelView):
                 return cache.image, 'image/png', cache.width, cache.height
 
         try:
-            with Transaction().new_transaction():
+            with tx.transaction.new_transaction():
                 image, width, height = self._logo_resize(width, height)
                 if (width, height) not in cached_sizes:
                     cache = self._logo_store_cache(image, width, height)
@@ -255,7 +255,7 @@ class CompanyTaxIdentifier(
 
     @classmethod
     def __setup__(cls):
-        pool = Pool()
+        pool = tx.pool
         Party = pool.get('party.party')
         super().__setup__()
         cls.__access__.add('company')
@@ -267,7 +267,7 @@ class CompanyTaxIdentifier(
 
     @classmethod
     def default_company(cls):
-        return Transaction().context.get('company')
+        return tx.transaction.context.get('company')
 
     @fields.depends('company', '_parent_company.party')
     def on_change_with_company_party(self, name=None):
@@ -360,13 +360,13 @@ class Employee(ModelSQL, ModelView):
 
     @staticmethod
     def default_company():
-        return Transaction().context.get('company')
+        return tx.transaction.context.get('company')
 
     @fields.depends('start_date', 'end_date')
     def on_change_with_active(self, name=None):
-        pool = Pool()
+        pool = tx.pool
         Date = pool.get('ir.date')
-        context = Transaction().context
+        context = tx.transaction.context
         date = context.get('date') or Date.today()
         start_date = self.start_date or dt.date.min
         end_date = self.end_date or dt.date.max
@@ -374,9 +374,9 @@ class Employee(ModelSQL, ModelView):
 
     @classmethod
     def search_active(cls, name, domain):
-        pool = Pool()
+        pool = tx.pool
         Date = pool.get('ir.date')
-        context = Transaction().context
+        context = tx.transaction.context
         date = context.get('date') or Date.today()
         _, operator, value = domain
         if (operator == '=' and value) or (operator == '!=' and not value):
@@ -426,7 +426,7 @@ class CompanyConfig(Wizard):
     add = StateTransition()
 
     def transition_add(self):
-        User = Pool().get('res.user')
+        User = tx.pool.get('res.user')
 
         self.company.save()
         users = User.search([

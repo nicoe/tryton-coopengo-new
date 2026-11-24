@@ -3,13 +3,11 @@
 # this repository contains the full copyright notices and license terms.
 import unittest
 
-from trytond import backend
+from trytond import backend, tx
 from trytond.model.exceptions import (
     RequiredValidationError, SizeValidationError)
-from trytond.pool import Pool
 from trytond.tests.test_tryton import (
     TestCase, activate_module, with_transaction)
-from trytond.transaction import Transaction
 
 
 class CommonTestCaseMixin:
@@ -277,7 +275,7 @@ class CommonTestCaseMixin:
                     }, {
                     'text': "Sambreville",
                     }])
-        with Transaction().set_context({
+        with tx.transaction.set_context({
                     '%s.text.search_full_text' % Text.__name__: False,
                 }):
             texts_bar = Text.search([
@@ -340,7 +338,7 @@ class CommonTestCaseMixin:
                     'text': "a fat cat sat on a mat and ate a fat rat",
                     }])
 
-        with Transaction().set_context({
+        with tx.transaction.set_context({
                     '%s.text.order' % Text.__name__: (
                         '"sad cat" or "fat rat"'),
                     }):
@@ -382,7 +380,7 @@ class CommonTestCaseMixin:
                     'text': "Bar",
                     }])
 
-        with Transaction().set_context({
+        with tx.transaction.set_context({
                     '%s.text.search_full_text' % Text.__name__: False,
                     }):
             texts_bar = Text.search([
@@ -427,12 +425,12 @@ class FieldTextTestCase(TestCase, CommonTestCaseMixin):
         activate_module('tests')
 
     def Text(self):
-        return Pool().get('test.text')
+        return tx.pool.get('test.text')
 
     @with_transaction()
     def test_create_without_default(self):
         "Test create text without default"
-        Text = Pool().get('test.text')
+        Text = tx.pool.get('test.text')
 
         text, = Text.create([{}])
 
@@ -441,7 +439,7 @@ class FieldTextTestCase(TestCase, CommonTestCaseMixin):
     @with_transaction()
     def test_create_with_default(self):
         "Test create text without default"
-        Text = Pool().get('test.text_default')
+        Text = tx.pool.get('test.text_default')
 
         text, = Text.create([{}])
 
@@ -450,7 +448,7 @@ class FieldTextTestCase(TestCase, CommonTestCaseMixin):
     @with_transaction()
     def test_create_required_with_value(self):
         "Test create text required with value"
-        Text = Pool().get('test.text_required')
+        Text = tx.pool.get('test.text_required')
 
         text, = Text.create([{
                     'text': "Test",
@@ -461,7 +459,7 @@ class FieldTextTestCase(TestCase, CommonTestCaseMixin):
     @with_transaction()
     def test_create_required_without_value(self):
         "Test create text required without value"
-        Text = Pool().get('test.text_required')
+        Text = tx.pool.get('test.text_required')
 
         with self.assertRaises(RequiredValidationError):
             Text.create([{}])
@@ -469,7 +467,7 @@ class FieldTextTestCase(TestCase, CommonTestCaseMixin):
     @with_transaction()
     def test_create_required_with_empty(self):
         "Test create text required with empty"
-        Text = Pool().get('test.text_required')
+        Text = tx.pool.get('test.text_required')
 
         with self.assertRaises(RequiredValidationError):
             Text.create([{
@@ -479,7 +477,7 @@ class FieldTextTestCase(TestCase, CommonTestCaseMixin):
     @with_transaction()
     def test_create_size_valid(self):
         "Test create text with size"
-        Text = Pool().get('test.text_size')
+        Text = tx.pool.get('test.text_size')
 
         text, = Text.create([{
                     'text': "Test",
@@ -490,7 +488,7 @@ class FieldTextTestCase(TestCase, CommonTestCaseMixin):
     @with_transaction()
     def test_create_size_invalid(self):
         "Test create text with invalid size"
-        Text = Pool().get('test.text_size')
+        Text = tx.pool.get('test.text_size')
 
         with self.assertRaises(SizeValidationError):
             Text.create([{
@@ -500,7 +498,7 @@ class FieldTextTestCase(TestCase, CommonTestCaseMixin):
     @with_transaction()
     def test_write(self):
         "Test write text"
-        Text = Pool().get('test.text')
+        Text = tx.pool.get('test.text')
         text, = Text.create([{
                     'text': "Foo",
                     }])
@@ -514,7 +512,7 @@ class FieldTextTestCase(TestCase, CommonTestCaseMixin):
     @with_transaction()
     def test_write_none(self):
         "Test write text None"
-        Text = Pool().get('test.text')
+        Text = tx.pool.get('test.text')
         text, = Text.create([{
                     'text': "Foo",
                     }])
@@ -528,7 +526,7 @@ class FieldTextTestCase(TestCase, CommonTestCaseMixin):
     @with_transaction()
     def test_write_size_invalid(self):
         "Test write text with invalid size"
-        Text = Pool().get('test.text_size')
+        Text = tx.pool.get('test.text_size')
 
         text, = Text.create([{
                     'text': "Test",
@@ -544,7 +542,7 @@ class FieldTextTranslatedTestCase(TestCase, CommonTestCaseMixin):
     "Test Field Text Translated"
 
     def Text(self):
-        return Pool().get('test.text_translate')
+        return tx.pool.get('test.text_translate')
 
 
 class FieldFullTextTestCase(TestCase):
@@ -558,7 +556,7 @@ class FieldFullTextTestCase(TestCase):
     @with_transaction()
     def test_create(self):
         "Test create full text"
-        pool = Pool()
+        pool = tx.pool
         Model = pool.get('test.text_full')
 
         record, = Model.create([{
@@ -570,7 +568,7 @@ class FieldFullTextTestCase(TestCase):
     @with_transaction()
     def test_create_list(self):
         "Test create full text with a list"
-        pool = Pool()
+        pool = tx.pool
         Model = pool.get('test.text_full')
 
         record, = Model.create([{
@@ -585,7 +583,7 @@ class FieldFullTextTestCase(TestCase):
     @with_transaction()
     def test_search(self):
         "Test search full text"
-        pool = Pool()
+        pool = tx.pool
         Model = pool.get('test.text_full')
 
         fat_cat, sad_cat = Model.create([{
@@ -611,7 +609,7 @@ class FieldFullTextTestCase(TestCase):
     @with_transaction()
     def test_search_full_text(self):
         "Test search full text"
-        pool = Pool()
+        pool = tx.pool
         Model = pool.get('test.text_full')
 
         fat_cat, sad_cat = Model.create([{
@@ -634,7 +632,7 @@ class FieldFullTextTestCase(TestCase):
     @with_transaction()
     def test_search_full_text_filter(self):
         "Test search full text"
-        pool = Pool()
+        pool = tx.pool
         Model = pool.get('test.text_full')
 
         fat_cat, sad_cat = Model.create([{
@@ -648,7 +646,7 @@ class FieldFullTextTestCase(TestCase):
                 ('"sad cat" or "fat rat"', [fat_cat, sad_cat]),
                 ]:
             with self.subTest(clause=clause):
-                with Transaction().set_context({
+                with tx.transaction.set_context({
                             '%s.full_text.order' % Model.__name__: clause,
                             }):
                     self.assertListEqual(Model.search([
@@ -660,7 +658,7 @@ class FieldFullTextTestCase(TestCase):
     @with_transaction()
     def test_search_full_text_order(self):
         "Test order full text"
-        pool = Pool()
+        pool = tx.pool
         Model = pool.get('test.text_full')
 
         sad_cat, fat_cat, dog = Model.create([{
@@ -677,7 +675,7 @@ class FieldFullTextTestCase(TestCase):
                     'full_text': "a dog",
                     }])
 
-        with Transaction().set_context({
+        with tx.transaction.set_context({
                     '%s.full_text.order' % Model.__name__: (
                         '"sad cat" or "fat rat"'),
                     }):

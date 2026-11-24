@@ -6,11 +6,12 @@ from functools import wraps
 import requests
 
 import trytond.config as config
+from trytond import tx
 from trytond.cache import Cache
 from trytond.i18n import gettext
 from trytond.model import (
     MatchMixin, ModelSQL, ModelView, fields, sequence_ordered)
-from trytond.pool import Pool, PoolMeta
+from trytond.pool import PoolMeta
 from trytond.protocols.wrappers import HTTPStatus
 from trytond.pyson import Eval, If
 
@@ -143,7 +144,7 @@ class CredentialSendcloud(sequence_ordered(), ModelSQL, ModelView, MatchMixin):
 
     @classmethod
     def _get_shipping_method_pattern(cls, shipment, package=None):
-        pool = Pool()
+        pool = tx.pool
         UoM = pool.get('product.uom')
         ModelData = pool.get('ir.model.data')
         kg = UoM(ModelData.get_id('product', 'uom_kilogram'))
@@ -197,7 +198,7 @@ class CredentialSendcloud(sequence_ordered(), ModelSQL, ModelView, MatchMixin):
     @classmethod
     def check_modification(
             cls, mode, credentials, values=None, external=False):
-        pool = Pool()
+        pool = tx.pool
         Warning = pool.get('res.user.warning')
         super().check_modification(
             mode, credentials, values=values, external=external)

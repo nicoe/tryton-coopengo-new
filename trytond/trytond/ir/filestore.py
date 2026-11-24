@@ -8,12 +8,10 @@ from operator import itemgetter
 
 from sql import Column
 
-from trytond import config
+from trytond import config, tx
 from trytond.filestore import filestore
 from trytond.model import ModelSQL, fields
-from trytond.pool import Pool
 from trytond.pyson import Eval
-from trytond.transaction import Transaction
 
 
 class Queue(
@@ -36,9 +34,9 @@ class Queue(
 
     @classmethod
     def remove(cls):
-        pool = Pool()
+        pool = tx.pool
         table = cls.__table__()
-        transaction = Transaction()
+        transaction = tx.transaction
         cursor = transaction.connection.cursor()
 
         now = datetime.datetime.now()

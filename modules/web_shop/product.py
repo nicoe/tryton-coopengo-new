@@ -1,8 +1,9 @@
 # This file is part of Tryton.  The COPYRIGHT file at the top level of
 # this repository contains the full copyright notices and license terms.
 
+from trytond import tx
 from trytond.model import DeactivableMixin, ModelSQL, ModelView, fields
-from trytond.pool import Pool, PoolMeta
+from trytond.pool import PoolMeta
 from trytond.pyson import Eval, If
 
 
@@ -64,7 +65,7 @@ class ProductURL(DeactivableMixin, ModelSQL, ModelView):
 
     @classmethod
     def table_query(cls):
-        return Pool().get('web.shop-product.product').__table__()
+        return tx.pool.get('web.shop-product.product').__table__()
 
     def get_url(self, name):
         return

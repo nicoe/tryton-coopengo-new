@@ -3,7 +3,8 @@
 
 from collections import defaultdict
 
-from trytond.pool import Pool, PoolMeta
+from trytond import tx
+from trytond.pool import PoolMeta
 
 
 class Invoice(metaclass=PoolMeta):
@@ -16,7 +17,7 @@ class Invoice(metaclass=PoolMeta):
 
     @classmethod
     def create_commissions(cls, invoices):
-        pool = Pool()
+        pool = tx.pool
         Commission = pool.get('commission')
 
         commissions = super().create_commissions(invoices)
@@ -26,7 +27,7 @@ class Invoice(metaclass=PoolMeta):
 
     @classmethod
     def post_commission_waiting_moves(cls, invoices):
-        pool = Pool()
+        pool = tx.pool
         Move = pool.get('account.move')
 
         moves = []
@@ -44,7 +45,7 @@ class InvoiceLine(metaclass=PoolMeta):
     __name__ = 'account.invoice.line'
 
     def get_move_lines(self):
-        pool = Pool()
+        pool = tx.pool
         MoveLine = pool.get('account.move.line')
 
         lines = super().get_move_lines()

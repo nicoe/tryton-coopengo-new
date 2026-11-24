@@ -4,8 +4,8 @@
 from itertools import groupby
 from operator import attrgetter
 
-from trytond.pool import Pool, PoolMeta
-from trytond.transaction import Transaction
+from trytond import tx
+from trytond.pool import PoolMeta
 
 from .shipment import ShipmentAssignMixin
 
@@ -31,7 +31,7 @@ class Cron(metaclass=PoolMeta):
     @classmethod
     def __register__(cls, module):
         table = cls.__table__()
-        cursor = Transaction().connection.cursor()
+        cursor = tx.transaction.connection.cursor()
 
         super().__register__(module)
 
@@ -45,7 +45,7 @@ class Cron(metaclass=PoolMeta):
 
     @classmethod
     def stock_shipment_assign_try(cls):
-        pool = Pool()
+        pool = tx.pool
         records = []
         for _, kls in pool.iterobject():
             if issubclass(kls, ShipmentAssignMixin):

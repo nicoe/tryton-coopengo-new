@@ -1,8 +1,9 @@
 # This file is part of Tryton.  The COPYRIGHT file at the top level of
 # this repository contains the full copyright notices and license terms.
 
+from trytond import tx
 from trytond.model import ModelSQL, ValueMixin, fields
-from trytond.pool import Pool, PoolMeta
+from trytond.pool import PoolMeta
 from trytond.pyson import Eval
 
 product_recommendation_method = fields.Selection([
@@ -31,7 +32,7 @@ class Configuration(metaclass=PoolMeta):
 
     @classmethod
     def multivalue_model(cls, field):
-        pool = Pool()
+        pool = tx.pool
         if field in {
                 'product_recommendation_method',
                 'product_recommendation_size',
@@ -49,7 +50,7 @@ class ConfigurationProductRecommendation(ModelSQL, ValueMixin):
 
     @classmethod
     def get_product_recommendation_methods(cls):
-        pool = Pool()
+        pool = tx.pool
         Configuration = pool.get('sale.configuration')
         field_name = 'product_recommendation_method'
         return Configuration.fields_get(
@@ -74,7 +75,7 @@ class SaleMixin:
 
     @fields.depends('state')
     def on_change_with_recommended_products(self, name=None):
-        pool = Pool()
+        pool = tx.pool
         Configuration = pool.get('sale.configuration')
         if self.state != 'draft':
             return []

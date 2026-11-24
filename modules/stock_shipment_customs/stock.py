@@ -3,9 +3,10 @@
 
 from collections import defaultdict
 
+from trytond import tx
 from trytond.model import ModelView, Workflow, fields
 from trytond.modules.product import price_digits
-from trytond.pool import Pool, PoolMeta
+from trytond.pool import PoolMeta
 from trytond.pyson import Eval, If
 
 
@@ -56,7 +57,7 @@ class CustomsMixin:
 
     @classmethod
     def __setup__(cls):
-        pool = Pool()
+        pool = tx.pool
         Party = pool.get('party.party')
         super().__setup__()
         tax_identifier_types = Party.tax_identifier_types()
@@ -146,7 +147,7 @@ class CustomsMixin:
         return products
 
     def set_customs_agent(self, pattern=None):
-        pool = Pool()
+        pool = tx.pool
         AgentSelection = pool.get('customs.agent.selection')
         if self.customs_international and not self.customs_agent:
             pattern = pattern.copy() if pattern is not None else {}

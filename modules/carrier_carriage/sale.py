@@ -3,10 +3,10 @@
 
 from decimal import Decimal
 
+from trytond import tx
 from trytond.model import ModelSQL, ModelView, fields, sequence_ordered
-from trytond.pool import Pool, PoolMeta
+from trytond.pool import PoolMeta
 from trytond.pyson import Eval, If
-from trytond.transaction import Transaction
 
 
 class Sale(metaclass=PoolMeta):
@@ -53,7 +53,7 @@ class Sale(metaclass=PoolMeta):
         return removed
 
     def _get_shipment_sale(self, Shipment, key):
-        pool = Pool()
+        pool = tx.pool
         ShipmentCarriage = pool.get('stock.shipment.carriage')
         ShipmentOut = pool.get('stock.shipment.out')
         shipment = super()._get_shipment_sale(Shipment, key)
@@ -110,7 +110,7 @@ class Line(metaclass=PoolMeta):
     __name__ = 'sale.line'
 
     def get_invoice_line(self):
-        context = Transaction().context
+        context = tx.transaction.context
         shipment_cost_invoiced = context.get('_shipment_cost_invoiced')
         if shipment_cost_invoiced is not None:
             # Make a copy to still detect new shipment after super call
@@ -177,14 +177,14 @@ class Carriage(sequence_ordered(), ModelSQL, ModelView):
 
     @classmethod
     def get_cost_methods(cls):
-        pool = Pool()
+        pool = tx.pool
         Sale = pool.get('sale.sale')
         fieldname = 'shipment_cost_method'
         return Sale.fields_get([fieldname])[fieldname]['selection']
 
     @classmethod
     def get_sale_states(cls):
-        pool = Pool()
+        pool = tx.pool
         Sale = pool.get('sale.sale')
         return Sale.fields_get(['state'])['state']['selection']
 
@@ -195,14 +195,14 @@ class Carriage(sequence_ordered(), ModelSQL, ModelView):
 
     @classmethod
     def default_available_carriers(cls):
-        pool = Pool()
+        pool = tx.pool
         CarrierSelection = pool.get('carrier.selection')
         carriers = CarrierSelection.get_carriers({})
         return [c.id for c in carriers]
 
     @fields.depends(methods=['_get_carrier_selection_pattern'])
     def on_change_with_available_carriers(self, name=None):
-        pool = Pool()
+        pool = tx.pool
         CarrierSelection = pool.get('carrier.selection')
 
         pattern = self._get_carrier_selection_pattern()

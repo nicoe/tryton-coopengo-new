@@ -5,26 +5,26 @@ from sql.aggregate import Max
 from sql.conditionals import Coalesce
 from sql.functions import LastValue
 
+from trytond import tx
 from trytond.model import ModelSQL, ModelView, convert_from, fields
 from trytond.modules.product import round_price
-from trytond.pool import Pool, PoolMeta
+from trytond.pool import PoolMeta
 from trytond.tools import timezone as tz
-from trytond.transaction import Transaction
 
 
 class Product(metaclass=PoolMeta):
     __name__ = 'product.product'
 
     def get_multivalue(self, name, **pattern):
-        pool = Pool()
+        pool = tx.pool
         Company = pool.get('company.company')
-        context = Transaction().context
+        context = tx.transaction.context
         if (name == 'cost_price'
                 and context.get('_datetime')
                 and self.type in ['goods', 'assets']):
             datetime = context['_datetime']
             company = pattern.get(
-                'company', Transaction().context.get('company'))
+                'company', tx.transaction.context.get('company'))
             if company is not None and company >= 0:
                 company = Company(company)
                 if company.timezone:
@@ -41,11 +41,11 @@ class Product(metaclass=PoolMeta):
         return super().get_multivalue(name, **pattern)
 
     def get_cost_price_at(self, date, **pattern):
-        pool = Pool()
+        pool = tx.pool
         CostHistory = pool.get('product.product.cost_history')
         company = pattern.get(
-            'company', Transaction().context.get('company'))
-        with Transaction().set_context(company=company):
+            'company', tx.transaction.context.get('company'))
+        with tx.transaction.set_context(company=company):
             records = CostHistory.search([
                     ('date', '<=', date),
                     ('product', '=', self.id),
@@ -73,7 +73,7 @@ class ProductCostHistory(ModelSQL, ModelView):
 
     @classmethod
     def table_query(cls):
-        pool = Pool()
+        pool = tx.pool
         Move = pool.get('stock.move')
         Product = pool.get('product.product')
         Template = pool.get('product.template')
@@ -83,7 +83,7 @@ class ProductCostHistory(ModelSQL, ModelView):
         product = Product.__table__()
         template = Template.__table__()
         history = CostPrice.__table_history__()
-        transaction = Transaction()
+        transaction = tx.transaction
         user = User(transaction.user)
 
         tables, clause = Move.search_domain([
@@ -155,4 +155,4 @@ class ProductCostHistory(ModelSQL, ModelView):
         return history_table.company == company_id
 
     def get_rec_name(self, name):
-        return Pool().get('ir.lang').get().strftime(self.date)
+        return tx.pool.get('ir.lang').get().strftime(self.date)

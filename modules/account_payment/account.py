@@ -10,6 +10,7 @@ from sql.aggregate import Sum
 from sql.conditionals import Case, Coalesce
 from sql.functions import Abs
 
+from trytond import tx
 from trytond.i18n import gettext
 from trytond.model import Index, ModelSQL, ModelView, fields
 from trytond.modules.account.exceptions import (
@@ -17,9 +18,9 @@ from trytond.modules.account.exceptions import (
     RescheduleLineWarning)
 from trytond.modules.company.model import CompanyValueMixin
 from trytond.modules.currency.fields import Monetary
-from trytond.pool import Pool, PoolMeta
+from trytond.pool import PoolMeta
 from trytond.pyson import Bool, Eval, Id, If
-from trytond.transaction import Transaction, check_access, without_check_access
+from trytond.transaction import check_access, without_check_access
 from trytond.wizard import (
     Button, StateAction, StateTransition, StateView, Wizard)
 
@@ -134,7 +135,7 @@ class MoveLine(metaclass=PoolMeta):
 
     @classmethod
     def domain_payment_amount(cls, domain, tables):
-        pool = Pool()
+        pool = tx.pool
         Account = pool.get('account.account')
         AccountType = pool.get('account.account.type')
         account = Account.__table__()
@@ -165,12 +166,12 @@ class MoveLine(metaclass=PoolMeta):
     @classmethod
     @without_check_access
     def set_payment_amount(cls, lines=None):
-        pool = Pool()
+        pool = tx.pool
         Payment = pool.get('account.payment')
         Account = pool.get('account.account')
         AccountType = pool.get('account.account.type')
 
-        cursor = Transaction().connection.cursor()
+        cursor = tx.transaction.connection.cursor()
         table = cls.__table__()
         payment = Payment.__table__()
         account = Account.__table__()
@@ -245,7 +246,7 @@ class MoveLine(metaclass=PoolMeta):
     @classmethod
     @ModelView.button
     def payment_block(cls, lines):
-        pool = Pool()
+        pool = tx.pool
         Payment = pool.get('account.payment')
 
         cls.write(lines, {
@@ -287,7 +288,7 @@ class MoveLine(metaclass=PoolMeta):
 
     @classmethod
     def pay_direct_debit(cls, date=None):
-        pool = Pool()
+        pool = tx.pool
         Date = pool.get('ir.date')
         Payment = pool.get('account.payment')
         Reception = pool.get('party.party.reception_direct_debit')
@@ -348,7 +349,7 @@ class CreateDirectDebit(Wizard):
     create_ = StateAction('account_payment.act_payment_form')
 
     def do_create_(self, action):
-        pool = Pool()
+        pool = tx.pool
         Line = pool.get('account.move.line')
         payments = Line.pay_direct_debit(date=self.start.date)
         action['domains'] = []
@@ -366,7 +367,7 @@ class CreateDirectDebitStart(ModelView):
 
     @classmethod
     def default_date(cls):
-        return Pool().get('ir.date').today()
+        return tx.pool.get('ir.date').today()
 
 
 class PayLineStart(ModelView):
@@ -408,7 +409,7 @@ class PayLine(Wizard):
     pay = StateAction('account_payment.act_payment_form')
 
     def default_start(self, fields):
-        pool = Pool()
+        pool = tx.pool
         Currency = pool.get('currency.currency')
         Lang = pool.get('ir.lang')
         Line = pool.get('account.move.line')
@@ -498,7 +499,7 @@ class PayLine(Wizard):
         return journals
 
     def _get_journal_key(self, record):
-        pool = Pool()
+        pool = tx.pool
         Journal = pool.get('account.payment.journal')
         Line = pool.get('account.move.line')
         if isinstance(record, Journal):
@@ -524,7 +525,7 @@ class PayLine(Wizard):
             return 'pay'
 
     def default_ask_journal(self, fields):
-        pool = Pool()
+        pool = tx.pool
         Journal = pool.get('account.payment.journal')
         values = {}
         company, currency = self._missing_journal()[:2]
@@ -541,7 +542,7 @@ class PayLine(Wizard):
         return values
 
     def get_payment(self, line, journals):
-        pool = Pool()
+        pool = tx.pool
         Payment = pool.get('account.payment')
 
         if (line.debit > 0) or (line.credit < 0):
@@ -561,7 +562,7 @@ class PayLine(Wizard):
         return payment
 
     def do_pay(self, action):
-        pool = Pool()
+        pool = tx.pool
         Payment = pool.get('account.payment')
         Warning = pool.get('res.user.warning')
 
@@ -627,7 +628,7 @@ class ConfigurationPaymentSequence(ModelSQL, CompanyValueMixin):
 
     @classmethod
     def default_payment_sequence(cls):
-        pool = Pool()
+        pool = tx.pool
         ModelData = pool.get('ir.model.data')
         try:
             return ModelData.get_id(
@@ -648,7 +649,7 @@ class ConfigurationPaymentGroupSequence(ModelSQL, CompanyValueMixin):
 
     @classmethod
     def default_payment_group_sequence(cls):
-        pool = Pool()
+        pool = tx.pool
         ModelData = pool.get('ir.model.data')
         try:
             return ModelData.get_id(
@@ -661,7 +662,7 @@ class MoveCancel(metaclass=PoolMeta):
     __name__ = 'account.move.cancel'
 
     def transition_cancel(self):
-        pool = Pool()
+        pool = tx.pool
         Warning = pool.get('res.user.warning')
         moves_w_payments = []
         for move in self.records:
@@ -687,7 +688,7 @@ class MoveLineGroup(metaclass=PoolMeta):
     __name__ = 'account.move.line.group'
 
     def do_group(self, action):
-        pool = Pool()
+        pool = tx.pool
         Warning = pool.get('res.user.warning')
         lines_w_payments = []
         for line in self.records:
@@ -711,7 +712,7 @@ class MoveLineReschedule(metaclass=PoolMeta):
     __name__ = 'account.move.line.reschedule'
 
     def do_reschedule(self, action):
-        pool = Pool()
+        pool = tx.pool
         Warning = pool.get('res.user.warning')
         lines_w_payments = []
         for line in self.records:
@@ -735,7 +736,7 @@ class MoveLineDelegate(metaclass=PoolMeta):
     __name__ = 'account.move.line.delegate'
 
     def do_delegate(self, action):
-        pool = Pool()
+        pool = tx.pool
         Warning = pool.get('res.user.warning')
         lines_w_payments = []
         for line in self.records:
@@ -782,17 +783,17 @@ class Invoice(metaclass=PoolMeta):
 
     @classmethod
     def get_amount_to_pay(cls, invoices, name):
-        pool = Pool()
+        pool = tx.pool
         Currency = pool.get('currency.currency')
         Date = pool.get('ir.date')
-        context = Transaction().context
+        context = tx.transaction.context
 
         amounts = super().get_amount_to_pay(invoices, name)
 
         if context.get('with_payment', True):
             for company, c_invoices in groupby(
                     invoices, key=lambda i: i.company):
-                with Transaction().set_context(company=company.id):
+                with tx.transaction.set_context(company=company.id):
                     today = Date.today()
                 for invoice in c_invoices:
                     for line in invoice.lines_to_pay:
@@ -810,7 +811,7 @@ class Invoice(metaclass=PoolMeta):
                                     or (invoice.type == 'out'
                                         and payment.kind == 'payable')):
                                 amount_line_paid *= -1
-                            with Transaction().set_context(date=payment.date):
+                            with tx.transaction.set_context(date=payment.date):
                                 payment_amount += Currency.compute(
                                     payment.currency, amount_line_paid,
                                     invoice.currency)
@@ -819,7 +820,7 @@ class Invoice(metaclass=PoolMeta):
 
     @classmethod
     def set_payment_means(cls, invoices):
-        pool = Pool()
+        pool = tx.pool
         PaymentMean = pool.get('account.invoice.payment.mean')
         Reception = pool.get('party.party.reception_direct_debit')
         payment_means = []
@@ -864,7 +865,7 @@ class InvoicePaymentMean(metaclass=PoolMeta):
         return name
 
     def is_valid_with_payment(self, payment):
-        pool = Pool()
+        pool = tx.pool
         ReceptionDirectDebit = pool.get('party.party.reception_direct_debit')
         valid = None
         if isinstance(self.instrument, ReceptionDirectDebit):
@@ -885,7 +886,7 @@ class Statement(metaclass=PoolMeta):
 
     @classmethod
     def _process_payments(cls, moves):
-        pool = Pool()
+        pool = tx.pool
         Payment = pool.get('account.payment')
 
         to_success = defaultdict(set)
@@ -901,11 +902,11 @@ class Statement(metaclass=PoolMeta):
         # definitive state
         if to_success:
             for date, payments in to_success.items():
-                with Transaction().set_context(clearing_date=date):
+                with tx.transaction.set_context(clearing_date=date):
                     Payment.succeed(Payment.browse(payments))
         if to_fail:
             for date, payments in to_fail.items():
-                with Transaction().set_context(clearing_date=date):
+                with tx.transaction.set_context(clearing_date=date):
                     Payment.fail(Payment.browse(payments))
         if to_success or to_fail:
             payments = set.union(*to_success.values(), *to_fail.values())
@@ -948,7 +949,7 @@ class StatementLine(metaclass=PoolMeta):
     @property
     @fields.depends('related_to')
     def payment(self):
-        pool = Pool()
+        pool = tx.pool
         Payment = pool.get('account.payment')
         related_to = getattr(self, 'related_to', None)
         if isinstance(related_to, Payment) and related_to.id >= 0:
@@ -1001,7 +1002,7 @@ class StatementRuleLine(metaclass=PoolMeta):
             }
 
     def _get_party_from(self, related_to):
-        pool = Pool()
+        pool = tx.pool
         Payment = pool.get('account.payment')
         party = super()._get_party_from(related_to)
         if isinstance(related_to, Payment):
@@ -1018,7 +1019,7 @@ class StatementRuleLine(metaclass=PoolMeta):
             ]
 
     def _get_payment(self, origin, keywords, party=None, amount=0):
-        pool = Pool()
+        pool = tx.pool
         Payment = pool.get('account.payment')
         if keywords.get('payment'):
             domain = self._get_payment_domain(keywords['payment'], origin)

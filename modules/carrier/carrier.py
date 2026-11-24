@@ -1,10 +1,10 @@
 # This file is part of Tryton.  The COPYRIGHT file at the top level of
 # this repository contains the full copyright notices and license terms.
+from trytond import tx
 from trytond.cache import Cache
 from trytond.model import (
     DeactivableMixin, MatchMixin, ModelSQL, ModelView, fields,
     sequence_ordered)
-from trytond.pool import Pool
 from trytond.transaction import inactive_records
 
 
@@ -43,7 +43,7 @@ class Carrier(DeactivableMixin, ModelSQL, ModelView):
 
     def get_sale_price(self):
         'Compute carrier sale price with currency'
-        pool = Pool()
+        pool = tx.pool
         Company = pool.get('company.company')
         if (self.carrier_cost_method == 'product'
                 and self.carrier_product._context.get('company') is not None):
@@ -55,7 +55,7 @@ class Carrier(DeactivableMixin, ModelSQL, ModelView):
 
     def get_purchase_price(self):
         'Compute carrier purchase price with currency'
-        pool = Pool()
+        pool = tx.pool
         Company = pool.get('company.company')
         if (self.carrier_cost_method == 'product'
                 and self.carrier_product._context.get('company') is not None):
@@ -67,7 +67,7 @@ class Carrier(DeactivableMixin, ModelSQL, ModelView):
 
     @classmethod
     def on_modification(cls, mode, carriers, field_names=None):
-        pool = Pool()
+        pool = tx.pool
         CarrierSelection = pool.get('carrier.selection')
         super().on_modification(mode, carriers, field_names=field_names)
         if mode in {'create', 'delete'}:
@@ -92,7 +92,7 @@ class Selection(sequence_ordered(), MatchMixin, ModelSQL, ModelView):
 
     @classmethod
     def get_carriers(cls, pattern):
-        pool = Pool()
+        pool = tx.pool
         Carrier = pool.get('carrier')
 
         key = tuple(sorted(pattern.items()))

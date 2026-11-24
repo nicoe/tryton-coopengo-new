@@ -6,11 +6,11 @@ from collections import defaultdict
 from itertools import groupby
 from operator import attrgetter
 
+from trytond import tx
 from trytond.i18n import gettext
 from trytond.model import ModelView, Workflow, fields
-from trytond.pool import Pool, PoolMeta
+from trytond.pool import PoolMeta
 from trytond.tools import sortable_values
-from trytond.transaction import Transaction
 
 from .exceptions import StockQuantityError, StockQuantityWarning
 
@@ -45,7 +45,7 @@ class Sale(metaclass=PoolMeta):
 
     @classmethod
     def _stock_quantity_next_supply_date(cls, product):
-        pool = Pool()
+        pool = tx.pool
         try:
             PurchaseRequest = pool.get('purchase.request')
         except KeyError:
@@ -59,7 +59,7 @@ class Sale(metaclass=PoolMeta):
             return datetime.date.max
 
     def check_stock_quantity(self):
-        pool = Pool()
+        pool = tx.pool
         Product = pool.get('product.product')
         Date = pool.get('ir.date')
         Uom = pool.get('product.uom')
@@ -73,7 +73,7 @@ class Sale(metaclass=PoolMeta):
         if not self.warehouse:
             return
 
-        transaction = Transaction()
+        transaction = tx.transaction
 
         def in_group():
             group = Group(ModelData.get_id('sale_stock_quantity',
@@ -128,7 +128,7 @@ class Sale(metaclass=PoolMeta):
                     gettext('sale_stock_quantity.msg_sale_stock_quantity',
                         **message_values))
 
-        with Transaction().set_context(company=self.company.id):
+        with tx.transaction.set_context(company=self.company.id):
             today = Date.today()
         lang = Lang.get()
 
@@ -221,7 +221,7 @@ class Line(metaclass=PoolMeta):
         'sale_state', 'product', 'quantity', 'unit', 'company',
         'shipping_date', 'sale', '_parent_sale.warehouse')
     def _notify_stock_quantity(self):
-        pool = Pool()
+        pool = tx.pool
         Date = pool.get('ir.date')
         Lang = pool.get('ir.lang')
         Move = pool.get('stock.move')
@@ -235,12 +235,12 @@ class Line(metaclass=PoolMeta):
                 and self.product.type in Move.get_product_types()
                 and self.unit
                 and self.quantity is not None):
-            with Transaction().set_context(
+            with tx.transaction.set_context(
                     company=self.company.id if self.company else None):
                 today = Date.today()
             shipping_date = self.shipping_date or today
             locations = [self.sale.warehouse.id]
-            with Transaction().set_context(
+            with tx.transaction.set_context(
                     locations=locations,
                     stock_date_end=shipping_date):
                 product = Product(self.product.id)

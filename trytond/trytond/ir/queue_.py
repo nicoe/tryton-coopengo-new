@@ -7,11 +7,10 @@ from sql.aggregate import Min
 from sql.functions import CurrentTimestamp, Extract
 
 import trytond.config as config
+from trytond import tx
 from trytond.model import Index, ModelSQL, fields
-from trytond.pool import Pool
 from trytond.tools import grouped_slice
-from trytond.transaction import (
-    Transaction, inactive_records, without_check_access)
+from trytond.transaction import inactive_records, without_check_access
 
 
 class Queue(ModelSQL):
@@ -59,7 +58,7 @@ class Queue(ModelSQL):
 
     @classmethod
     def push(cls, name, data, scheduled_at=None, expected_at=None):
-        transaction = Transaction()
+        transaction = tx.transaction
         database = transaction.database
         with without_check_access():
             record, = cls.create([{
@@ -144,8 +143,8 @@ class Queue(ModelSQL):
         return task_id, seconds
 
     def run(self):
-        transaction = Transaction()
-        Model = Pool().get(self.data['model'])
+        transaction = tx.transaction
+        Model = tx.pool.get(self.data['model'])
         with transaction.set_user(self.data['user']), \
                 transaction.set_context(
                     self.data['context'], _skip_warnings=True):
@@ -206,7 +205,7 @@ class _Method(object):
         self.__name = name
 
     def __call__(self, instances, *args, **kwargs):
-        transaction = Transaction()
+        transaction = tx.transaction
         context = transaction.context.copy()
         has_worker = config.getboolean('queue', 'worker', default=False)
         name = context.pop('queue_name', 'default')

@@ -2,8 +2,8 @@
 # repository contains the full copyright notices and license terms.
 from threading import Lock
 
+from trytond import tx
 from trytond.cache import Cache
-from trytond.pool import Pool
 
 from .fields import MultiValue
 from .match import MatchMixin
@@ -16,7 +16,7 @@ class MultiValueMixin(object):
 
     @classmethod
     def multivalue_model(cls, field):
-        pool = Pool()
+        pool = tx.pool
         Value = pool.get('%s.%s' % (cls.__name__, field))
         assert issubclass(Value, ValueMixin), (
             "%s is not a subclass of ValueMixin" % Value)

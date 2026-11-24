@@ -7,9 +7,8 @@ import sys
 from code import InteractiveConsole
 from rlcompleter import Completer
 
-from trytond import __version__
+from trytond import __version__, tx
 from trytond.pool import Pool
-from trytond.transaction import Transaction
 from trytond.worker import run_task
 
 
@@ -42,10 +41,10 @@ class Console(InteractiveConsole):
 def run(options):
     db_name = options.database_name
     pool = Pool(db_name)
-    with Transaction().start(db_name, 0, readonly=True):
+    with tx.transaction.start(db_name, 0, readonly=True):
         pool.init()
 
-    with Transaction().start(
+    with tx.transaction.start(
             db_name, 0, readonly=options.readonly,
             _lock_tables=options.lock_tables,
             _lock_records=dict(options.lock_records)) as transaction:

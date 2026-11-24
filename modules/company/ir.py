@@ -1,12 +1,11 @@
 # This file is part of Tryton.  The COPYRIGHT file at the top level of
 # this repository contains the full copyright notices and license terms.
 
-from trytond import backend
+from trytond import backend, tx
 from trytond.model import ModelSQL, ModelView, dualmethod, fields
-from trytond.pool import Pool, PoolMeta
+from trytond.pool import PoolMeta
 from trytond.pyson import Eval
 from trytond.tools import timezone as tz
-from trytond.transaction import Transaction
 
 
 class Sequence(metaclass=PoolMeta):
@@ -22,7 +21,7 @@ class Sequence(metaclass=PoolMeta):
 
     @staticmethod
     def default_company():
-        return Transaction().context.get('company')
+        return tx.transaction.context.get('company')
 
 
 class SequenceStrict(Sequence):
@@ -34,9 +33,9 @@ class Date(metaclass=PoolMeta):
 
     @classmethod
     def today(cls, timezone=None):
-        pool = Pool()
+        pool = tx.pool
         Company = pool.get('company.company')
-        company_id = Transaction().context.get('company')
+        company_id = tx.transaction.context.get('company')
         if timezone is None and company_id is not None and company_id >= 0:
             company = Company(company_id)
             if company.timezone:
@@ -55,14 +54,14 @@ class Rule(metaclass=PoolMeta):
 
     @classmethod
     def _get_cache_key(cls, model_names):
-        pool = Pool()
+        pool = tx.pool
         User = pool.get('res.user')
         key = super()._get_cache_key(model_names)
         return (*key, User.get_companies())
 
     @classmethod
     def _get_context(cls, model_name):
-        pool = Pool()
+        pool = tx.pool
         User = pool.get('res.user')
         context = super()._get_context(model_name)
         context['companies'] = User.get_companies()
@@ -86,12 +85,12 @@ class Cron(metaclass=PoolMeta):
                 super().run_once([cron])
             else:
                 for company in cron.companies:
-                    with Transaction().set_context(company=company.id):
+                    with tx.transaction.set_context(company=company.id):
                         super().run_once([cron])
 
     @staticmethod
     def default_companies():
-        Company = Pool().get('company.company')
+        Company = tx.pool.get('company.company')
         return list(map(int, Company.search([])))
 
 
@@ -118,7 +117,7 @@ class EmailTemplate(metaclass=PoolMeta):
 
     @classmethod
     def _get_address(cls, record):
-        pool = Pool()
+        pool = tx.pool
         Employee = pool.get('company.employee')
         address = super()._get_address(record)
         if isinstance(record, Employee):
@@ -127,7 +126,7 @@ class EmailTemplate(metaclass=PoolMeta):
 
     @classmethod
     def _get_language(cls, record):
-        pool = Pool()
+        pool = tx.pool
         Employee = pool.get('company.employee')
         language = super()._get_language(record)
         if isinstance(record, Employee):

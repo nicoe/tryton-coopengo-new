@@ -3,10 +3,10 @@
 import datetime
 from collections import defaultdict
 
+from trytond import tx
 from trytond.model import ModelSQL, ValueMixin, fields
-from trytond.pool import Pool, PoolMeta
+from trytond.pool import PoolMeta
 from trytond.pyson import TimeDelta
-from trytond.transaction import Transaction
 
 supply_period = fields.TimeDelta(
     "Supply Period",
@@ -45,12 +45,12 @@ class Production(metaclass=PoolMeta):
         If warehouses is specified it will compute the production requests
         only for the selected warehouses.
         """
-        pool = Pool()
+        pool = tx.pool
         Product = pool.get('product.product')
         Location = pool.get('stock.location')
         Date = pool.get('ir.date')
         User = pool.get('res.user')
-        company = User(Transaction().user).company
+        company = User(tx.transaction.user).company
         if not company:
             return
 
@@ -108,7 +108,7 @@ class Production(metaclass=PoolMeta):
                         ] = order_point
 
             product_ids = [p.id for p in sub_products]
-            with Transaction().set_context(
+            with tx.transaction.set_context(
                     forecast=True,
                     stock_date_end=min_date):
                 pbl = Product.products_by_location(
@@ -152,10 +152,10 @@ class Production(metaclass=PoolMeta):
         """
         Return the value of the production request.
         """
-        pool = Pool()
+        pool = tx.pool
         UoM = pool.get('product.uom')
         Date = pool.get('ir.date')
-        with Transaction().set_context(company=company.id):
+        with tx.transaction.set_context(company=company.id):
             today = Date.today()
         if date <= today:
             date = today
@@ -205,7 +205,7 @@ class Production(metaclass=PoolMeta):
         min_date_qty is the quantities for each product at the min date.
         order_points is a dictionary that links products to order points.
         """
-        pool = Pool()
+        pool = tx.pool
         Product = pool.get('product.product')
 
         shortages = defaultdict(list)
@@ -217,7 +217,7 @@ class Production(metaclass=PoolMeta):
                 min_quantities[product_id] = order_point.min_quantity
                 target_quantities[product_id] = order_point.target_quantity
 
-        with Transaction().set_context(
+        with tx.transaction.set_context(
                 forecast=True,
                 stock_date_start=min_date,
                 stock_date_end=max_date):

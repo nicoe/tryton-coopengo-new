@@ -7,14 +7,13 @@ from decimal import Decimal
 from sql import Cast, Literal, Select, Table, functions
 from sql.functions import CurrentTimestamp, DateTrunc, Extract, ToChar
 
-from trytond import backend
+from trytond import backend, tx
 from trytond.model import fields
 from trytond.sql.functions import NumRange
 from trytond.sql.operators import RangeContain, RangeIn, RangeOverlap
 from trytond.tests.test_tryton import (
     TestCase, activate_module, with_transaction)
 from trytond.tools import sqlite_apply_types
-from trytond.transaction import Transaction
 
 
 class BackendTestCase(TestCase):
@@ -29,7 +28,7 @@ class BackendTestCase(TestCase):
     def test_current_timestamp_static_transaction(self):
         "Test CURRENT_TIMESTAMP is static during transaction"
         query = Select([CurrentTimestamp()])
-        cursor = Transaction().connection.cursor()
+        cursor = tx.transaction.connection.cursor()
 
         cursor.execute(*query)
         current, = cursor.fetchone()
@@ -42,11 +41,11 @@ class BackendTestCase(TestCase):
     def test_current_timestamp_reset_after_commit(self):
         "Test CURRENT_TIMESTAMP is reset after commit"
         query = Select([CurrentTimestamp()])
-        cursor = Transaction().connection.cursor()
+        cursor = tx.transaction.connection.cursor()
 
         cursor.execute(*query)
         current, = cursor.fetchone()
-        Transaction().commit()
+        tx.transaction.commit()
         cursor.execute(*query)
         second, = cursor.fetchone()
 
@@ -56,12 +55,12 @@ class BackendTestCase(TestCase):
     def test_current_timestamp_different_transaction(self):
         "Test CURRENT_TIMESTAMP is different per transaction"
         query = Select([CurrentTimestamp()])
-        cursor = Transaction().connection.cursor()
+        cursor = tx.transaction.connection.cursor()
 
         cursor.execute(*query)
         current, = cursor.fetchone()
 
-        with Transaction().new_transaction() as transaction:
+        with tx.transaction.new_transaction() as transaction:
             cursor = transaction.connection.cursor()
             cursor.execute(*query)
             second, = cursor.fetchone()
@@ -73,7 +72,7 @@ class BackendTestCase(TestCase):
         "Test TO_CHAR with datetime"
         now = dt.datetime.now()
         query = Select([ToChar(now, 'YYYYMMDD HH24:MI:SS.US')])
-        cursor = Transaction().connection.cursor()
+        cursor = tx.transaction.connection.cursor()
 
         cursor.execute(*query)
         text, = cursor.fetchone()
@@ -85,7 +84,7 @@ class BackendTestCase(TestCase):
         "Test TO_CHAR with date"
         today = dt.date.today()
         query = Select([ToChar(today, 'YYYY-MM-DD')])
-        cursor = Transaction().connection.cursor()
+        cursor = tx.transaction.connection.cursor()
 
         cursor.execute(*query)
         text, = cursor.fetchone()
@@ -95,7 +94,7 @@ class BackendTestCase(TestCase):
     @with_transaction()
     def test_functions(self):
         "Test functions"
-        cursor = Transaction().connection.cursor()
+        cursor = tx.transaction.connection.cursor()
         tests = [
             (functions.Abs(-1), 1),
             (functions.Cbrt(27), 3),
@@ -148,7 +147,7 @@ class BackendTestCase(TestCase):
     @with_transaction()
     def test_function_random(self):
         "Test RANDOM function"
-        cursor = Transaction().connection.cursor()
+        cursor = tx.transaction.connection.cursor()
         cursor.execute(*Select([functions.Random()]))
         value, = cursor.fetchone()
         self.assertGreaterEqual(value, 0)
@@ -157,13 +156,13 @@ class BackendTestCase(TestCase):
     @with_transaction()
     def test_function_setseed(self):
         "Test SETSEED function"
-        cursor = Transaction().connection.cursor()
+        cursor = tx.transaction.connection.cursor()
         cursor.execute(*Select([functions.SetSeed(1)]))
 
     @with_transaction()
     def test_function_date_trunc_datetime(self):
         "Test DateTrunc function with datetime"
-        cursor = Transaction().connection.cursor()
+        cursor = tx.transaction.connection.cursor()
         date = dt.datetime(2001, 2, 16, 20, 38, 40, 100)
         for type_, result in [
                 ('microsecond', dt.datetime(2001, 2, 16, 20, 38, 40, 100)),
@@ -185,7 +184,7 @@ class BackendTestCase(TestCase):
     @with_transaction()
     def test_function_date_trunc_date(self):
         "Test DateTrunc function with date"
-        cursor = Transaction().connection.cursor()
+        cursor = tx.transaction.connection.cursor()
         date = dt.date(2001, 2, 16)
         for type_, result in [
                 ('microsecond', dt.datetime(2001, 2, 16)),
@@ -209,7 +208,7 @@ class BackendTestCase(TestCase):
     @with_transaction()
     def test_function_date_trunc_time(self):
         "Test DateTrunc function with time"
-        cursor = Transaction().connection.cursor()
+        cursor = tx.transaction.connection.cursor()
         date = dt.time(20, 38, 40, 100)
         for type_, result in [
                 ('microsecond', dt.timedelta(
@@ -232,7 +231,7 @@ class BackendTestCase(TestCase):
     @with_transaction()
     def test_function_date_trunc_timedelta(self):
         "Test DateTrunc function with timedelta"
-        cursor = Transaction().connection.cursor()
+        cursor = tx.transaction.connection.cursor()
         date = dt.timedelta(
             days=16, hours=20, minutes=38, seconds=40, microseconds=100)
         for type_, result in [
@@ -258,7 +257,7 @@ class BackendTestCase(TestCase):
     @with_transaction()
     def test_function_date_trunc_null(self):
         "test DateTrunc function with NULL"
-        cursor = Transaction().connection.cursor()
+        cursor = tx.transaction.connection.cursor()
         date = fields.Date("Test")
 
         cursor.execute(*Select([DateTrunc('month', date.sql_cast(None))]))
@@ -272,7 +271,7 @@ class BackendTestCase(TestCase):
     @with_transaction()
     def test_operator_range_contain(self):
         "Test Range Contain operator"
-        cursor = Transaction().connection.cursor()
+        cursor = tx.transaction.connection.cursor()
         numeric = fields.Numeric("Test")
 
         def Num(value):
@@ -301,7 +300,7 @@ class BackendTestCase(TestCase):
     @with_transaction()
     def test_operator_range_in(self):
         "Test Range In operator"
-        cursor = Transaction().connection.cursor()
+        cursor = tx.transaction.connection.cursor()
         numeric = fields.Numeric("Test")
 
         def Num(value):
@@ -319,7 +318,7 @@ class BackendTestCase(TestCase):
     @with_transaction()
     def test_operator_range_overlap(self):
         "test Range Overlap operator"
-        cursor = Transaction().connection.cursor()
+        cursor = tx.transaction.connection.cursor()
 
         for expression, value in [
                 (RangeOverlap(NumRange(3, 7), NumRange(4, 12)), True),
@@ -347,8 +346,8 @@ class BackendTestCase(TestCase):
     @with_transaction()
     def test_estimated_count(self):
         "Test estimated count queries"
-        database = Transaction().database
-        connection = Transaction().connection
+        database = tx.transaction.database
+        connection = tx.transaction.connection
 
         count = database.estimated_count(connection, Table('res_user'))
 
@@ -357,8 +356,8 @@ class BackendTestCase(TestCase):
     @with_transaction()
     def test_estimated_count_table_query(self):
         "Test estimated count queries on Model using a table query"
-        database = Transaction().database
-        connection = Transaction().connection
+        database = tx.transaction.database
+        connection = tx.transaction.connection
 
         query = Select([Literal(1)])
         count = database.estimated_count(connection, query)
@@ -368,7 +367,7 @@ class BackendTestCase(TestCase):
     @with_transaction()
     def test_function_extract(self):
         "Test Extract function"
-        cursor = Transaction().connection.cursor()
+        cursor = tx.transaction.connection.cursor()
         for lookup, source, result in [
                 ('CENTURY', dt.datetime(2000, 12, 16, 12, 21, 13), 20),
                 ('CENTURY', dt.datetime(2001, 2, 16, 20, 38, 40), 21),

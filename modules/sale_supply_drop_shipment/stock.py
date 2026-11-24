@@ -6,6 +6,7 @@ from itertools import groupby
 
 from sql.conditionals import Coalesce
 
+from trytond import tx
 from trytond.i18n import gettext
 from trytond.model import Index, ModelSQL, ModelView, Workflow, fields
 from trytond.model.exceptions import AccessError
@@ -13,9 +14,8 @@ from trytond.modules.product import round_price
 from trytond.modules.purchase.stock import process_purchase
 from trytond.modules.sale.stock import process_sale
 from trytond.modules.stock.shipment import ShipmentCheckQuantity, ShipmentMixin
-from trytond.pool import Pool, PoolMeta
+from trytond.pool import PoolMeta
 from trytond.pyson import Eval, Id, If
-from trytond.transaction import Transaction
 
 
 class Configuration(metaclass=PoolMeta):
@@ -33,7 +33,7 @@ class Configuration(metaclass=PoolMeta):
 
     @classmethod
     def multivalue_model(cls, field):
-        pool = Pool()
+        pool = tx.pool
         if field == 'shipment_drop_sequence':
             return pool.get('stock.configuration.sequence')
         return super().multivalue_model(field)
@@ -57,7 +57,7 @@ class ConfigurationSequence(metaclass=PoolMeta):
 
     @classmethod
     def default_shipment_drop_sequence(cls):
-        pool = Pool()
+        pool = tx.pool
         ModelData = pool.get('ir.model.data')
         try:
             return ModelData.get_id(
@@ -204,7 +204,7 @@ class ShipmentDrop(
 
     @staticmethod
     def default_company():
-        return Transaction().context.get('company')
+        return tx.transaction.context.get('company')
 
     @fields.depends('supplier')
     def on_change_supplier(self):
@@ -231,7 +231,7 @@ class ShipmentDrop(
         '''
         Set planned date of moves for the shipments
         '''
-        Move = Pool().get('stock.move')
+        Move = tx.pool.get('stock.move')
         to_write = []
         for shipment in shipments:
             planned_date = shipment._get_move_planned_date()
@@ -245,7 +245,7 @@ class ShipmentDrop(
 
     @classmethod
     def preprocess_values(cls, mode, values):
-        pool = Pool()
+        pool = tx.pool
         Configuration = pool.get('stock.configuration')
         values = super().preprocess_values(mode, values)
         if mode == 'create' and not values.get('number'):
@@ -274,7 +274,7 @@ class ShipmentDrop(
     @process_sale('customer_moves')
     @process_purchase('supplier_moves')
     def cancel(cls, shipments):
-        Move = Pool().get('stock.move')
+        Move = tx.pool.get('stock.move')
         Move.cancel([
                 m for s in shipments
                 for m in s.supplier_moves + s.customer_moves])
@@ -283,7 +283,7 @@ class ShipmentDrop(
     @ModelView.button
     @Workflow.transition('draft')
     def draft(cls, shipments):
-        pool = Pool()
+        pool = tx.pool
         Move = pool.get('stock.move')
         PurchaseLine = pool.get('purchase.line')
         SaleLine = pool.get('sale.line')
@@ -299,7 +299,7 @@ class ShipmentDrop(
 
     @classmethod
     def _synchronize_moves(cls, shipments):
-        pool = Pool()
+        pool = tx.pool
         Uom = pool.get('product.uom')
         Move = pool.get('stock.move')
 
@@ -358,7 +358,7 @@ class ShipmentDrop(
             )
 
     def _sync_customer_move(self, template=None):
-        pool = Pool()
+        pool = tx.pool
         Move = pool.get('stock.move')
         Purchase = pool.get('purchase.purchase')
         move = Move(
@@ -388,7 +388,7 @@ class ShipmentDrop(
 
     @classmethod
     def set_cost(cls, shipments):
-        pool = Pool()
+        pool = tx.pool
         Move = pool.get('stock.move')
         UoM = pool.get('product.uom')
 
@@ -425,7 +425,7 @@ class ShipmentDrop(
     @ModelView.button
     @Workflow.transition('waiting')
     def wait(cls, shipments):
-        pool = Pool()
+        pool = tx.pool
         PurchaseLine = pool.get('purchase.line')
         Move = pool.get('stock.move')
 
@@ -454,7 +454,7 @@ class ShipmentDrop(
     @process_sale('customer_moves')
     @process_purchase('supplier_moves')
     def ship(cls, shipments):
-        pool = Pool()
+        pool = tx.pool
         Move = pool.get('stock.move')
         Move.do([m for s in shipments for m in s.supplier_moves])
         cls._synchronize_moves(shipments)
@@ -473,7 +473,7 @@ class ShipmentDrop(
     @Workflow.transition('done')
     @process_sale('customer_moves')
     def do(cls, shipments):
-        pool = Pool()
+        pool = tx.pool
         Move = pool.get('stock.move')
         Date = pool.get('ir.date')
         cls.set_cost(shipments)
@@ -488,7 +488,7 @@ class ShipmentDrop(
         Move.delete(to_delete)
         Move.do(customer_moves)
         for company, shipments in groupby(shipments, key=lambda s: s.company):
-            with Transaction().set_context(company=company.id):
+            with tx.transaction.set_context(company=company.id):
                 today = Date.today()
             cls.write([s for s in shipments if not s.effective_date], {
                     'effective_date': today,
@@ -576,7 +576,7 @@ class Move(metaclass=PoolMeta):
         return models
 
     def get_customer_drop(self, name):
-        pool = Pool()
+        pool = tx.pool
         SaleLine = pool.get('sale.line')
         PurchaseLine = pool.get('purchase.line')
 
@@ -597,7 +597,7 @@ class Move(metaclass=PoolMeta):
 
     @classmethod
     def copy(cls, moves, default=None):
-        context = Transaction().context
+        context = tx.transaction.context
         if (context.get('_stock_move_split')
                 and not context.get('_stock_move_split_drop')):
             for move in moves:
@@ -614,7 +614,7 @@ class MoveSplit(metaclass=PoolMeta):
     __name__ = 'stock.move'
 
     def split(self, quantity, unit, count=None):
-        with Transaction().set_context(_stock_move_split_drop=True):
+        with tx.transaction.set_context(_stock_move_split_drop=True):
             moves = super().split(quantity, unit, count=count)
         if self.moves_drop:
             to_save = []

@@ -7,17 +7,15 @@ from sql import Column, Literal
 from sql.aggregate import Sum
 from sql.conditionals import Coalesce
 
-from trytond import backend
+from trytond import backend, tx
 from trytond.i18n import gettext
 from trytond.model import (
     DeactivableMixin, Index, ModelSQL, ModelView, Unique, fields, sum_tree,
     tree)
 from trytond.model.exceptions import AccessError
 from trytond.modules.currency.fields import Monetary
-from trytond.pool import Pool
 from trytond.pyson import Eval, If, PYSONDecoder, PYSONEncoder
 from trytond.tools import is_full_text, lstrip_wildcard, sqlite_apply_types
-from trytond.transaction import Transaction
 
 from .exceptions import AccountValidationError
 
@@ -103,7 +101,7 @@ class Account(
         cls._order.insert(1, ('name', 'ASC'))
 
     def default_company():
-        return Transaction().context.get('company')
+        return tx.transaction.context.get('company')
 
     @staticmethod
     def default_type():
@@ -133,7 +131,7 @@ class Account(
 
     @classmethod
     def check_move_domain(cls, accounts, field_names):
-        pool = Pool()
+        pool = tx.pool
         Line = pool.get('analytic_account.line')
         if field_names and 'type' not in field_names:
             return
@@ -166,10 +164,10 @@ class Account(
 
     @classmethod
     def get_balance(cls, accounts, name):
-        pool = Pool()
+        pool = tx.pool
         Line = pool.get('analytic_account.line')
         MoveLine = pool.get('account.move.line')
-        cursor = Transaction().connection.cursor()
+        cursor = tx.transaction.connection.cursor()
         table = cls.__table__()
         line = Line.__table__()
         move_line = MoveLine.__table__()
@@ -208,10 +206,10 @@ class Account(
 
     @classmethod
     def get_credit_debit(cls, accounts, names):
-        pool = Pool()
+        pool = tx.pool
         Line = pool.get('analytic_account.line')
         MoveLine = pool.get('account.move.line')
-        cursor = Transaction().connection.cursor()
+        cursor = tx.transaction.connection.cursor()
         table = cls.__table__()
         line = Line.__table__()
         move_line = MoveLine.__table__()
@@ -303,7 +301,7 @@ class Account(
 
     @classmethod
     def check_modification(cls, mode, accounts, values=None, external=False):
-        pool = Pool()
+        pool = tx.pool
         Entry = pool.get('analytic.account.entry')
 
         super().check_modification(
@@ -404,7 +402,7 @@ class AnalyticAccountEntry(ModelView, ModelSQL):
 
     @classmethod
     def get_origin(cls):
-        Model = Pool().get('ir.model')
+        Model = tx.pool.get('ir.model')
         get_name = Model.get_name
         models = cls._get_origin()
         return [(None, '')] + [(m, get_name(m)) for m in models]
@@ -422,7 +420,7 @@ class AnalyticAccountEntry(ModelView, ModelSQL):
 
     def get_analytic_lines(self, line, date):
         "Yield analytic lines for the accounting line and the date"
-        pool = Pool()
+        pool = tx.pool
         AnalyticLine = pool.get('analytic_account.line')
 
         if not self.account:
@@ -447,14 +445,14 @@ class AnalyticMixin(object):
 
     @classmethod
     def analytic_accounts_domain(cls):
-        context = Transaction().context.copy()
+        context = tx.transaction.context.copy()
         context['context'] = context
         return PYSONDecoder(context).decode(
             PYSONEncoder().encode(cls.analytic_accounts.domain))
 
     @classmethod
     def default_analytic_accounts(cls):
-        pool = Pool()
+        pool = tx.pool
         AnalyticAccount = pool.get('analytic_account.account')
 
         accounts = []
@@ -470,7 +468,7 @@ class AnalyticMixin(object):
 
     @classmethod
     def default_analytic_accounts_size(cls):
-        pool = Pool()
+        pool = tx.pool
         AnalyticAccount = pool.get('analytic_account.account')
         return len(AnalyticAccount.search(
             cls.analytic_accounts_domain() + [

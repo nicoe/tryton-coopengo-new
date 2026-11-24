@@ -2,9 +2,10 @@
 # this repository contains the full copyright notices and license terms.
 from decimal import Decimal
 
+from trytond import tx
 from trytond.i18n import gettext
 from trytond.model import ModelView, fields
-from trytond.pool import Pool, PoolMeta
+from trytond.pool import PoolMeta
 from trytond.pyson import Eval
 from trytond.wizard import Button, StateTransition, StateView, Wizard
 
@@ -35,7 +36,7 @@ class Invoice(metaclass=PoolMeta):
         pass
 
     def call_deposit(self, account, description, maximum=None):
-        pool = Pool()
+        pool = tx.pool
         InvoiceLine = pool.get('account.invoice.line')
 
         balance = self.party.get_deposit_balance(
@@ -71,7 +72,7 @@ class Invoice(metaclass=PoolMeta):
         return amount
 
     def _get_deposit_recall_invoice_line(self, amount, account, description):
-        pool = Pool()
+        pool = tx.pool
         Line = pool.get('account.invoice.line')
 
         line = Line(

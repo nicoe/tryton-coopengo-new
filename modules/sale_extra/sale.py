@@ -3,13 +3,13 @@
 import datetime
 from decimal import Decimal
 
+from trytond import tx
 from trytond.model import (
     DeactivableMixin, MatchMixin, ModelSQL, ModelView, Workflow, fields,
     sequence_ordered)
 from trytond.modules.currency.fields import Monetary
-from trytond.pool import Pool, PoolMeta
+from trytond.pool import PoolMeta
 from trytond.pyson import Eval, If
-from trytond.transaction import Transaction
 
 
 class Sale(metaclass=PoolMeta):
@@ -19,7 +19,7 @@ class Sale(metaclass=PoolMeta):
     @ModelView.button
     @Workflow.transition('quotation')
     def quote(cls, sales):
-        pool = Pool()
+        pool = tx.pool
         Line = pool.get('sale.line')
 
         super().quote(sales)
@@ -37,7 +37,7 @@ class Sale(metaclass=PoolMeta):
 
     def set_extra(self):
         'Set extra lines and fill lines_to_delete'
-        pool = Pool()
+        pool = tx.pool
         Extra = pool.get('sale.extra')
         removed = []
         extra_lines = Extra.get_lines(self)
@@ -101,7 +101,7 @@ class Extra(DeactivableMixin, ModelSQL, ModelView, MatchMixin):
 
     @staticmethod
     def default_company():
-        return Transaction().context.get('company')
+        return tx.transaction.context.get('company')
 
     @fields.depends('company')
     def on_change_with_currency(self, name=None):
@@ -129,7 +129,7 @@ class Extra(DeactivableMixin, ModelSQL, ModelView, MatchMixin):
     @classmethod
     def get_lines(cls, sale, pattern=None, line_pattern=None):
         'Yield extra sale lines'
-        pool = Pool()
+        pool = tx.pool
         Currency = pool.get('currency.currency')
         extras = cls.search(cls._extras_domain(sale))
         pattern = pattern.copy() if pattern is not None else {}
@@ -219,7 +219,7 @@ class ExtraLine(sequence_ordered(), ModelSQL, ModelView, MatchMixin):
         return match
 
     def get_line(self, sale):
-        pool = Pool()
+        pool = tx.pool
         Line = pool.get('sale.line')
 
         sequence = None

@@ -5,8 +5,8 @@ from sql.conditionals import NullIf
 from sql.functions import CharLength
 from sql.operators import Equal
 
+from trytond import tx
 from trytond.model import Exclude, ModelSQL, ModelView, fields, tree
-from trytond.pool import Pool
 from trytond.pyson import Eval, PYSONEncoder
 from trytond.tools import is_full_text, lstrip_wildcard
 
@@ -49,7 +49,7 @@ class Category(tree(separator=' / '), ModelSQL, ModelView):
 
     @classmethod
     def default_code_readonly(cls):
-        pool = Pool()
+        pool = tx.pool
         Configuration = pool.get('product.configuration')
         config = Configuration(1)
         return bool(config.category_sequence)
@@ -91,7 +91,7 @@ class Category(tree(separator=' / '), ModelSQL, ModelView):
 
     @classmethod
     def _code_sequence(cls):
-        pool = Pool()
+        pool = tx.pool
         Configuration = pool.get('product.configuration')
         config = Configuration(1)
         return config.category_sequence

@@ -3,9 +3,8 @@
 import datetime
 from collections import defaultdict
 
+from trytond import tx
 from trytond.model import ModelSQL, ModelView
-from trytond.pool import Pool
-from trytond.transaction import Transaction
 
 
 class ShipmentInternal(ModelSQL, ModelView):
@@ -19,7 +18,7 @@ class ShipmentInternal(ModelSQL, ModelView):
 
         If clean is set, it will remove all previous requests.
         """
-        pool = Pool()
+        pool = tx.pool
         OrderPoint = pool.get('stock.order_point')
         Location = pool.get('stock.location')
         Product = pool.get('product.product')
@@ -27,7 +26,7 @@ class ShipmentInternal(ModelSQL, ModelView):
         User = pool.get('res.user')
         Move = pool.get('stock.move')
         LeadTime = pool.get('stock.location.lead_time')
-        company = User(Transaction().user).company
+        company = User(tx.transaction.user).company
         if not company:
             return
 
@@ -82,7 +81,7 @@ class ShipmentInternal(ModelSQL, ModelView):
         location_ids = list(id2location.keys())
 
         def get_pbl(start, end, grouping_filter):
-            with Transaction().set_context(
+            with tx.transaction.set_context(
                     forecast=True, stock_date_start=start, stock_date_end=end):
                 return Product.products_by_location(
                     location_ids, with_childs=True,

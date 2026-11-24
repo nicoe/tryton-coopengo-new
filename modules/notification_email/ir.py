@@ -3,11 +3,10 @@
 
 from sql import Table
 
-from trytond import backend, config
+from trytond import backend, config, tx
 from trytond.model import fields
-from trytond.pool import Pool, PoolMeta
+from trytond.pool import PoolMeta
 from trytond.pyson import Eval
-from trytond.transaction import Transaction
 
 
 class Trigger(metaclass=PoolMeta):
@@ -36,7 +35,7 @@ class Trigger(metaclass=PoolMeta):
 
     @fields.depends('notification_email', '_parent_notification_email.model')
     def on_change_notification_email(self):
-        pool = Pool()
+        pool = tx.pool
         Model = pool.get('ir.model')
         if self.notification_email:
             try:
@@ -72,7 +71,7 @@ class Email(metaclass=PoolMeta):
             'table', log_name, default=log_name.replace('.', '_'))
         log = Table(log_table_name)
 
-        cursor = Transaction().connection.cursor()
+        cursor = tx.transaction.connection.cursor()
 
         super().__register__(module)
 

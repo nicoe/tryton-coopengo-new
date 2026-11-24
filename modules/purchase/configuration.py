@@ -1,12 +1,11 @@
 # This file is part of Tryton.  The COPYRIGHT file at the top level of
 # this repository contains the full copyright notices and license terms.
+from trytond import tx
 from trytond.model import (
     ModelSingleton, ModelSQL, ModelView, ValueMixin, fields)
 from trytond.modules.company.model import (
     CompanyMultiValueMixin, CompanyValueMixin)
-from trytond.pool import Pool
 from trytond.pyson import Eval, Id, TimeDelta
-from trytond.transaction import Transaction
 
 purchase_invoice_method = fields.Selection(
     'get_purchase_invoice_method', "Invoice Method")
@@ -15,7 +14,7 @@ purchase_invoice_method = fields.Selection(
 def get_purchase_methods(field_name):
     @classmethod
     def func(cls):
-        pool = Pool()
+        pool = tx.pool
         Purchase = pool.get('purchase.purchase')
         return Purchase.fields_get([field_name])[field_name]['selection']
     return func
@@ -46,7 +45,7 @@ class Configuration(
 
     @classmethod
     def multivalue_model(cls, field):
-        pool = Pool()
+        pool = tx.pool
         if field == 'purchase_invoice_method':
             return pool.get('purchase.configuration.purchase_method')
         if field == 'purchase_sequence':
@@ -76,7 +75,7 @@ class ConfigurationSequence(ModelSQL, CompanyValueMixin):
 
     @classmethod
     def default_purchase_sequence(cls):
-        pool = Pool()
+        pool = tx.pool
         ModelData = pool.get('ir.model.data')
         try:
             return ModelData.get_id('purchase', 'sequence_purchase')
@@ -91,7 +90,7 @@ class ConfigurationPurchaseMethod(ModelSQL, ValueMixin):
 
     @classmethod
     def __register__(cls, module_name):
-        cursor = Transaction().connection.cursor()
+        cursor = tx.transaction.connection.cursor()
         table = cls.__table__()
 
         super().__register__(module_name)

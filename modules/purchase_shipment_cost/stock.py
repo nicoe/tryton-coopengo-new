@@ -3,10 +3,11 @@
 from decimal import ROUND_DOWN, ROUND_HALF_EVEN, Decimal
 from operator import itemgetter
 
+from trytond import tx
 from trytond.model import ModelView, Workflow, fields
 from trytond.modules.product import price_digits, round_price
 from trytond.modules.stock_shipment_cost import ShipmentCostMixin
-from trytond.pool import Pool, PoolMeta
+from trytond.pool import PoolMeta
 from trytond.pyson import Eval
 
 
@@ -24,7 +25,7 @@ class ShipmentIn(ShipmentCostMixin, metaclass=PoolMeta):
             if m.state not in {'done', 'cancelled'}]
 
     def allocate_cost_by_value(self):
-        pool = Pool()
+        pool = tx.pool
         Currency = pool.get('currency.currency')
         Move = pool.get('stock.move')
 
@@ -85,7 +86,7 @@ class ShipmentIn(ShipmentCostMixin, metaclass=PoolMeta):
     @ModelView.button
     @Workflow.transition('received')
     def receive(cls, shipments):
-        Carrier = Pool().get('carrier')
+        Carrier = tx.pool.get('carrier')
         for shipment in shipments:
             shipment.cost = shipment.cost_used
             shipment.cost_currency = shipment.cost_currency_used
@@ -135,7 +136,7 @@ class Move(metaclass=PoolMeta):
 
     # Split the shipment cost if account_stock_continental is activated
     def _get_account_stock_move_lines(self, type_):
-        pool = Pool()
+        pool = tx.pool
         AccountMoveLine = pool.get('account.move.line')
         Currency = pool.get('currency.currency')
         move_lines = super()._get_account_stock_move_lines(type_)
@@ -166,7 +167,7 @@ class Move(metaclass=PoolMeta):
     # Remove shipment cost if account_stock_anglo_saxon is activated
     @classmethod
     def _get_anglo_saxon_move(cls, moves, quantity, type_):
-        pool = Pool()
+        pool = tx.pool
         Currency = pool.get('currency.currency')
         Uom = pool.get('product.uom')
         for move, qty, cost_price in super()._get_anglo_saxon_move(

@@ -6,13 +6,13 @@ from decimal import Decimal
 
 from sql import Null
 
+from trytond import tx
 from trytond.model import Check, ModelSQL, ModelView, Unique, fields
 from trytond.modules.product import round_price
 from trytond.modules.sale_rental import to_datetime
-from trytond.pool import Pool, PoolMeta
+from trytond.pool import PoolMeta
 from trytond.pyson import Eval
 from trytond.report import Report
-from trytond.transaction import Transaction
 from trytond.wizard import Button, StateTransition, StateView, Wizard
 
 
@@ -127,7 +127,7 @@ class RentalProgress(ModelSQL, ModelView):
                 return end - start
 
     def get_rec_name(self, name):
-        pool = Pool()
+        pool = tx.pool
         Lang = pool.get('ir.lang')
         lang = Lang.get()
         converter = self.__class__.duration.converter
@@ -137,7 +137,7 @@ class RentalProgress(ModelSQL, ModelView):
         return f'{duration} @ {rental}'
 
     def get_invoice_lines(self, line):
-        pool = Pool()
+        pool = tx.pool
         InvoiceLine = pool.get('account.invoice.line')
 
         assert line in self.lines
@@ -210,7 +210,7 @@ class RentalLine(metaclass=PoolMeta):
         return invoice_lines
 
     def get_progress(self, date):
-        pool = Pool()
+        pool = tx.pool
         Progress = pool.get('sale.rental.progress')
         actual_start = (
             to_datetime(self.actual_start, company=self.company)
@@ -231,7 +231,7 @@ class RentalLine(metaclass=PoolMeta):
     @classmethod
     def copy(cls, lines, default=None):
         default = default.copy() if default is not None else {}
-        if not Transaction().context.get('_sale_rental_line_split'):
+        if not tx.transaction.context.get('_sale_rental_line_split'):
             default.setdefault('progresses', None)
         return super().copy(lines, default=default)
 
@@ -258,7 +258,7 @@ class RentalAddProgress(Wizard):
     add = StateTransition()
 
     def transition_add(self):
-        pool = Pool()
+        pool = tx.pool
         Progress = pool.get('sale.rental.progress')
         date = self.start.date
         progresses = []

@@ -1,28 +1,28 @@
 # This file is part of Tryton.  The COPYRIGHT file at the top level of
 # this repository contains the full copyright notices and license terms.
+from trytond import tx
 from trytond.model import fields
-from trytond.pool import Pool, PoolMeta
-from trytond.transaction import Transaction
+from trytond.pool import PoolMeta
 
 
 class Product(metaclass=PoolMeta):
     __name__ = 'product.product'
 
     def _get_sale_unit_price(self, quantity=0):
-        pool = Pool()
+        pool = tx.pool
         Date = pool.get('ir.date')
         PriceList = pool.get('product.price_list')
         Uom = pool.get('product.uom')
         Tax = pool.get('account.tax')
         User = pool.get('res.user')
-        context = Transaction().context
+        context = tx.transaction.context
         today = Date.today()
 
         unit_price = super()._get_sale_unit_price(quantity=quantity)
 
         if context.get('price_list'):
             price_list = PriceList(context['price_list'])
-            assert price_list.company == User(Transaction().user).company
+            assert price_list.company == User(tx.transaction.user).company
             context_uom = None
             if context.get('uom'):
                 context_uom = Uom(context['uom'])
@@ -61,9 +61,9 @@ class SaleContext(metaclass=PoolMeta):
 
     @classmethod
     def default_price_list(cls, **pattern):
-        pool = Pool()
+        pool = tx.pool
         Configuration = pool.get('sale.configuration')
-        context = Transaction().context
+        context = tx.transaction.context
         price_list = context.get('price_list')
         if price_list is None:
             config = Configuration(1)

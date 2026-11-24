@@ -8,12 +8,12 @@ from getpass import getpass
 
 from sql import Literal, Table
 
-from trytond import __series__, backend, config
+from trytond import __series__, backend, config, tx
 from trytond.pool import Pool
 from trytond.sendmail import send_test_email
 from trytond.tools import file_open, find_path
 from trytond.tools.email_ import EmailNotValidError, validate_email
-from trytond.transaction import Transaction, TransactionError, inactive_records
+from trytond.transaction import TransactionError, inactive_records
 
 from trytond.modules import get_module_info
 
@@ -23,7 +23,7 @@ logger = logging.getLogger(__name__)
 
 # XUNG
 def _init_upgrade_version_control_table(db_name):
-    with Transaction().start(db_name, 0) as transaction:
+    with tx.transaction.start(db_name, 0) as transaction:
         cursor = transaction.connection.cursor()
         cursor.execute(
             "SELECT EXISTS("
@@ -50,13 +50,13 @@ def _check_update_needed(db_name, options):
 
     # Get main module version which stocked in the database
     version_control_table = Table('upgrade_version_control')
-    cursor = Transaction().connection.cursor()
+    cursor = tx.transaction.connection.cursor()
     cursor.execute(
         *version_control_table.select(version_control_table.current_version))
     db_main_module_version = cursor.fetchone()[0]
 
-    if (options.check_update and current_main_module_version !=
-            db_main_module_version):
+    if (options.check_update and current_main_module_version
+            != db_main_module_version):
         logger.warning(
             f'Current code version ({current_main_module_version}) is '
             'different from the last update version '
@@ -72,7 +72,7 @@ def _check_update_needed(db_name, options):
 def _init_pool(db_name, options, lang):
     pool = Pool(db_name)
 
-    with Transaction().start(db_name, 0) as transaction:
+    with tx.transaction.start(db_name, 0) as transaction:
         try:
             if options.check_update:
                 # This lock of table will block others workers /
@@ -129,7 +129,7 @@ def run(options):
 
     for db_name in options.database_names:
         if options.update or options.check_update:
-            with Transaction().start(db_name, 0) as transaction,\
+            with tx.transaction.start(db_name, 0) as transaction, \
                     transaction.connection.cursor() as cursor:
                 database = backend.Database(db_name)
                 database.connect()
@@ -152,13 +152,13 @@ def run(options):
         pool = _init_pool(db_name, options, lang)
 
         if options.update_modules_list:
-            with Transaction().start(db_name, 0) as transaction:
+            with tx.transaction.start(db_name, 0) as transaction:
                 Module = pool.get('ir.module')
                 Module.update_list()
 
         if lang:
-            with Transaction().start(db_name, 0) as transaction:
-                pool = Pool()
+            with tx.transaction.start(db_name, 0) as transaction:
+                pool = tx.pool
                 Lang = pool.get('ir.lang')
                 languages = Lang.search([
                         ('code', 'in', lang),
@@ -216,10 +216,10 @@ def run(options):
 
         transaction_extras = {}
         while True:
-            with Transaction().start(
+            with tx.transaction.start(
                     db_name, 0, **transaction_extras) as transaction:
                 try:
-                    pool = Pool()
+                    pool = tx.pool
                     User = pool.get('res.user')
                     Configuration = pool.get('ir.configuration')
                     configuration = Configuration(1)
@@ -319,7 +319,7 @@ def run(options):
                     e.fix(transaction_extras)
                     continue
                 break
-        with Transaction().start(db_name, 0, readonly=True):
+        with tx.transaction.start(db_name, 0, readonly=True):
             if options.validate is not None:
                 validate(options.validate, options.validate_percentage)
 
@@ -328,7 +328,7 @@ def validate(models, percentage=100):
     from trytond.model import ModelSingleton, ModelStorage
     from trytond.model.exceptions import ValidationError
     logger = logging.getLogger('validate')
-    pool = Pool()
+    pool = tx.pool
     if not models:
         models = sorted([n for n, _ in pool.iterobject()])
     ratio = min(100, percentage) / 100

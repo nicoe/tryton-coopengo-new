@@ -1,10 +1,11 @@
 # This file is part of Tryton.  The COPYRIGHT file at the top level of
 # this repository contains the full copyright notices and license terms.
 
+from trytond import tx
 from trytond.model import ModelSQL, ModelView, fields, sequence_ordered, tree
 from trytond.modules.product import (
     copy_product_filtered, copy_template_filtered)
-from trytond.pool import Pool, PoolMeta
+from trytond.pool import PoolMeta
 from trytond.pyson import Bool, Eval, If
 
 
@@ -99,7 +100,7 @@ class ProjectTask(sequence_ordered(), tree(), ModelSQL, ModelView):
 
     def get_sold_works(self, line):
         "Yield sold works for the sale line"
-        pool = Pool()
+        pool = tx.pool
         Work = pool.get('project.work')
         WorkStatus = pool.get('project.work.status')
         status = WorkStatus.get_default_status('task')

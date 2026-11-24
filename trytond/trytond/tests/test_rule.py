@@ -2,8 +2,8 @@
 # this repository contains the full copyright notices and license terms.
 import json
 
+from trytond import tx
 from trytond.model.exceptions import AccessError
-from trytond.pool import Pool
 from trytond.tests.test_tryton import (
     TestCase, activate_module, with_transaction)
 
@@ -21,7 +21,7 @@ class ModelRuleTestCase(TestCase):
     @with_transaction(context=_context)
     def test_perm_create_without_rule(self):
         "Test create without rule"
-        pool = Pool()
+        pool = tx.pool
         TestRule = pool.get('test.rule')
 
         test, = TestRule.create([{}])
@@ -29,7 +29,7 @@ class ModelRuleTestCase(TestCase):
     @with_transaction(context=_context)
     def test_perm_create_with_rule(self):
         "Test create with rule"
-        pool = Pool()
+        pool = tx.pool
         TestRule = pool.get('test.rule')
         RuleGroup = pool.get('ir.rule.group')
 
@@ -52,7 +52,7 @@ class ModelRuleTestCase(TestCase):
     @with_transaction(context=_context)
     def test_perm_create_with_rule_fail(self):
         "Test create with rule fail"
-        pool = Pool()
+        pool = tx.pool
         TestRule = pool.get('test.rule')
         RuleGroup = pool.get('ir.rule.group')
 
@@ -76,7 +76,7 @@ class ModelRuleTestCase(TestCase):
     @with_transaction(context=_context)
     def test_perm_create_with_default_rule_fail(self):
         "Test create with default rule fail"
-        pool = Pool()
+        pool = tx.pool
         TestRule = pool.get('test.rule')
         RuleGroup = pool.get('ir.rule.group')
 
@@ -101,7 +101,7 @@ class ModelRuleTestCase(TestCase):
     @with_transaction(context=_context)
     def test_perm_write_without_rule(self):
         "Test write without rule"
-        pool = Pool()
+        pool = tx.pool
         TestRule = pool.get('test.rule')
 
         test, = TestRule.create([{}])
@@ -111,7 +111,7 @@ class ModelRuleTestCase(TestCase):
     @with_transaction(context=_context)
     def test_perm_write_with_rule(self):
         "Test write with rule"
-        pool = Pool()
+        pool = tx.pool
         TestRule = pool.get('test.rule')
         RuleGroup = pool.get('ir.rule.group')
 
@@ -135,7 +135,7 @@ class ModelRuleTestCase(TestCase):
     @with_transaction(context=_context)
     def test_perm_write_with_rule_fail_before(self):
         "Test write with rule fail before"
-        pool = Pool()
+        pool = tx.pool
         TestRule = pool.get('test.rule')
         RuleGroup = pool.get('ir.rule.group')
 
@@ -160,7 +160,7 @@ class ModelRuleTestCase(TestCase):
     @with_transaction(context=_context)
     def test_perm_write_with_rule_fail_after(self):
         "Test write with rule fail after"
-        pool = Pool()
+        pool = tx.pool
         TestRule = pool.get('test.rule')
         RuleGroup = pool.get('ir.rule.group')
 
@@ -185,7 +185,7 @@ class ModelRuleTestCase(TestCase):
     @with_transaction(context=_context)
     def test_perm_delete_without_rule(self):
         "Test delete without rule"
-        pool = Pool()
+        pool = tx.pool
         TestRule = pool.get('test.rule')
 
         test, = TestRule.create([{}])
@@ -195,7 +195,7 @@ class ModelRuleTestCase(TestCase):
     @with_transaction(context=_context)
     def test_perm_delete_with_rule(self):
         "Test delete with rule"
-        pool = Pool()
+        pool = tx.pool
         TestRule = pool.get('test.rule')
         RuleGroup = pool.get('ir.rule.group')
 
@@ -219,7 +219,7 @@ class ModelRuleTestCase(TestCase):
     @with_transaction(context=_context)
     def test_perm_delete_with_rule_fail(self):
         "Test delete with rule fail"
-        pool = Pool()
+        pool = tx.pool
         TestRule = pool.get('test.rule')
         RuleGroup = pool.get('ir.rule.group')
 
@@ -244,7 +244,7 @@ class ModelRuleTestCase(TestCase):
     @with_transaction(context=_context)
     def test_perm_read_without_rule(self):
         "Test read without rule"
-        pool = Pool()
+        pool = tx.pool
         TestRule = pool.get('test.rule')
 
         test, = TestRule.create([{'field': 'foo'}])
@@ -254,7 +254,7 @@ class ModelRuleTestCase(TestCase):
     @with_transaction(context=_context)
     def test_perm_read_with_rule(self):
         "Test read with rule"
-        pool = Pool()
+        pool = tx.pool
         TestRule = pool.get('test.rule')
         RuleGroup = pool.get('ir.rule.group')
 
@@ -278,7 +278,7 @@ class ModelRuleTestCase(TestCase):
     @with_transaction(context=_context)
     def test_perm_read_with_rule_fail(self):
         "Test read with rule fail"
-        pool = Pool()
+        pool = tx.pool
         TestRule = pool.get('test.rule')
         RuleGroup = pool.get('ir.rule.group')
 
@@ -303,7 +303,7 @@ class ModelRuleTestCase(TestCase):
     @with_transaction(context=_context)
     def test_perm_read_with_rule_no_sql_type_fail(self):
         "Test read with rule fail and without SQL type"
-        pool = Pool()
+        pool = tx.pool
         TestRule = pool.get('test.rule')
         RuleGroup = pool.get('ir.rule.group')
 
@@ -328,7 +328,7 @@ class ModelRuleTestCase(TestCase):
     @with_transaction(context=_context)
     def test_search_without_rule(self):
         "Test search without rule"
-        pool = Pool()
+        pool = tx.pool
         TestRule = pool.get('test.rule')
 
         test, = TestRule.create([{'field': 'foo'}])
@@ -338,7 +338,7 @@ class ModelRuleTestCase(TestCase):
     @with_transaction(context=_context)
     def test_search_with_rule(self):
         "Test search with rule"
-        pool = Pool()
+        pool = tx.pool
         TestRule = pool.get('test.rule')
         RuleGroup = pool.get('ir.rule.group')
 
@@ -362,7 +362,7 @@ class ModelRuleTestCase(TestCase):
     @with_transaction(context=_context)
     def test_search_with_rule_match(self):
         "Test search with rule match"
-        pool = Pool()
+        pool = tx.pool
         TestRule = pool.get('test.rule')
         RuleGroup = pool.get('ir.rule.group')
 
@@ -386,7 +386,7 @@ class ModelRuleTestCase(TestCase):
     @with_transaction(context=_context)
     def test_write_field_no_rule(self):
         "Test _write field when there's no rule"
-        pool = Pool()
+        pool = tx.pool
         TestRule = pool.get('test.rule')
         writable, = TestRule.create([{'field': 'foo'}])
 
@@ -396,7 +396,7 @@ class ModelRuleTestCase(TestCase):
     @with_transaction(context=_context)
     def test_write_field_rule_True(self):
         "Test _write field when there's a rule - True"
-        pool = Pool()
+        pool = tx.pool
         TestRule = pool.get('test.rule')
         RuleGroup = pool.get('ir.rule.group')
 
@@ -421,7 +421,7 @@ class ModelRuleTestCase(TestCase):
     @with_transaction(context=_context)
     def test_write_field_rule_False(self):
         "Test _write field when there's a rule - False"
-        pool = Pool()
+        pool = tx.pool
         TestRule = pool.get('test.rule')
         RuleGroup = pool.get('ir.rule.group')
 
@@ -446,7 +446,7 @@ class ModelRuleTestCase(TestCase):
     @with_transaction(context=_context)
     def test_write_field_relation_rule_True(self):
         "Test _write field when there's a rule with a relation - True"
-        pool = Pool()
+        pool = tx.pool
         TestRule = pool.get('test.rule')
         TestRuleRelation = pool.get('test.rule.relation')
         RuleGroup = pool.get('ir.rule.group')
@@ -473,7 +473,7 @@ class ModelRuleTestCase(TestCase):
     @with_transaction(context=_context)
     def test_write_field_relation_rule_False(self):
         "Test _write field when there's a rule with a relation - False"
-        pool = Pool()
+        pool = tx.pool
         TestRule = pool.get('test.rule')
         TestRuleRelation = pool.get('test.rule.relation')
         RuleGroup = pool.get('ir.rule.group')
@@ -500,7 +500,7 @@ class ModelRuleTestCase(TestCase):
     @with_transaction(context=_context)
     def test_delete_field_no_rule(self):
         "Test _delete field when there's no rule"
-        pool = Pool()
+        pool = tx.pool
         TestRule = pool.get('test.rule')
         deletable, = TestRule.create([{'field': 'foo'}])
 
@@ -510,7 +510,7 @@ class ModelRuleTestCase(TestCase):
     @with_transaction(context=_context)
     def test_delete_field_rule_True(self):
         "Test _delete field when there's a rule - True"
-        pool = Pool()
+        pool = tx.pool
         TestRule = pool.get('test.rule')
         RuleGroup = pool.get('ir.rule.group')
 
@@ -535,7 +535,7 @@ class ModelRuleTestCase(TestCase):
     @with_transaction(context=_context)
     def test_delete_field_rule_False(self):
         "Test _delete field when there's a rule - False"
-        pool = Pool()
+        pool = tx.pool
         TestRule = pool.get('test.rule')
         RuleGroup = pool.get('ir.rule.group')
 
@@ -560,7 +560,7 @@ class ModelRuleTestCase(TestCase):
     @with_transaction(context=_context)
     def test_delete_field_relation_rule_True(self):
         "Test _delete field when there's a rule with a relation - True"
-        pool = Pool()
+        pool = tx.pool
         TestRule = pool.get('test.rule')
         TestRuleRelation = pool.get('test.rule.relation')
         RuleGroup = pool.get('ir.rule.group')
@@ -587,7 +587,7 @@ class ModelRuleTestCase(TestCase):
     @with_transaction(context=_context)
     def test_delete_field_relation_rule_False(self):
         "Test _delete field when there's a rule with a relation - False"
-        pool = Pool()
+        pool = tx.pool
         TestRule = pool.get('test.rule')
         TestRuleRelation = pool.get('test.rule.relation')
         RuleGroup = pool.get('ir.rule.group')
@@ -614,7 +614,7 @@ class ModelRuleTestCase(TestCase):
     @with_transaction(context=_context)
     def test_model_with_rule(self):
         "Test model with rule"
-        pool = Pool()
+        pool = tx.pool
         TestRule = pool.get('test.rule')
         TestRuleModel = pool.get('test.rule.model')
         RuleGroup = pool.get('ir.rule.group')
@@ -640,7 +640,7 @@ class ModelRuleTestCase(TestCase):
     @with_transaction(context=_context)
     def test_model_with_rule_fail(self):
         "Test model with rule fail"
-        pool = Pool()
+        pool = tx.pool
         TestRule = pool.get('test.rule')
         TestRuleModel = pool.get('test.rule.model')
         RuleGroup = pool.get('ir.rule.group')

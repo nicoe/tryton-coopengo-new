@@ -1,6 +1,7 @@
 # This file is part of Tryton.  The COPYRIGHT file at the top level of
 # this repository contains the full copyright notices and license terms.
-from trytond.pool import Pool, PoolMeta
+from trytond import tx
+from trytond.pool import PoolMeta
 
 
 class Replace(metaclass=PoolMeta):
@@ -18,7 +19,7 @@ class Erase(metaclass=PoolMeta):
     __name__ = 'party.erase'
 
     def to_erase(self, party_id):
-        pool = Pool()
+        pool = tx.pool
         User = pool.get('web.user')
         to_erase = super().to_erase(party_id)
         to_erase.append(

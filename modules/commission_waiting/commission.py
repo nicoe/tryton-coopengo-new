@@ -1,10 +1,10 @@
 # This file is part of Tryton.  The COPYRIGHT file at the top level of
 # this repository contains the full copyright notices and license terms.
 
+from trytond import tx
 from trytond.model import fields
-from trytond.pool import Pool, PoolMeta
+from trytond.pool import PoolMeta
 from trytond.pyson import Bool, Eval
-from trytond.transaction import Transaction
 
 
 class Agent(metaclass=PoolMeta):
@@ -40,7 +40,7 @@ class Commission(metaclass=PoolMeta):
 
     @classmethod
     def create_waiting_move(cls, commissions):
-        pool = Pool()
+        pool = tx.pool
         Move = pool.get('account.move')
         Commission = pool.get('commission')
         moves = []
@@ -54,7 +54,7 @@ class Commission(metaclass=PoolMeta):
         Commission.save(commissions)
 
     def get_move(self, date=None):
-        pool = Pool()
+        pool = tx.pool
         Move = pool.get('account.move')
         Line = pool.get('account.move.line')
         Date = pool.get('ir.date')
@@ -67,7 +67,7 @@ class Commission(metaclass=PoolMeta):
             return self.waiting_move
 
         if date is None:
-            with Transaction().set_context(company=self.agent.company.id):
+            with tx.transaction.set_context(company=self.agent.company.id):
                 date = Date.today()
         period = Period.find(self.agent.company, date=date)
 
@@ -76,7 +76,7 @@ class Commission(metaclass=PoolMeta):
         amount = Currency.compute(self.currency, self.amount,
             self.agent.company.currency)
         line = Line()
-        with Transaction().set_context(date=date):
+        with tx.transaction.set_context(date=date):
             if self.type_ == 'in':
                 line.credit = amount if amount > 0 else 0
                 line.debit = amount if amount < 0 else 0

@@ -3,14 +3,14 @@
 from collections import defaultdict
 from itertools import groupby
 
+from trytond import tx
 from trytond.i18n import gettext
 from trytond.model import (
     Index, Model, ModelSQL, ModelView, Workflow, fields, sequence_ordered)
 from trytond.modules.company.model import (
     employee_field, reset_employee, set_employee)
-from trytond.pool import Pool, PoolMeta
+from trytond.pool import PoolMeta
 from trytond.pyson import Eval
-from trytond.transaction import Transaction
 from trytond.wizard import Button, StateAction, StateView, Wizard
 
 from .exceptions import QuantityIssueError
@@ -111,11 +111,11 @@ class QuantityIssue(
 
     @classmethod
     def default_company(cls):
-        return Transaction().context.get('company')
+        return tx.transaction.context.get('company')
 
     @classmethod
     def get_origins(cls):
-        pool = Pool()
+        pool = tx.pool
         Model = pool.get('ir.model')
         get_name = Model.get_name
         models = cls._get_origins()
@@ -144,7 +144,7 @@ class QuantityIssue(
 
     @classmethod
     def default_warehouse(cls):
-        pool = Pool()
+        pool = tx.pool
         Location = pool.get('stock.location')
         return Location.get_default_warehouse()
 
@@ -210,7 +210,7 @@ class QuantityIssue(
 
         If warehouses is specified it checks the stock only for them.
         """
-        pool = Pool()
+        pool = tx.pool
         Date = pool.get('ir.date')
         Location = pool.get('stock.location')
         Move = pool.get('stock.move')
@@ -219,14 +219,14 @@ class QuantityIssue(
             'stock.product_quantities_warehouse')
         User = pool.get('res.user')
 
-        transaction = Transaction()
+        transaction = tx.transaction
         today = Date.today()
         if warehouses is None:
             warehouses = Location.search([
                     ('type', '=', 'warehouse'),
                     ])
         if company is None:
-            company = User(Transaction().user).company
+            company = User(tx.transaction.user).company
 
         # Do not keep former open issues as they may no more be valid
         opens = cls.search([
@@ -294,7 +294,7 @@ class QuantityIssue(
 
     @classmethod
     def _add(cls, move, issues):
-        pool = Pool()
+        pool = tx.pool
         Date = pool.get('ir.date')
         IssueProduct = pool.get('stock.quantity.issue.product')
 
@@ -377,7 +377,7 @@ class QuantityIssueProduct(ModelSQL):
             return record.warehouse, record.issue.planned_date
         items = cls.browse(sorted(records, key=key))
         for (warehouse, date), items in groupby(items, key=key):
-            with Transaction().set_context(
+            with tx.transaction.set_context(
                     location=[warehouse.id],
                     stock_skip_warehouse=True,
                     stock_start_end=date):
@@ -404,7 +404,7 @@ class QuantityIssueGenerate(Wizard):
     generate = StateAction('stock_quantity_issue.act_quantity_issue_form')
 
     def transition_generate(self):
-        pool = Pool()
+        pool = tx.pool
         QuantityIssue = pool.get('stock.quantity.issue')
         QuantityIssue.generate_issues(warehouses=self.start.warehouses or None)
         return 'end'
@@ -421,7 +421,7 @@ class QuantityIssueGenerateStart(ModelView):
 
     @classmethod
     def default_warehouses(cls):
-        pool = Pool()
+        pool = tx.pool
         Location = pool.get('stock.location')
         warehouse = Location.get_default_warehouse()
         if warehouse:

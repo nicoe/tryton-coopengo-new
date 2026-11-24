@@ -2,10 +2,10 @@
 # this repository contains the full copyright notices and license terms.
 from decimal import Decimal
 
+from trytond import tx
 from trytond.model import fields
-from trytond.pool import Pool, PoolMeta
+from trytond.pool import PoolMeta
 from trytond.pyson import Eval
-from trytond.transaction import Transaction
 
 
 class Carrier(metaclass=PoolMeta):
@@ -26,7 +26,7 @@ class Carrier(metaclass=PoolMeta):
 
     def compute_percentage(self, amount, currency_id):
         "Compute price based on a percentage of amount"
-        Currency = Pool().get('currency.currency')
+        Currency = tx.pool.get('currency.currency')
 
         price = amount * self.percentage / Decimal(100)
         currency = Currency(currency_id)
@@ -35,8 +35,8 @@ class Carrier(metaclass=PoolMeta):
     def get_sale_price(self):
         price, currency_id = super().get_sale_price()
         if self.carrier_cost_method == 'percentage':
-            amount = Transaction().context.get('amount', Decimal(0))
-            currency_id = Transaction().context.get('currency', currency_id)
+            amount = tx.transaction.context.get('amount', Decimal(0))
+            currency_id = tx.transaction.context.get('currency', currency_id)
             if currency_id is not None:
                 return self.compute_percentage(amount, currency_id)
         return price, currency_id
@@ -44,8 +44,8 @@ class Carrier(metaclass=PoolMeta):
     def get_purchase_price(self):
         price, currency_id = super().get_purchase_price()
         if self.carrier_cost_method == 'percentage':
-            amount = Transaction().context.get('amount', Decimal(0))
-            currency_id = Transaction().context.get('currency', currency_id)
+            amount = tx.transaction.context.get('amount', Decimal(0))
+            currency_id = tx.transaction.context.get('currency', currency_id)
             if currency_id is not None:
                 return self.compute_percentage(amount, currency_id)
         return price, currency_id

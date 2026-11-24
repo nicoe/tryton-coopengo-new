@@ -5,11 +5,9 @@ from functools import partial
 
 from sql import Cast, CombiningQuery, Literal, Null, Select, operators
 
-from trytond import backend
-from trytond.pool import Pool
+from trytond import backend, tx
 from trytond.protocols.jsonrpc import JSONDecoder, JSONEncoder
 from trytond.tools.immutabledict import ImmutableDict
-from trytond.transaction import Transaction
 
 from .field import SQL_OPERATORS, Field, domain_method, order_method
 
@@ -80,7 +78,7 @@ class Dict(Field):
         return TranslatedDict(name, type_)
 
     def _domain_column(self, operator, column, key=None):
-        database = Transaction().database
+        database = tx.transaction.database
         column = database.json_get(
             super()._domain_column(operator, column), key)
         if operator.endswith('like'):
@@ -102,7 +100,7 @@ class Dict(Field):
         else:
             value = dumps(value)
             if self.search_unaccented and operator.endswith('ilike'):
-                database = Transaction().database
+                database = tx.transaction.database
                 value = database.unaccent(value)
             return value
 
@@ -120,7 +118,7 @@ class Dict(Field):
         name, operator, value = domain[:3]
         if '.' not in name:
             return super()._convert_domain(domain, tables, Model)
-        database = Transaction().database
+        database = tx.transaction.database
         name, key = name.split('.', 1)
         Operator = SQL_OPERATORS[operator]
         raw_column = self.sql_column(tables, Model)
@@ -171,7 +169,7 @@ class Dict(Field):
         fname, _, key = name.partition('.')
         if not key:
             return super().convert_order(fname, tables, Model)
-        database = Transaction().database
+        database = tx.transaction.database
         column = self.sql_column(tables, Model)
         return [database.json_get(column, key)]
 
@@ -192,7 +190,7 @@ class TranslatedDict(object):
     def __get__(self, inst, cls):
         if inst is None:
             return self
-        pool = Pool()
+        pool = tx.pool
         schema_model = getattr(cls, self.name).schema_model
         SchemaModel = pool.get(schema_model)
 

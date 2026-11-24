@@ -1,6 +1,7 @@
 # This file is part of Tryton.  The COPYRIGHT file at the top level of
 # this repository contains the full copyright notices and license terms.
-from trytond.pool import Pool, PoolMeta
+from trytond import tx
+from trytond.pool import PoolMeta
 
 
 class InvoiceLine(metaclass=PoolMeta):
@@ -8,7 +9,7 @@ class InvoiceLine(metaclass=PoolMeta):
 
     @property
     def origin_name(self):
-        pool = Pool()
+        pool = tx.pool
         Move = pool.get('stock.move')
         name = super().origin_name
         if (isinstance(self.origin, Move)

@@ -12,15 +12,15 @@ from shopify_app import admin_graphql_request
 from sql.functions import Position, Substring
 
 import trytond.config as config
+from trytond import tx
 from trytond.cache import Cache
 from trytond.i18n import gettext
 from trytond.model import (
     MatchMixin, ModelSQL, ModelView, Unique, fields, sequence_ordered)
-from trytond.pool import Pool, PoolMeta
+from trytond.pool import PoolMeta
 from trytond.pyson import Eval
 from trytond.tools import grouped_slice
 from trytond.tools.logging import format_args
-from trytond.transaction import Transaction
 from trytond.url import http_host
 
 from . import SHOPIFY_VERSION, graphql
@@ -214,7 +214,7 @@ class Shop(metaclass=PoolMeta):
     def __register__(cls, module):
         table_h = cls.__table_handler__(module)
         table = cls.__table__()
-        cursor = Transaction().connection.cursor()
+        cursor = tx.transaction.connection.cursor()
 
         super().__register__(module)
 
@@ -242,7 +242,7 @@ class Shop(metaclass=PoolMeta):
         if not self.name:
             return
         url_part = {
-            'database_name': Transaction().database.name,
+            'database_name': tx.transaction.database.name,
             'shop': self.name,
             }
         return http_host() + (
@@ -368,9 +368,9 @@ class Shop(metaclass=PoolMeta):
 
         The transaction is committed after the creation of each new resource.
         """
-        pool = Pool()
+        pool = tx.pool
         InventoryItem = pool.get('product.shopify_inventory_item')
-        transaction = Transaction()
+        transaction = tx.transaction
         if shops is None:
             shops = cls.search([
                     ('type', '=', 'shopify'),
@@ -395,7 +395,7 @@ class Shop(metaclass=PoolMeta):
             sale_prices, sale_taxes = prices, taxes
 
             context = shop.get_context()
-            with Transaction().set_context(_non_sale_price=True):
+            with tx.transaction.set_context(_non_sale_price=True):
                 sale_context = shop.get_context()
                 if context != sale_context:
                     _, prices, taxes = shop.get_products()
@@ -443,7 +443,7 @@ class Shop(metaclass=PoolMeta):
                         shopify_shop, categories, template, t_products,
                         p_inventory_items, p_sale_prices, p_sale_taxes,
                         p_prices, p_taxes)
-                    Transaction().commit()
+                    tx.transaction.commit()
 
             for category in shop.categories_removed:
                 shop._shopify_remove_collection(category)
@@ -490,7 +490,7 @@ class Shop(metaclass=PoolMeta):
         if identifier.to_update:
             identifier.to_update = False
             identifier.save()
-        Transaction().commit()
+        tx.transaction.commit()
         return collection
 
     def _shopify_remove_collection(self, category):
@@ -525,7 +525,7 @@ class Shop(metaclass=PoolMeta):
             self, shopify_shop, categories, template, products,
             inventory_items, sale_prices, sale_taxes, prices, taxes,
             product_fields=None):
-        pool = Pool()
+        pool = tx.pool
         Identifier = pool.get('web.shop.shopify_identifier')
 
         if not template.shopify_uom:
@@ -670,7 +670,7 @@ class Shop(metaclass=PoolMeta):
     @classmethod
     def shopify_update_inventory(cls, shops=None):
         """Update Shopify Inventory"""
-        pool = Pool()
+        pool = tx.pool
         Product = pool.get('product.product')
         if shops is None:
             shops = cls.search([
@@ -681,7 +681,7 @@ class Shop(metaclass=PoolMeta):
                 if not (location_id := shop_warehouse.shopify_id):
                     continue
                 location_id = id2gid('Location', location_id)
-                with Transaction().set_context(
+                with tx.transaction.set_context(
                         shop.get_context(),
                         **shop_warehouse.get_shopify_inventory_context()):
                     products = Product.browse([
@@ -689,7 +689,7 @@ class Shop(metaclass=PoolMeta):
                     shop._shopify_update_inventory(products, location_id)
 
     def _shopify_update_inventory(self, products, location_id):
-        pool = Pool()
+        pool = tx.pool
         InventoryItem = pool.get('product.shopify_inventory_item')
         inventory_items = InventoryItem.browse(products)
 
@@ -738,10 +738,10 @@ class Shop(metaclass=PoolMeta):
     @classmethod
     def shopify_fetch_order(cls, shops=None):
         """Fetch new Shopify Order"""
-        pool = Pool()
+        pool = tx.pool
         Sale = pool.get('sale.sale')
         Payment = pool.get('account.payment')
-        context = Transaction().context
+        context = tx.transaction.context
         if shops is None:
             shops = cls.search([
                     ('type', '=', 'shopify'),
@@ -792,7 +792,7 @@ class Shop(metaclass=PoolMeta):
     @classmethod
     def shopify_update_order(cls, shops=None):
         """Update existing sale from Shopify"""
-        pool = Pool()
+        pool = tx.pool
         Sale = pool.get('sale.sale')
         if shops is None:
             shops = cls.search([
@@ -816,7 +816,7 @@ class Shop(metaclass=PoolMeta):
 
     @classmethod
     def _shopify_update_order(cls, shop, sales):
-        pool = Pool()
+        pool = tx.pool
         Sale = pool.get('sale.sale')
         sales = Sale.browse(sales)
         assert shop.type == 'shopify'
@@ -845,7 +845,7 @@ class Shop(metaclass=PoolMeta):
     @classmethod
     def shopify_update_sale(cls, sales, orders):
         """Update sales based on Shopify orders"""
-        pool = Pool()
+        pool = tx.pool
         Amendment = pool.get('sale.amendment')
         Payment = pool.get('account.payment')
         Sale = pool.get('sale.sale')
@@ -864,7 +864,7 @@ class Shop(metaclass=PoolMeta):
                 to_update[sale] = order
                 states_to_restore[sale.state].append(sale)
         Sale.write(list(to_update.keys()), {'state': 'draft'})
-        with Transaction().set_context(_log=True):
+        with tx.transaction.set_context(_log=True):
             Sale.save(to_update.keys())
         for state, state_sales in states_to_restore.items():
             Sale.write(list(state_sales), {'state': state})
@@ -899,7 +899,7 @@ class Shop(metaclass=PoolMeta):
 
     @classmethod
     def check_modification(cls, mode, shops, values=None, external=False):
-        pool = Pool()
+        pool = tx.pool
         Warning = pool.get('res.user.warning')
         super().check_modification(
             mode, shops, values=values, external=external)
@@ -932,7 +932,7 @@ class Shop_Image(metaclass=PoolMeta):
             self, shopify_shop, categories, template, products,
             inventory_items, sale_prices, sale_taxes, prices, taxes,
             product_fields=None):
-        pool = Pool()
+        pool = tx.pool
         Identifier = pool.get('web.shop.shopify_identifier')
 
         product_fields = (
@@ -1018,7 +1018,7 @@ class ShopShopifyIdentifier(IdentifierMixin, ModelSQL, ModelView):
 
     @classmethod
     def get_records(cls):
-        pool = Pool()
+        pool = tx.pool
         Model = pool.get('ir.model')
         get_name = Model.get_name
         models = (klass.__name__ for _, klass in pool.iterobject()

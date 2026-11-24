@@ -2,11 +2,11 @@
 # this repository contains the full copyright notices and license terms.
 from unittest.mock import DEFAULT, Mock, call
 
+from trytond import tx
 from trytond.protocols.wrappers import exceptions
 from trytond.rpc import RPC
 from trytond.tests.test_tryton import (
     TestCase, activate_module, with_transaction)
-from trytond.transaction import Transaction
 
 
 class RPCTestCase(TestCase):
@@ -72,7 +72,7 @@ class RPCTestCase(TestCase):
         "Test instantiate"
 
         def side_effect(*args, **kwargs):
-            self.assertEqual(Transaction().context, {'test': True})
+            self.assertEqual(tx.transaction.context, {'test': True})
             return DEFAULT
 
         rpc = RPC(instantiate=0, check_access=True)

@@ -3,11 +3,11 @@
 from collections import OrderedDict, defaultdict
 from itertools import groupby
 
+from trytond import tx
 from trytond.model import (
     DeactivableMixin, ModelSQL, ModelView, fields, sequence_ordered, tree)
-from trytond.pool import Pool
 from trytond.rpc import RPC
-from trytond.transaction import Transaction, inactive_records
+from trytond.transaction import inactive_records
 
 
 def one_in(i, j):
@@ -131,7 +131,7 @@ class UIMenu(
 
     @staticmethod
     def list_icons():
-        pool = Pool()
+        pool = tx.pool
         Icon = pool.get('ir.ui.icon')
         return sorted(CLIENT_ICONS
             + [(name, name) for _, name in Icon.list_icons()])
@@ -148,9 +148,9 @@ class UIMenu(
     @classmethod
     def search(cls, domain, offset=0, limit=None, order=None, count=False,
             query=False):
-        pool = Pool()
+        pool = tx.pool
         ModelAccess = pool.get('ir.model.access')
-        transaction = Transaction()
+        transaction = tx.transaction
 
         def has_action_access(menu):
             if menu.action_keywords and all(
@@ -190,7 +190,7 @@ class UIMenu(
     @classmethod
     @inactive_records
     def get_action(cls, menus, name):
-        pool = Pool()
+        pool = tx.pool
         actions = dict((m.id, None) for m in menus)
         menus = cls.browse(menus)
         action_keywords = sum((list(m.action_keywords) for m in menus), [])
@@ -218,14 +218,14 @@ class UIMenu(
 
     @classmethod
     def set_action(cls, menus, name, value):
-        pool = Pool()
+        pool = tx.pool
         ActionKeyword = pool.get('ir.action.keyword')
         action_keywords = ActionKeyword.search([
             ('keyword', '=', 'tree_open'),
             ('model', 'in', [str(menu) for menu in menus]),
             ])
         if action_keywords:
-            with Transaction().set_context(_timestamp=False):
+            with tx.transaction.set_context(_timestamp=False):
                 ActionKeyword.delete(action_keywords)
         if not value:
             return
@@ -239,7 +239,7 @@ class UIMenu(
         action = Action(int(action_id))
         to_create = []
         for menu in menus:
-            with Transaction().set_context(_timestamp=False):
+            with tx.transaction.set_context(_timestamp=False):
                 to_create.append({
                         'keyword': 'tree_open',
                         'model': str(menu),
@@ -250,9 +250,9 @@ class UIMenu(
 
     @classmethod
     def get_favorite(cls, menus, name):
-        pool = Pool()
+        pool = tx.pool
         Favorite = pool.get('ir.ui.menu.favorite')
-        user = Transaction().user
+        user = tx.transaction.user
         favorites = Favorite.search([
                 ('menu', 'in', [m.id for m in menus]),
                 ('user', '=', user),
@@ -290,11 +290,11 @@ class UIMenuFavorite(ModelSQL):
 
     @staticmethod
     def default_user():
-        return Transaction().user
+        return tx.transaction.user
 
     @classmethod
     def get(cls):
-        user = Transaction().user
+        user = tx.transaction.user
         favorites = cls.search([
                 ('user', '=', user),
                 ],
@@ -304,7 +304,7 @@ class UIMenuFavorite(ModelSQL):
 
     @classmethod
     def set(cls, menu_id):
-        user = Transaction().user
+        user = tx.transaction.user
         cls.create([{
                     'menu': menu_id,
                     'user': user,
@@ -312,7 +312,7 @@ class UIMenuFavorite(ModelSQL):
 
     @classmethod
     def unset(cls, menu_id):
-        user = Transaction().user
+        user = tx.transaction.user
         favorites = cls.search([
                 ('menu', '=', menu_id),
                 ('user', '=', user),

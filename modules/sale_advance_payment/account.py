@@ -1,8 +1,9 @@
 # This file is part of Tryton.  The COPYRIGHT file at the top level of
 # this repository contains the full copyright notices and license terms.
 
+from trytond import tx
 from trytond.model import fields
-from trytond.pool import Pool, PoolMeta
+from trytond.pool import PoolMeta
 from trytond.pyson import Bool, Eval, If
 
 
@@ -48,7 +49,7 @@ class Invoice(metaclass=PoolMeta):
     __name__ = 'account.invoice'
 
     def get_sales(self, name):
-        pool = Pool()
+        pool = tx.pool
         Line = pool.get('sale.advance_payment.line')
 
         sales = set(super().get_sales(name))
@@ -83,7 +84,7 @@ class InvoiceLine(metaclass=PoolMeta):
 
     @property
     def origin_name(self):
-        pool = Pool()
+        pool = tx.pool
         Line = pool.get('sale.advance_payment.line')
         name = super().origin_name
         if isinstance(self.origin, Line) and self.origin.id >= 0:

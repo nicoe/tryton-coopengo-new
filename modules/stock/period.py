@@ -4,11 +4,11 @@ from itertools import groupby
 
 from sql import For, Literal
 
+from trytond import tx
 from trytond.i18n import gettext
 from trytond.model import Index, ModelSQL, ModelView, Workflow, fields
-from trytond.pool import Pool
 from trytond.pyson import Eval
-from trytond.transaction import Transaction, inactive_records
+from trytond.transaction import inactive_records
 
 from .exceptions import PeriodCloseError
 
@@ -57,7 +57,7 @@ class Period(Workflow, ModelSQL, ModelView):
 
     @staticmethod
     def default_company():
-        return Transaction().context.get('company')
+        return tx.transaction.context.get('company')
 
     @staticmethod
     def default_state():
@@ -69,12 +69,12 @@ class Period(Workflow, ModelSQL, ModelView):
 
     @staticmethod
     def get_cache(grouping):
-        pool = Pool()
+        pool = tx.pool
         if all(g == 'product' or g.startswith('product.') for g in grouping):
             return pool.get('stock.period.cache')
 
     def get_rec_name(self, name):
-        return Pool().get('ir.lang').get().strftime(self.date)
+        return tx.pool.get('ir.lang').get().strftime(self.date)
 
     @classmethod
     def copy(cls, periods, default=None):
@@ -97,12 +97,12 @@ class Period(Workflow, ModelSQL, ModelView):
     @ModelView.button
     @Workflow.transition('closed')
     def close(cls, periods):
-        pool = Pool()
+        pool = tx.pool
         Product = pool.get('product.product')
         Location = pool.get('stock.location')
         Move = pool.get('stock.move')
         Date = pool.get('ir.date')
-        transaction = Transaction()
+        transaction = tx.transaction
         connection = transaction.connection
         database = transaction.database
 
@@ -121,7 +121,7 @@ class Period(Workflow, ModelSQL, ModelView):
 
         for company, c_periods in groupby(periods, key=lambda p: p.company):
             c_periods = list(c_periods)
-            with Transaction().set_context(company=company.id):
+            with tx.transaction.set_context(company=company.id):
                 today = Date.today()
             recent_period = max(c_periods, key=lambda p: p.date)
             recent_date = recent_period.date
@@ -150,7 +150,7 @@ class Period(Workflow, ModelSQL, ModelView):
             Cache = cls.get_cache(grouping)
             to_create = []
             for period in periods:
-                with Transaction().set_context(
+                with tx.transaction.set_context(
                         stock_date_end=period.date,
                         stock_date_start=None,
                         stock_assign=False,

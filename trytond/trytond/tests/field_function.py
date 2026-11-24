@@ -3,9 +3,9 @@
 
 from sql import Literal
 
+from trytond import tx
 from trytond.model import ModelSQL, ModelStorage, fields
 from trytond.pool import Pool
-from trytond.transaction import Transaction
 
 
 class FunctionDefinition(ModelStorage):
@@ -82,7 +82,7 @@ class FunctionGetterContext(ModelSQL):
         'getter', getter_with_context=False)
 
     def getter(self, name):
-        context = Transaction().context
+        context = tx.transaction.context
         return '%s - %s' % (
             context.get('language', 'empty'), context.get('test', 'empty'))
 
@@ -155,7 +155,7 @@ class FunctionNoGetterRelation(ModelSQL):
 
     @classmethod
     def column_target_name(cls, tables):
-        pool = Pool()
+        pool = tx.pool
         Target = pool.get('test.function.no_getter.target')
         table, _ = tables[None]
         if 'target' not in tables:
@@ -169,7 +169,7 @@ class FunctionNoGetterRelation(ModelSQL):
 
     @classmethod
     def column_target_target(cls, tables):
-        pool = Pool()
+        pool = tx.pool
         Target = pool.get('test.function.no_getter.target')
         table, _ = tables[None]
         if 'target' not in tables:

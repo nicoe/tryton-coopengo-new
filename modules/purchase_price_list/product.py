@@ -1,19 +1,19 @@
 # This file is part of Tryton.  The COPYRIGHT file at the top level of
 # this repository contains the full copyright notices and license terms.
-from trytond.pool import Pool, PoolMeta
-from trytond.transaction import Transaction
+from trytond import tx
+from trytond.pool import PoolMeta
 
 
 class Product(metaclass=PoolMeta):
     __name__ = 'product.product'
 
     def _get_purchase_unit_price(self, quantity=0):
-        pool = Pool()
+        pool = tx.pool
         Date = pool.get('ir.date')
         Party = pool.get('party.party')
         Tax = pool.get('account.tax')
         UoM = pool.get('product.uom')
-        context = Transaction().context
+        context = tx.transaction.context
         today = Date.today()
 
         unit_price = super()._get_purchase_unit_price(quantity=quantity)

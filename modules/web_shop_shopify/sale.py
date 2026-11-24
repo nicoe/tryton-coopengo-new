@@ -6,14 +6,14 @@ from itertools import zip_longest
 
 import dateutil
 
+from trytond import tx
 from trytond.i18n import gettext
 from trytond.model import ModelView, Unique, fields
 from trytond.modules.currency.fields import Monetary
 from trytond.modules.product import round_price
 from trytond.modules.sale.exceptions import SaleConfirmError
-from trytond.pool import Pool, PoolMeta
+from trytond.pool import PoolMeta
 from trytond.pyson import Eval
-from trytond.transaction import Transaction
 
 from . import graphql
 from .common import IdentifierMixin, gid2id, id2gid, setattr_changed
@@ -188,7 +188,7 @@ class Sale(IdentifierMixin, metaclass=PoolMeta):
 
     @classmethod
     def shopify_fields(cls):
-        pool = Pool()
+        pool = tx.pool
         Party = pool.get('party.party')
         Address = pool.get('party.address')
         Line = pool.get('sale.line')
@@ -291,7 +291,7 @@ class Sale(IdentifierMixin, metaclass=PoolMeta):
 
     @classmethod
     def get_from_shopify(cls, shop, order, sale=None):
-        pool = Pool()
+        pool = tx.pool
         Party = pool.get('party.party')
         Address = pool.get('party.address')
         ContactMechanism = pool.get('party.contact_mechanism')
@@ -528,7 +528,7 @@ class Sale(IdentifierMixin, metaclass=PoolMeta):
         return method
 
     def create_invoice(self):
-        pool = Pool()
+        pool = tx.pool
         Currency = pool.get('currency.currency')
         invoice = super().create_invoice()
         if invoice and self.shopify_tax_adjustment:
@@ -589,7 +589,7 @@ class Sale(IdentifierMixin, metaclass=PoolMeta):
 
         The transaction is committed if fulfillment is created.
         """
-        pool = Pool()
+        pool = tx.pool
         Payment = pool.get('account.payment')
         self.lock()
         shopify_request = self.web_shop.shopify_request
@@ -609,7 +609,7 @@ class Sale(IdentifierMixin, metaclass=PoolMeta):
                             error=e.message)) from e
                 shipment.set_shopify_identifier(
                     self, gid2id(fulfillment['id']))
-                Transaction().commit()
+                tx.transaction.commit()
                 # Start a new transaction as commit release the lock
                 self.__class__.__queue__._process_shopify(self)
                 return
@@ -712,7 +712,7 @@ class Sale(IdentifierMixin, metaclass=PoolMeta):
             }
 
     def get_shopify_refund_line_items(self, fulfillable_quantities):
-        pool = Pool()
+        pool = tx.pool
         Uom = pool.get('product.uom')
 
         assert self.shipment_state == 'sent'
@@ -829,7 +829,7 @@ class Line(IdentifierMixin, metaclass=PoolMeta):
     @classmethod
     def get_from_shopify(
             cls, sale, line_item, quantity, warehouse=None, line=None):
-        pool = Pool()
+        pool = tx.pool
         Product = pool.get('product.product')
         Tax = pool.get('account.tax')
 
@@ -881,7 +881,7 @@ class Line(IdentifierMixin, metaclass=PoolMeta):
 
     @classmethod
     def get_from_shopify_shipping(cls, sale, shipping_line, line=None):
-        pool = Pool()
+        pool = tx.pool
         Tax = pool.get('account.tax')
 
         if not line:
@@ -923,7 +923,7 @@ class Line_Discount(metaclass=PoolMeta):
     @classmethod
     def get_from_shopify(
             cls, sale, line_item, quantity, warehouse=None, line=None):
-        pool = Pool()
+        pool = tx.pool
         Tax = pool.get('account.tax')
         line = super().get_from_shopify(
             sale, line_item, quantity, warehouse=warehouse, line=line)
@@ -992,7 +992,7 @@ class Line_Kit(metaclass=PoolMeta):
     @classmethod
     def get_from_shopify(
             cls, sale, line_item, quantity, warehouse=None, line=None):
-        pool = Pool()
+        pool = tx.pool
         UoM = pool.get('product.uom')
         Component = pool.get('sale.line.component')
         line = super().get_from_shopify(

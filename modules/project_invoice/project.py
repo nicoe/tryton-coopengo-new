@@ -11,15 +11,14 @@ from sql import Cast, Null
 from sql.aggregate import Sum
 from sql.operators import Concat
 
-from trytond import backend
+from trytond import backend, tx
 from trytond.i18n import gettext
 from trytond.model import ModelSQL, ModelView, fields
 from trytond.model.exceptions import AccessError
 from trytond.modules.currency.fields import Monetary
-from trytond.pool import Pool, PoolMeta
+from trytond.pool import PoolMeta
 from trytond.pyson import Bool, Eval, Id, If
 from trytond.tools import sqlite_apply_types
-from trytond.transaction import Transaction
 from trytond.wizard import StateAction, Wizard
 
 from .exceptions import InvoicingError
@@ -52,7 +51,7 @@ class Effort:
 
     @classmethod
     def _get_invoiced_amount_effort(cls, works):
-        pool = Pool()
+        pool = tx.pool
         InvoiceLine = pool.get('account.invoice.line')
         Currency = pool.get('currency.currency')
 
@@ -107,10 +106,10 @@ class Progress:
 
     @classmethod
     def _get_quantity_to_invoice_progress(cls, works):
-        pool = Pool()
+        pool = tx.pool
         Progress = pool.get('project.work.invoiced_progress')
 
-        cursor = Transaction().connection.cursor()
+        cursor = tx.transaction.connection.cursor()
         table = cls.__table__()
         progress = Progress.__table__()
 
@@ -148,13 +147,13 @@ class Progress:
 
     @classmethod
     def _get_invoiced_amount_progress(cls, works):
-        pool = Pool()
+        pool = tx.pool
         Progress = pool.get('project.work.invoiced_progress')
         InvoiceLine = pool.get('account.invoice.line')
         Company = pool.get('company.company')
         Currency = pool.get('currency.currency')
 
-        cursor = Transaction().connection.cursor()
+        cursor = tx.transaction.connection.cursor()
         table = cls.__table__()
         progress = Progress.__table__()
         invoice_line = InvoiceLine.__table__()
@@ -198,7 +197,7 @@ class Progress:
         return amounts
 
     def get_origins_to_invoice(self):
-        pool = Pool()
+        pool = tx.pool
         InvoicedProgress = pool.get('project.work.invoiced_progress')
         try:
             origins = super().get_origins_to_invoice()
@@ -257,9 +256,9 @@ class Timesheet:
 
     @classmethod
     def _get_quantity_to_invoice_timesheet(cls, works):
-        pool = Pool()
+        pool = tx.pool
         TimesheetLine = pool.get('timesheet.line')
-        cursor = Transaction().connection.cursor()
+        cursor = tx.transaction.connection.cursor()
         line = TimesheetLine.__table__()
 
         upto2tworks = defaultdict(list)
@@ -301,14 +300,14 @@ class Timesheet:
 
     @classmethod
     def _get_invoiced_amount_timesheet(cls, works):
-        pool = Pool()
+        pool = tx.pool
         TimesheetWork = pool.get('timesheet.work')
         TimesheetLine = pool.get('timesheet.line')
         InvoiceLine = pool.get('account.invoice.line')
         Company = pool.get('company.company')
         Currency = pool.get('currency.currency')
 
-        cursor = Transaction().connection.cursor()
+        cursor = tx.transaction.connection.cursor()
         table = cls.__table__()
         timesheet_work = TimesheetWork.__table__()
         timesheet_line = TimesheetLine.__table__()
@@ -502,7 +501,7 @@ class Work(Effort, Progress, Timesheet, metaclass=PoolMeta):
     @classmethod
     @ModelView.button
     def invoice(cls, works):
-        pool = Pool()
+        pool = tx.pool
         Invoice = pool.get('account.invoice')
 
         invoices = []
@@ -537,7 +536,7 @@ class Work(Effort, Progress, Timesheet, metaclass=PoolMeta):
 
     def _get_invoice(self):
         "Return invoice for the work"
-        pool = Pool()
+        pool = tx.pool
         Invoice = pool.get('account.invoice')
         Journal = pool.get('account.journal')
 
@@ -575,7 +574,7 @@ class Work(Effort, Progress, Timesheet, metaclass=PoolMeta):
 
     def _get_invoice_line(self, key, invoice, lines):
         "Return a invoice line for the lines"
-        pool = Pool()
+        pool = tx.pool
         InvoiceLine = pool.get('account.invoice.line')
 
         quantity = sum(l['quantity'] for l in lines)
@@ -646,7 +645,7 @@ class Work(Effort, Progress, Timesheet, metaclass=PoolMeta):
 
     @property
     def unit_to_invoice(self):
-        pool = Pool()
+        pool = tx.pool
         ModelData = pool.get('ir.model.data')
         Uom = pool.get('product.uom')
         if self.price_list_hour:

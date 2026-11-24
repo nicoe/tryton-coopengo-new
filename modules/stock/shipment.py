@@ -9,15 +9,14 @@ from sql import Null
 from sql.conditionals import Coalesce
 from sql.functions import CharLength
 
+from trytond import tx
 from trytond.i18n import gettext, lazy_gettext
 from trytond.model import (
     ChatMixin, Index, ModelSQL, ModelView, Workflow, dualmethod, fields, sort)
 from trytond.model.exceptions import AccessError
 from trytond.modules.company import CompanyReport
 from trytond.modules.company.model import employee_field, set_employee
-from trytond.pool import Pool
 from trytond.pyson import Bool, Eval, Id, If, TimeDelta
-from trytond.transaction import Transaction
 from trytond.wizard import Button, StateTransition, StateView, Wizard
 
 from .exceptions import ShipmentCheckQuantityWarning
@@ -90,7 +89,7 @@ class ShipmentMixin:
         '''
         Fill the number field from sequence
         '''
-        pool = Pool()
+        pool = tx.pool
         Config = pool.get('stock.configuration')
 
         config = Config(1)
@@ -107,7 +106,7 @@ class ShipmentMixin:
         cls.save(shipments)
 
     def get_delay(self, name):
-        pool = Pool()
+        pool = tx.pool
         Date = pool.get('ir.date')
         planned_date = self.origin_planned_date or self.planned_date
         if planned_date is not None:
@@ -116,7 +115,7 @@ class ShipmentMixin:
             elif self.planned_date:
                 return self.planned_date - planned_date
             else:
-                with Transaction().set_context(company=self.company.id):
+                with tx.transaction.set_context(company=self.company.id):
                     today = Date.today()
                 return today - planned_date
 
@@ -161,7 +160,7 @@ class ShipmentMixin:
 
     @classmethod
     def on_modification(cls, mode, shipments, field_names=None):
-        pool = Pool()
+        pool = tx.pool
         Move = pool.get('stock.move')
         super().on_modification(mode, shipments, field_names=field_names)
         if (mode in {'create', 'write'}
@@ -221,7 +220,7 @@ class ShipmentAssignMixin(ShipmentMixin):
 
     @dualmethod
     def assign_ignore(cls, shipments, moves=None):
-        pool = Pool()
+        pool = tx.pool
         Move = pool.get('stock.move')
         assign_moves = {
             m for s in shipments for m in s.assign_moves
@@ -243,9 +242,9 @@ class ShipmentAssignMixin(ShipmentMixin):
 
     @classmethod
     def _get_assign_domain(cls):
-        pool = Pool()
+        pool = tx.pool
         Date = pool.get('ir.date')
-        context = Transaction().context
+        context = tx.transaction.context
         return [
             ('company', '=', context.get('company')),
             ('state', '=', 'waiting'),
@@ -304,7 +303,7 @@ class ShipmentCheckQuantity:
         raise NotImplementedError
 
     def check_quantity(self):
-        pool = Pool()
+        pool = tx.pool
         Warning = pool.get('res.user.warning')
         Lang = pool.get('ir.lang')
         lang = Lang.get()
@@ -535,9 +534,9 @@ class ShipmentIn(
 
     @classmethod
     def __register__(cls, module_name):
-        pool = Pool()
+        pool = tx.pool
         Location = pool.get('stock.location')
-        cursor = Transaction().connection.cursor()
+        cursor = tx.transaction.connection.cursor()
         sql_table = cls.__table__()
         location = Location.__table__()
 
@@ -568,7 +567,7 @@ class ShipmentIn(
 
     @classmethod
     def default_warehouse(cls):
-        Location = Pool().get('stock.location')
+        Location = tx.pool.get('stock.location')
         return Location.get_default_warehouse()
 
     @fields.depends('warehouse')
@@ -581,7 +580,7 @@ class ShipmentIn(
 
     @staticmethod
     def default_company():
-        return Transaction().context.get('company')
+        return tx.transaction.context.get('company')
 
     @fields.depends('supplier')
     def on_change_supplier(self):
@@ -634,7 +633,7 @@ class ShipmentIn(
         '''
         Set planned date of moves for the shipments
         '''
-        Move = Pool().get('stock.move')
+        Move = tx.pool.get('stock.move')
         to_write = []
         for shipment in shipments:
             dates = shipment._move_planned_date
@@ -672,7 +671,7 @@ class ShipmentIn(
 
     @classmethod
     def preprocess_values(cls, mode, values):
-        pool = Pool()
+        pool = tx.pool
         Configuration = pool.get('stock.configuration')
         values = super().preprocess_values(mode, values)
         if mode == 'create' and not values.get('number'):
@@ -697,12 +696,12 @@ class ShipmentIn(
 
     def _get_inventory_move(self, incoming_move):
         'Return inventory move for the incoming move'
-        pool = Pool()
+        pool = tx.pool
         Move = pool.get('stock.move')
         Date = pool.get('ir.date')
         if incoming_move.quantity <= 0.0:
             return None
-        with Transaction().set_context(company=self.company.id):
+        with tx.transaction.set_context(company=self.company.id):
             today = Date.today()
         move = Move()
         move.product = incoming_move.product
@@ -739,7 +738,7 @@ class ShipmentIn(
     @ModelView.button
     @Workflow.transition('cancelled')
     def cancel(cls, shipments):
-        Move = Pool().get('stock.move')
+        Move = tx.pool.get('stock.move')
         Move.cancel([m for s in shipments
                 for m in s.incoming_moves + s.inventory_moves])
 
@@ -747,7 +746,7 @@ class ShipmentIn(
     @ModelView.button
     @Workflow.transition('draft')
     def draft(cls, shipments):
-        Move = Pool().get('stock.move')
+        Move = tx.pool.get('stock.move')
         Move.draft([m for s in shipments for m in s.incoming_moves
                 if m.state != 'staging'])
         Move.delete([m for s in shipments for m in s.inventory_moves
@@ -758,7 +757,7 @@ class ShipmentIn(
     @Workflow.transition('received')
     @set_employee('received_by')
     def receive(cls, shipments):
-        Move = Pool().get('stock.move')
+        Move = tx.pool.get('stock.move')
         Move.do([m for s in shipments for m in s.incoming_moves])
         Move.delete([m for s in shipments for m in s.inventory_moves
             if m.state in ('draft', 'cancelled')])
@@ -775,7 +774,7 @@ class ShipmentIn(
     @Workflow.transition('done')
     @set_employee('done_by')
     def do(cls, shipments):
-        pool = Pool()
+        pool = tx.pool
         Move = pool.get('stock.move')
         Date = pool.get('ir.date')
         inventory_moves = []
@@ -786,7 +785,7 @@ class ShipmentIn(
         Move.do(inventory_moves)
         for company, c_shipments in groupby(
                 shipments, key=lambda s: s.company):
-            with Transaction().set_context(company=company.id):
+            with tx.transaction.set_context(company=company.id):
                 today = Date.today()
             cls.write([s for s in c_shipments if not s.effective_date], {
                     'effective_date': today,
@@ -960,7 +959,7 @@ class ShipmentInReturn(
 
     @staticmethod
     def default_company():
-        return Transaction().context.get('company')
+        return tx.transaction.context.get('company')
 
     @fields.depends('supplier')
     def on_change_supplier(self):
@@ -984,7 +983,7 @@ class ShipmentInReturn(
         '''
         Set planned date of moves for the shipments
         '''
-        Move = Pool().get('stock.move')
+        Move = tx.pool.get('stock.move')
         to_write = []
         for shipment in shipments:
             moves = [m for m in shipment.moves
@@ -1022,7 +1021,7 @@ class ShipmentInReturn(
     @ModelView.button
     @Workflow.transition('draft')
     def draft(cls, shipments):
-        Move = Pool().get('stock.move')
+        Move = tx.pool.get('stock.move')
         Move.draft([m for s in shipments for m in s.moves
                 if m.state != 'staging'])
         for shipment in shipments:
@@ -1040,7 +1039,7 @@ class ShipmentInReturn(
         """
         If moves is set, only this subset is set to draft.
         """
-        Move = Pool().get('stock.move')
+        Move = tx.pool.get('stock.move')
         if moves is None:
             moves = sum((s.moves for s in shipments), ())
         else:
@@ -1053,7 +1052,7 @@ class ShipmentInReturn(
     @Workflow.transition('assigned')
     @set_employee('assigned_by')
     def assign(cls, shipments):
-        Move = Pool().get('stock.move')
+        Move = tx.pool.get('stock.move')
         Move.assign([m for s in shipments for m in s.assign_moves])
 
     @classmethod
@@ -1061,14 +1060,14 @@ class ShipmentInReturn(
     @Workflow.transition('done')
     @set_employee('done_by')
     def do(cls, shipments):
-        pool = Pool()
+        pool = tx.pool
         Move = pool.get('stock.move')
         Date = pool.get('ir.date')
 
         Move.do([m for s in shipments for m in s.moves])
         for company, c_shipments in groupby(
                 shipments, key=lambda s: s.company):
-            with Transaction().set_context(company=company.id):
+            with tx.transaction.set_context(company=company.id):
                 today = Date.today()
             cls.write([s for s in c_shipments if not s.effective_date], {
                     'effective_date': today,
@@ -1078,7 +1077,7 @@ class ShipmentInReturn(
     @ModelView.button
     @Workflow.transition('cancelled')
     def cancel(cls, shipments):
-        Move = Pool().get('stock.move')
+        Move = tx.pool.get('stock.move')
         Move.cancel([m for s in shipments for m in s.moves])
 
     @classmethod
@@ -1089,7 +1088,7 @@ class ShipmentInReturn(
     @dualmethod
     @ModelView.button
     def assign_try(cls, shipments, with_childs=None):
-        pool = Pool()
+        pool = tx.pool
         Move = pool.get('stock.move')
         shipments = [s for s in shipments if s.state == 'waiting']
         to_assign = defaultdict(list)
@@ -1131,7 +1130,7 @@ class ShipmentInReturn(
 
     @classmethod
     def reschedule(cls, date=None):
-        pool = Pool()
+        pool = tx.pool
         Date = pool.get('ir.date')
         if date is None:
             date = Date.today()
@@ -1390,9 +1389,9 @@ class ShipmentOut(
 
     @classmethod
     def __register__(cls, module_name):
-        pool = Pool()
+        pool = tx.pool
         Location = pool.get('stock.location')
-        cursor = Transaction().connection.cursor()
+        cursor = tx.transaction.connection.cursor()
         sql_table = cls.__table__()
         location = Location.__table__()
 
@@ -1418,12 +1417,12 @@ class ShipmentOut(
 
     @classmethod
     def default_warehouse(cls):
-        Location = Pool().get('stock.location')
+        Location = tx.pool.get('stock.location')
         return Location.get_default_warehouse()
 
     @staticmethod
     def default_company():
-        return Transaction().context.get('company')
+        return tx.transaction.context.get('company')
 
     @fields.depends('warehouse')
     def on_change_warehouse(self):
@@ -1440,7 +1439,7 @@ class ShipmentOut(
     def on_change_customer(self):
         self.delivery_address = None
         if self.customer:
-            with Transaction().set_context(
+            with tx.transaction.set_context(
                     warehouse=self.warehouse.id if self.warehouse else None):
                 self.delivery_address = self.customer.address_get(
                     type='delivery')
@@ -1492,7 +1491,7 @@ class ShipmentOut(
     @ModelView.button
     @Workflow.transition('draft')
     def draft(cls, shipments):
-        Move = Pool().get('stock.move')
+        Move = tx.pool.get('stock.move')
         Move.draft([m for s in shipments for m in s.outgoing_moves
                 if m.state != 'staging'])
         Move.delete([m for s in shipments for m in s.inventory_moves
@@ -1507,7 +1506,7 @@ class ShipmentOut(
         that are in the outgoing moves.
         If moves is set, only this subset is set to draft.
         """
-        Move = Pool().get('stock.move')
+        Move = tx.pool.get('stock.move')
 
         if moves is None:
             moves = sum((s.inventory_moves for s in shipments), ())
@@ -1537,7 +1536,7 @@ class ShipmentOut(
 
     def _get_inventory_move(self, move):
         'Return inventory move for the outgoing move if necessary'
-        pool = Pool()
+        pool = tx.pool
         Move = pool.get('stock.move')
         Uom = pool.get('product.uom')
         quantity = move.quantity
@@ -1572,7 +1571,7 @@ class ShipmentOut(
     @classmethod
     @Workflow.transition('assigned')
     def assign(cls, shipments):
-        pool = Pool()
+        pool = tx.pool
         Move = pool.get('stock.move')
         Move.assign([m for s in shipments for m in s.assign_moves])
         cls._sync_inventory_to_outgoing(shipments, quantity=False)
@@ -1582,7 +1581,7 @@ class ShipmentOut(
     @Workflow.transition('picked')
     @set_employee('picked_by')
     def pick(cls, shipments):
-        pool = Pool()
+        pool = tx.pool
         Move = pool.get('stock.move')
         Move.delete([
                 m for s in shipments for m in s.inventory_moves
@@ -1596,7 +1595,7 @@ class ShipmentOut(
     @Workflow.transition('packed')
     @set_employee('packed_by')
     def pack(cls, shipments):
-        pool = Pool()
+        pool = tx.pool
         Move = pool.get('stock.move')
         outgoing_moves, to_delete = [], []
         for shipment in shipments:
@@ -1630,7 +1629,7 @@ class ShipmentOut(
             )
 
     def _sync_outgoing_move(self, template=None):
-        pool = Pool()
+        pool = tx.pool
         Move = pool.get('stock.move')
         move = Move(
             from_location=self.warehouse_output,
@@ -1656,7 +1655,7 @@ class ShipmentOut(
 
     @classmethod
     def _sync_inventory_to_outgoing(cls, shipments, quantity=True):
-        pool = Pool()
+        pool = tx.pool
         Move = pool.get('stock.move')
         Uom = pool.get('product.uom')
 
@@ -1714,7 +1713,7 @@ class ShipmentOut(
     @Workflow.transition('shipped')
     @set_employee('shipped_by')
     def ship(cls, shipments):
-        pool = Pool()
+        pool = tx.pool
         Move = pool.get('stock.move')
         Move.delete([
                 m for s in shipments for m in s.outgoing_moves
@@ -1725,7 +1724,7 @@ class ShipmentOut(
     @Workflow.transition('done')
     @set_employee('done_by')
     def do(cls, shipments):
-        pool = Pool()
+        pool = tx.pool
         Move = pool.get('stock.move')
         Date = pool.get('ir.date')
 
@@ -1735,7 +1734,7 @@ class ShipmentOut(
         Move.do([m for s in shipments for m in s.outgoing_moves])
         for company, c_shipments in groupby(
                 shipments, key=lambda s: s.company):
-            with Transaction().set_context(company=company.id):
+            with tx.transaction.set_context(company=company.id):
                 today = Date.today()
             cls.write([s for s in c_shipments if not s.effective_date], {
                     'effective_date': today,
@@ -1745,7 +1744,7 @@ class ShipmentOut(
     @ModelView.button
     @Workflow.transition('cancelled')
     def cancel(cls, shipments):
-        Move = Pool().get('stock.move')
+        Move = tx.pool.get('stock.move')
         Move.cancel([m for s in shipments
                 for m in s.outgoing_moves + s.inventory_moves])
 
@@ -1761,7 +1760,7 @@ class ShipmentOut(
         '''
         Set planned date of moves for the shipments
         '''
-        Move = Pool().get('stock.move')
+        Move = tx.pool.get('stock.move')
         to_write = []
         for shipment in shipments:
             outgoing_date, inventory_date = shipment._move_planned_date
@@ -1810,7 +1809,7 @@ class ShipmentOut(
     @dualmethod
     @ModelView.button
     def assign_try(cls, shipments):
-        Move = Pool().get('stock.move')
+        Move = tx.pool.get('stock.move')
         shipments = [
             s for s in shipments
             if s.state == 'waiting']
@@ -1840,7 +1839,7 @@ class ShipmentOut(
 
     @classmethod
     def reschedule(cls, date=None):
-        pool = Pool()
+        pool = tx.pool
         Date = pool.get('ir.date')
         if date is None:
             date = Date.today()
@@ -2023,9 +2022,9 @@ class ShipmentOutReturn(
 
     @classmethod
     def __register__(cls, module_name):
-        pool = Pool()
+        pool = tx.pool
         Location = pool.get('stock.location')
-        cursor = Transaction().connection.cursor()
+        cursor = tx.transaction.connection.cursor()
         table = cls.__table_handler__(module_name)
         sql_table = cls.__table__()
         location = Location.__table__()
@@ -2058,7 +2057,7 @@ class ShipmentOutReturn(
 
     @classmethod
     def default_warehouse(cls):
-        Location = Pool().get('stock.location')
+        Location = tx.pool.get('stock.location')
         return Location.get_default_warehouse()
 
     @fields.depends('warehouse')
@@ -2071,7 +2070,7 @@ class ShipmentOutReturn(
 
     @staticmethod
     def default_company():
-        return Transaction().context.get('company')
+        return tx.transaction.context.get('company')
 
     @fields.depends('customer')
     def on_change_customer(self):
@@ -2123,7 +2122,7 @@ class ShipmentOutReturn(
         '''
         Set planned date of moves for the shipments
         '''
-        Move = Pool().get('stock.move')
+        Move = tx.pool.get('stock.move')
         to_write = []
         for shipment in shipments:
             dates = shipment._get_move_planned_date()
@@ -2157,7 +2156,7 @@ class ShipmentOutReturn(
 
     @classmethod
     def preprocess_values(cls, mode, values):
-        pool = Pool()
+        pool = tx.pool
         Configuration = pool.get('stock.configuration')
         values = super().preprocess_values(mode, values)
         if mode == 'create' and not values.get('number'):
@@ -2183,7 +2182,7 @@ class ShipmentOutReturn(
     @ModelView.button
     @Workflow.transition('draft')
     def draft(cls, shipments):
-        Move = Pool().get('stock.move')
+        Move = tx.pool.get('stock.move')
         Move.draft([m for s in shipments for m in s.incoming_moves
                 if m.state != 'staging'])
         Move.delete([m for s in shipments for m in s.inventory_moves
@@ -2194,7 +2193,7 @@ class ShipmentOutReturn(
     @Workflow.transition('received')
     @set_employee('received_by')
     def receive(cls, shipments):
-        Move = Pool().get('stock.move')
+        Move = tx.pool.get('stock.move')
         Move.do([m for s in shipments for m in s.incoming_moves])
         cls.create_inventory_moves(shipments)
         # Set received state to allow done transition
@@ -2209,7 +2208,7 @@ class ShipmentOutReturn(
     @Workflow.transition('done')
     @set_employee('done_by')
     def do(cls, shipments):
-        pool = Pool()
+        pool = tx.pool
         Move = pool.get('stock.move')
         Date = pool.get('ir.date')
         inventory_moves = []
@@ -2220,7 +2219,7 @@ class ShipmentOutReturn(
         Move.do(inventory_moves)
         for company, c_shipments in groupby(
                 shipments, key=lambda s: s.company):
-            with Transaction().set_context(company=company.id):
+            with tx.transaction.set_context(company=company.id):
                 today = Date.today()
             cls.write([s for s in c_shipments if not s.effective_date], {
                     'effective_date': today,
@@ -2238,18 +2237,18 @@ class ShipmentOutReturn(
     @ModelView.button
     @Workflow.transition('cancelled')
     def cancel(cls, shipments):
-        Move = Pool().get('stock.move')
+        Move = tx.pool.get('stock.move')
         Move.cancel([m for s in shipments
                 for m in s.incoming_moves + s.inventory_moves])
 
     def _get_inventory_move(self, incoming_move):
         'Return inventory move for the incoming move'
-        pool = Pool()
+        pool = tx.pool
         Move = pool.get('stock.move')
         Date = pool.get('ir.date')
         if incoming_move.quantity <= 0.0:
             return
-        with Transaction().set_context(company=self.company.id):
+        with tx.transaction.set_context(company=self.company.id):
             today = Date.today()
         move = Move()
         move.product = incoming_move.product
@@ -2576,13 +2575,13 @@ class ShipmentInternal(
 
     @staticmethod
     def default_company():
-        return Transaction().context.get('company')
+        return tx.transaction.context.get('company')
 
     @fields.depends(
         'state', 'from_location', 'to_location', 'company',
         'internal_transit_location')
     def on_change_with_transit_location(self, name=None):
-        pool = Pool()
+        pool = tx.pool
         Config = pool.get('stock.configuration')
         if self.state in {'request', 'draft'}:
             from_ = self.from_location
@@ -2610,7 +2609,7 @@ class ShipmentInternal(
         'planned_date', 'from_location', 'to_location',
         methods=['on_change_with_transit_location'])
     def on_change_with_planned_start_date(self, pattern=None):
-        pool = Pool()
+        pool = tx.pool
         LocationLeadTime = pool.get('stock.location.lead_time')
         transit_location = self.on_change_with_transit_location()
         if self.planned_date and transit_location:
@@ -2692,7 +2691,7 @@ class ShipmentInternal(
             )
 
     def _sync_incoming_move(self, template=None):
-        pool = Pool()
+        pool = tx.pool
         Move = pool.get('stock.move')
         move = Move(
             from_location=self.transit_location,
@@ -2720,7 +2719,7 @@ class ShipmentInternal(
 
     @classmethod
     def _sync_moves(cls, shipments):
-        pool = Pool()
+        pool = tx.pool
         Move = pool.get('stock.move')
         Uom = pool.get('product.uom')
 
@@ -2771,7 +2770,7 @@ class ShipmentInternal(
 
     @classmethod
     def _set_transit(cls, shipments):
-        pool = Pool()
+        pool = tx.pool
         Move = pool.get('stock.move')
 
         to_write = []
@@ -2802,7 +2801,7 @@ class ShipmentInternal(
     @ModelView.button
     @Workflow.transition('draft')
     def draft(cls, shipments):
-        Move = Pool().get('stock.move')
+        Move = tx.pool.get('stock.move')
 
         # First reset state to draft to allow update from and to location
         Move.draft([m for s in shipments for m in s.moves
@@ -2824,7 +2823,7 @@ class ShipmentInternal(
         """
         If moves is set, only this subset is set to draft.
         """
-        Move = Pool().get('stock.move')
+        Move = tx.pool.get('stock.move')
 
         if moves is None:
             moves = sum((s.moves for s in shipments), ())
@@ -2854,7 +2853,7 @@ class ShipmentInternal(
     @Workflow.transition('assigned')
     @set_employee('assigned_by')
     def assign(cls, shipments):
-        pool = Pool()
+        pool = tx.pool
         Move = pool.get('stock.move')
         Move.assign([m for s in shipments for m in s.assign_moves])
 
@@ -2863,7 +2862,7 @@ class ShipmentInternal(
     @Workflow.transition('packed')
     @set_employee('packed_by')
     def pack(cls, shipments):
-        pool = Pool()
+        pool = tx.pool
         Move = pool.get('stock.move')
         Move.delete([
                 m for s in shipments for m in s.outgoing_moves
@@ -2875,14 +2874,14 @@ class ShipmentInternal(
     @Workflow.transition('shipped')
     @set_employee('shipped_by')
     def ship(cls, shipments):
-        pool = Pool()
+        pool = tx.pool
         Move = pool.get('stock.move')
         Date = pool.get('ir.date')
         Move.do([m for s in shipments for m in s.outgoing_moves])
         cls._sync_moves(shipments)
         for company, c_shipments in groupby(
                 shipments, key=lambda s: s.company):
-            with Transaction().set_context(company=company.id):
+            with tx.transaction.set_context(company=company.id):
                 today = Date.today()
             cls.write([s for s in c_shipments if not s.effective_start_date], {
                     'effective_start_date': today,
@@ -2893,7 +2892,7 @@ class ShipmentInternal(
     @Workflow.transition('done')
     @set_employee('done_by')
     def do(cls, shipments):
-        pool = Pool()
+        pool = tx.pool
         Move = pool.get('stock.move')
         Date = pool.get('ir.date')
         incoming_moves = []
@@ -2904,7 +2903,7 @@ class ShipmentInternal(
         Move.do(incoming_moves)
         for company, c_shipments in groupby(
                 shipments, key=lambda s: s.company):
-            with Transaction().set_context(company=company.id):
+            with tx.transaction.set_context(company=company.id):
                 today = Date.today()
             cls.write([s for s in c_shipments if not s.effective_date], {
                     'effective_date': today,
@@ -2922,7 +2921,7 @@ class ShipmentInternal(
     @ModelView.button
     @Workflow.transition('cancelled')
     def cancel(cls, shipments):
-        Move = Pool().get('stock.move')
+        Move = tx.pool.get('stock.move')
         Move.cancel([m for s in shipments for m in s.moves])
 
     @classmethod
@@ -2937,7 +2936,7 @@ class ShipmentInternal(
     @dualmethod
     @ModelView.button
     def assign_try(cls, shipments):
-        Move = Pool().get('stock.move')
+        Move = tx.pool.get('stock.move')
         to_assign = [
             m for s in shipments for m in s.assign_moves
             if m.assignation_required]
@@ -2967,7 +2966,7 @@ class ShipmentInternal(
         '''
         Set planned date of moves for the shipments
         '''
-        Move = Pool().get('stock.move')
+        Move = tx.pool.get('stock.move')
         to_write = []
         for shipment in shipments:
             dates = shipment._move_planned_date
@@ -3012,7 +3011,7 @@ class ShipmentInternal(
 
     @classmethod
     def reschedule(cls, date=None):
-        pool = Pool()
+        pool = tx.pool
         Date = pool.get('ir.date')
         if date is None:
             date = Date.today()
@@ -3101,7 +3100,7 @@ class DeliveryNote(ShipmentReport):
 
     @classmethod
     def execute(cls, ids, data):
-        with Transaction().set_context(address_with_party=True):
+        with tx.transaction.set_context(address_with_party=True):
             return super().execute(ids, data)
 
     @classmethod
@@ -3170,7 +3169,7 @@ class InteralShipmentReport(ShipmentReport):
 
     @classmethod
     def execute(cls, ids, data):
-        with Transaction().set_context(address_with_party=True):
+        with tx.transaction.set_context(address_with_party=True):
             return super().execute(ids, data)
 
     @classmethod

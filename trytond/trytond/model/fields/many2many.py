@@ -6,10 +6,9 @@ from collections import defaultdict
 from sql import Literal, Null
 from sql.conditionals import Coalesce
 
-from trytond.pool import Pool
+from trytond import tx
 from trytond.pyson import PYSONEncoder
 from trytond.tools import cached_property
-from trytond.transaction import Transaction
 
 from .field import (
     SQL_OPERATORS, Field, context_validate, domain_method, domain_validate,
@@ -294,7 +293,7 @@ class Many2Many(Field):
 
     def get_relation(self):
         "Return the relation model"
-        return Pool().get(self.relation_name)
+        return tx.pool.get(self.relation_name)
 
     def get_target(self):
         'Return the target model'
@@ -306,7 +305,7 @@ class Many2Many(Field):
     def __set__(self, inst, value):
         Target = self.get_target()
         ctx = instantiate_context(self, inst)
-        with Transaction().set_context(ctx):
+        with tx.transaction.set_context(ctx):
             records = instanciate_values(Target, value)
         super().__set__(inst, records)
 
@@ -357,11 +356,11 @@ class Many2Many(Field):
 
     def _convert_domain(self, domain, tables, Model):
         from ..modelsql import convert_from
-        pool = Pool()
+        pool = tx.pool
         Rule = pool.get('ir.rule')
         Target = self.get_target()
         Relation = self.get_relation()
-        transaction = Transaction()
+        transaction = tx.transaction
         table, _ = tables[None]
         name, operator, value = domain[:3]
         assert operator not in {'where', 'not where'} or '.' not in name

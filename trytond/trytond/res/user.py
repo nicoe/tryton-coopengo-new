@@ -30,6 +30,7 @@ from sql.conditionals import Case
 from sql.functions import CurrentTimestamp
 
 import trytond.config as config
+from trytond import tx
 from trytond.cache import Cache
 from trytond.exceptions import LoginException, RateLimitException, UserError
 from trytond.i18n import gettext, ngettext
@@ -37,14 +38,13 @@ from trytond.model import (
     DeactivableMixin, Index, ModelSQL, ModelView, Unique, Workflow,
     avatar_mixin, dualmethod, fields)
 from trytond.model.exceptions import ValidationError
-from trytond.pool import Pool
 from trytond.pyson import Bool, Eval, PYSONEncoder
 from trytond.report import Report, get_email
 from trytond.rpc import RPC
 from trytond.sendmail import send_message_transactional
 from trytond.tools.email_ import (
     EmailNotValidError, normalize_email, set_from_header, validate_email)
-from trytond.transaction import Transaction, without_check_access
+from trytond.transaction import without_check_access
 from trytond.url import host, http_host
 from trytond.wizard import Button, StateTransition, StateView, Wizard
 
@@ -203,7 +203,7 @@ class User(avatar_mixin(100, 'login'), DeactivableMixin, ModelSQL, ModelView):
 
     @classmethod
     def default_menu(cls):
-        pool = Pool()
+        pool = tx.pool
         ModelData = pool.get('ir.model.data')
         try:
             return ModelData.get_id('ir', 'act_menu_tree')
@@ -211,7 +211,7 @@ class User(avatar_mixin(100, 'login'), DeactivableMixin, ModelSQL, ModelView):
             pass
 
     def get_pyson_menu(self, name):
-        pool = Pool()
+        pool = tx.pool
         Action = pool.get('ir.action')
         encoder = PYSONEncoder()
         if not (menu := self.menu):
@@ -219,7 +219,7 @@ class User(avatar_mixin(100, 'login'), DeactivableMixin, ModelSQL, ModelView):
         return encoder.encode(menu.get_action_value())
 
     def get_language_direction(self, name):
-        pool = Pool()
+        pool = tx.pool
         Lang = pool.get('ir.lang')
         if self.language:
             return self.language.direction
@@ -237,7 +237,7 @@ class User(avatar_mixin(100, 'login'), DeactivableMixin, ModelSQL, ModelView):
         if value == 'x' * 10:
             return
 
-        if Transaction().user and value:
+        if tx.transaction.user and value:
             cls.validate_password(value, users)
 
         to_write = []
@@ -300,19 +300,19 @@ class User(avatar_mixin(100, 'login'), DeactivableMixin, ModelSQL, ModelView):
 
     @property
     def languages(self):
-        pool = Pool()
+        pool = tx.pool
         Lang = pool.get('ir.lang')
         if self.language:
             languages = [self.language]
         else:
             languages = Lang.search([
-                    ('code', '=', Transaction().language),
+                    ('code', '=', tx.transaction.language),
                     ])
         return languages
 
     @staticmethod
     def get_sessions(users, name):
-        Session = Pool().get('ir.session')
+        Session = tx.pool.get('ir.session')
         now = datetime.datetime.now()
         timeout = datetime.timedelta(
             seconds=config.getint('session', 'max_age'))
@@ -332,13 +332,13 @@ class User(avatar_mixin(100, 'login'), DeactivableMixin, ModelSQL, ModelView):
 
     @classmethod
     def get_notifications(cls):
-        pool = Pool()
+        pool = tx.pool
         Cron = pool.get('ir.cron')
         return list(Cron.notifications())
 
     @classmethod
     def preprocess_values(cls, mode, values):
-        pool = Pool()
+        pool = tx.pool
         Action = pool.get('ir.action')
         values = super().preprocess_values(mode, values)
         if values.get('menu') is not None:
@@ -349,7 +349,7 @@ class User(avatar_mixin(100, 'login'), DeactivableMixin, ModelSQL, ModelView):
 
     @classmethod
     def on_modification(cls, mode, users, field_names=None):
-        pool = Pool()
+        pool = tx.pool
         Session = pool.get('ir.session')
         UserDevice = pool.get('res.user.device')
 
@@ -362,7 +362,7 @@ class User(avatar_mixin(100, 'login'), DeactivableMixin, ModelSQL, ModelView):
                 UserDevice.clear([u.login for u in users])
 
             # Clean cursor cache as it could be filled by domain_get
-            for cache in Transaction().cache.values():
+            for cache in tx.transaction.cache.values():
                 if cls.__name__ in cache:
                     for user in users:
                         cache[cls.__name__].pop(user.id, None)
@@ -374,7 +374,7 @@ class User(avatar_mixin(100, 'login'), DeactivableMixin, ModelSQL, ModelView):
     @classmethod
     def read(cls, ids, fields_names):
         result = super().read(ids, fields_names)
-        cache = Transaction().get_cache().get(cls.__name__)
+        cache = tx.transaction.get_cache().get(cls.__name__)
         for values in result:
             if 'password_hash' in values:
                 values['password_hash'] = None
@@ -390,7 +390,7 @@ class User(avatar_mixin(100, 'login'), DeactivableMixin, ModelSQL, ModelView):
             domain, offset=offset, limit=limit, order=order, count=count,
             query=query)
         if not count and not query:
-            cache = Transaction().get_cache().get(cls.__name__)
+            cache = tx.transaction.get_cache().get(cls.__name__)
             if cache is not None:
                 for user in users:
                     if user.id in cache:
@@ -455,7 +455,7 @@ class User(avatar_mixin(100, 'login'), DeactivableMixin, ModelSQL, ModelView):
 
     @classmethod
     def _get_preferences(cls, user, context_only=False):
-        pool = Pool()
+        pool = tx.pool
         ModelData = pool.get('ir.model.data')
         Action = pool.get('ir.action')
         Config = pool.get('ir.configuration')
@@ -532,7 +532,7 @@ class User(avatar_mixin(100, 'login'), DeactivableMixin, ModelSQL, ModelView):
 
     @classmethod
     def get_preferences(cls, context_only=False):
-        user = Transaction().user
+        user = tx.transaction.user
         user = cls(user)
         return cls._get_preferences(user, context_only=context_only)
 
@@ -541,11 +541,11 @@ class User(avatar_mixin(100, 'login'), DeactivableMixin, ModelSQL, ModelView):
         '''
         Set user preferences
         '''
-        pool = Pool()
+        pool = tx.pool
         Lang = pool.get('ir.lang')
         values_clean = values.copy()
         fields = cls._preferences_fields + cls._context_fields
-        user_id = Transaction().user
+        user_id = tx.transaction.user
         user = cls(user_id)
         for field in values:
             if field not in fields or field == 'groups':
@@ -563,12 +563,12 @@ class User(avatar_mixin(100, 'login'), DeactivableMixin, ModelSQL, ModelView):
         for name in cls._context_fields:
             if name in values:
                 context[name] = values[name]
-        with Transaction().set_context(context):
+        with tx.transaction.set_context(context):
             cls.write([user], values_clean)
 
     @classmethod
     def get_preferences_fields_view(cls):
-        pool = Pool()
+        pool = tx.pool
         ModelData = pool.get('ir.model.data')
         Lang = pool.get('ir.lang')
         Action = pool.get('ir.action')
@@ -593,7 +593,7 @@ class User(avatar_mixin(100, 'login'), DeactivableMixin, ModelSQL, ModelView):
             selection = convert2selection(result['fields'], 'language')
             langs = Lang.search(cls.language.domain)
             lang_ids = [l.id for l in langs]
-            with Transaction().set_context(translate_name=True):
+            with tx.transaction.set_context(translate_name=True):
                 for lang in Lang.browse(lang_ids):
                     selection.append((lang.code, lang.name))
         if 'action' in result['fields']:
@@ -616,11 +616,11 @@ class User(avatar_mixin(100, 'login'), DeactivableMixin, ModelSQL, ModelView):
         '''
         Return an ordered tuple of all group ids for the user
         '''
-        pool = Pool()
+        pool = tx.pool
         UserGroup = pool.get('res.user-res.group')
         Group = pool.get('res.group')
 
-        transaction = Transaction()
+        transaction = tx.transaction
         user = transaction.user
         groups = cls._get_groups_cache.get(user)
         if groups is not None:
@@ -640,7 +640,7 @@ class User(avatar_mixin(100, 'login'), DeactivableMixin, ModelSQL, ModelView):
 
     @classmethod
     def _get_login(cls, login):
-        cursor = Transaction().connection.cursor()
+        cursor = tx.transaction.connection.cursor()
         table = cls.__table__()
         cursor.execute(*table.select(table.id, table.password_hash,
                 Case(
@@ -656,7 +656,7 @@ class User(avatar_mixin(100, 'login'), DeactivableMixin, ModelSQL, ModelView):
         '''
         Return user id if password matches
         '''
-        pool = Pool()
+        pool = tx.pool
         LoginAttempt = pool.get('res.user.login.attempt')
         UserDevice = pool.get('res.user.device')
         parameters = parameters.copy()
@@ -673,7 +673,7 @@ class User(avatar_mixin(100, 'login'), DeactivableMixin, ModelSQL, ModelView):
         if count > config.getint('session', 'max_attempt', default=5):
             LoginAttempt.add(login, device_cookie)
             raise RateLimitException()
-        Transaction().atexit(time.sleep, random.randint(0, 2 ** count - 1))
+        tx.transaction.atexit(time.sleep, random.randint(0, 2 ** count - 1))
         for methods in config.get(
                 'session', 'authentications', default='password').split(','):
             user_ids = set()
@@ -715,7 +715,7 @@ class User(avatar_mixin(100, 'login'), DeactivableMixin, ModelSQL, ModelView):
 
     @classmethod
     def _check_login_options_ip_address(cls, login, parameters):
-        ip_address, _ = Transaction().remote_address()
+        ip_address, _ = tx.transaction.remote_address()
         if ip_address:
             network_list = config.get('session', 'authentication_ip_network')
             if network_list:
@@ -741,7 +741,7 @@ class User(avatar_mixin(100, 'login'), DeactivableMixin, ModelSQL, ModelView):
             if valid:
                 if new_hash:
                     logger.info("Update password hash for %s", user_id)
-                    with Transaction().new_transaction():
+                    with tx.transaction.new_transaction():
                         with without_check_access():
                             cls.write([cls(user_id)], {
                                     'password_hash': new_hash,
@@ -787,7 +787,7 @@ class LoginAttempt(ModelSQL):
     @classmethod
     @_login_size
     def add(cls, login, device_cookie=None):
-        transaction = Transaction()
+        transaction = tx.transaction
         cursor = transaction.connection.cursor()
         table = cls.__table__()
         cursor.execute(*table.delete(where=table.create_date < cls.delay()))
@@ -803,7 +803,7 @@ class LoginAttempt(ModelSQL):
     @classmethod
     @_login_size
     def remove(cls, login, device_cookie=None):
-        cursor = Transaction().connection.cursor()
+        cursor = tx.transaction.connection.cursor()
         table = cls.__table__()
         cursor.execute(*table.delete(
                 where=(table.login == login)
@@ -813,7 +813,7 @@ class LoginAttempt(ModelSQL):
     @classmethod
     @_login_size
     def count(cls, login, device_cookie=None):
-        cursor = Transaction().connection.cursor()
+        cursor = tx.transaction.connection.cursor()
         table = cls.__table__()
         cursor.execute(*table.select(Count(),
                 where=(table.login == login)
@@ -823,7 +823,7 @@ class LoginAttempt(ModelSQL):
 
     @classmethod
     def count_ip(cls):
-        transaction = Transaction()
+        transaction = tx.transaction
         cursor = transaction.connection.cursor()
         table = cls.__table__()
         _, ip_network = transaction.remote_address()
@@ -863,10 +863,10 @@ class UserDevice(ModelSQL):
 
     @classmethod
     def renew(cls, current_cookie):
-        pool = Pool()
+        pool = tx.pool
         User = pool.get('res.user')
 
-        user = User(Transaction().user)
+        user = User(tx.transaction.user)
         new_cookie = uuid.uuid4().hex
         current_devices = cls.search([
                     ('login', '=', user.login),
@@ -899,7 +899,7 @@ class UserAction(ModelSQL):
 
     @classmethod
     def preprocess_values(cls, mode, values):
-        pool = Pool()
+        pool = tx.pool
         Action = pool.get('ir.action')
         values = super().preprocess_values(mode, values)
         if values.get('action') is not None:
@@ -916,14 +916,14 @@ class UserGroup(ModelSQL):
 
     @classmethod
     def on_modification(cls, mode, records, field_names=None):
-        pool = Pool()
+        pool = tx.pool
         User = pool.get('res.user')
         super().on_modification(mode, records, field_names=field_names)
         User._get_groups_cache.clear()
 
     @classmethod
     def user_group_all_table(cls):
-        pool = Pool()
+        pool = tx.pool
         Group = pool.get('res.group')
         user_group = cls.__table__()
         group_parents = Group.group_parent_all_cte()
@@ -956,13 +956,13 @@ class Warning_(ModelSQL, ModelView):
     def skip(cls, name, always=False):
         cls.create([{
                     'name': name,
-                    'user': Transaction().user,
+                    'user': tx.transaction.user,
                     'always': always,
                     }])
 
     @classmethod
     def format(cls, name, records):
-        create_records = Transaction().create_records
+        create_records = tx.transaction.create_records
 
         def str_(record):
             name = record.__name__
@@ -978,7 +978,7 @@ class Warning_(ModelSQL, ModelView):
     @classmethod
     @without_check_access
     def check(cls, warning_name):
-        transaction = Transaction()
+        transaction = tx.transaction
         user = transaction.user
         context = transaction.context
         if not user or context.get('_skip_warnings'):
@@ -1104,7 +1104,7 @@ class EmailResetPassword(Report):
         context = super().get_context(records, header, data)
         context['host'] = host()
         context['http_host'] = http_host()
-        context['database'] = Transaction().database.name
+        context['database'] = tx.transaction.database.name
         expire_delay = (
             records[0].password_reset_expire - datetime.datetime.now())
         # Use a precision of minutes
@@ -1135,7 +1135,7 @@ class UserConfig(Wizard):
     add = StateTransition()
 
     def transition_add(self):
-        pool = Pool()
+        pool = tx.pool
         User = pool.get('res.user')
         self.user.save()
         self.user = User()

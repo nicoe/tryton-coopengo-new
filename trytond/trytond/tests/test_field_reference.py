@@ -3,9 +3,9 @@
 
 import re
 
+from trytond import tx
 from trytond.model.exceptions import (
     DomainValidationError, RequiredValidationError)
-from trytond.pool import Pool
 from trytond.tests.test_tryton import (
     TestCase, activate_module, with_transaction)
 
@@ -21,7 +21,7 @@ class FieldReferenceTestCase(TestCase):
     @with_transaction()
     def test_create(self):
         "Test create reference"
-        pool = Pool()
+        pool = tx.pool
         Target = pool.get('test.reference.target')
         Reference = pool.get('test.reference')
         target, = Target.create([{'name': "Target"}])
@@ -35,7 +35,7 @@ class FieldReferenceTestCase(TestCase):
     @with_transaction()
     def test_create_without_default(self):
         "Test create reference without default"
-        pool = Pool()
+        pool = tx.pool
         Reference = pool.get('test.reference')
 
         reference, = Reference.create([{}])
@@ -45,7 +45,7 @@ class FieldReferenceTestCase(TestCase):
     @with_transaction()
     def test_create_required_with_value(self):
         "Test create reference required with value"
-        pool = Pool()
+        pool = tx.pool
         Target = pool.get('test.reference.target')
         Reference = pool.get('test.reference_required')
         target, = Target.create([{'name': "Target"}])
@@ -59,7 +59,7 @@ class FieldReferenceTestCase(TestCase):
     @with_transaction()
     def test_create_required_without_value(self):
         "Test create reference required without value"
-        pool = Pool()
+        pool = tx.pool
         Reference = pool.get('test.reference_required')
 
         with self.assertRaises(RequiredValidationError):
@@ -68,7 +68,7 @@ class FieldReferenceTestCase(TestCase):
     @with_transaction()
     def test_create_required_with_none(self):
         "Test create reference required with none"
-        pool = Pool()
+        pool = tx.pool
         Target = pool.get('test.reference.target')
         Reference = pool.get('test.reference_required')
 
@@ -80,7 +80,7 @@ class FieldReferenceTestCase(TestCase):
     @with_transaction()
     def test_create_required_with_negative(self):
         "Test create reference required with negative"
-        pool = Pool()
+        pool = tx.pool
         Target = pool.get('test.reference.target')
         Reference = pool.get('test.reference_required')
 
@@ -92,7 +92,7 @@ class FieldReferenceTestCase(TestCase):
     @with_transaction()
     def test_create_partial(self):
         "Test create reference partial"
-        pool = Pool()
+        pool = tx.pool
         Target = pool.get('test.reference.target')
         Reference = pool.get('test.reference')
         target, = Target.create([{'name': "Target"}])
@@ -106,7 +106,7 @@ class FieldReferenceTestCase(TestCase):
     @with_transaction()
     def test_create_negative(self):
         "Test create reference negative"
-        pool = Pool()
+        pool = tx.pool
         Target = pool.get('test.reference.target')
         Reference = pool.get('test.reference')
         target, = Target.create([{'name': "Target"}])
@@ -120,7 +120,7 @@ class FieldReferenceTestCase(TestCase):
     @with_transaction()
     def test_create_unknown(self):
         "Test create unknown reference"
-        pool = Pool()
+        pool = tx.pool
         Reference = pool.get('test.reference')
 
         reference, = Reference.create([{
@@ -132,7 +132,7 @@ class FieldReferenceTestCase(TestCase):
     @with_transaction()
     def test_search_equals_string(self):
         "Test search reference equals string"
-        pool = Pool()
+        pool = tx.pool
         Target = pool.get('test.reference.target')
         Reference = pool.get('test.reference')
         target, = Target.create([{'name': "Target"}])
@@ -149,7 +149,7 @@ class FieldReferenceTestCase(TestCase):
     @with_transaction()
     def test_search_equals_tuple(self):
         "Test search reference equals tuple"
-        pool = Pool()
+        pool = tx.pool
         Target = pool.get('test.reference.target')
         Reference = pool.get('test.reference')
         target, = Target.create([{'name': "Target"}])
@@ -166,7 +166,7 @@ class FieldReferenceTestCase(TestCase):
     @with_transaction()
     def test_search_equals_list(self):
         "Test search reference equals list"
-        pool = Pool()
+        pool = tx.pool
         Target = pool.get('test.reference.target')
         Reference = pool.get('test.reference')
         target, = Target.create([{'name': "Target"}])
@@ -183,7 +183,7 @@ class FieldReferenceTestCase(TestCase):
     @with_transaction()
     def test_search_equals_none(self):
         "Test search reference equals None"
-        pool = Pool()
+        pool = tx.pool
         Target = pool.get('test.reference.target')
         Reference = pool.get('test.reference')
         target, = Target.create([{'name': "Target"}])
@@ -200,7 +200,7 @@ class FieldReferenceTestCase(TestCase):
     @with_transaction()
     def test_search_non_equals_string(self):
         "Test search reference non equals string"
-        pool = Pool()
+        pool = tx.pool
         Target = pool.get('test.reference.target')
         Reference = pool.get('test.reference')
         target, = Target.create([{'name': "Target"}])
@@ -217,7 +217,7 @@ class FieldReferenceTestCase(TestCase):
     @with_transaction()
     def test_search_non_equals_tuple(self):
         "Test search reference non equals tuple"
-        pool = Pool()
+        pool = tx.pool
         Target = pool.get('test.reference.target')
         Reference = pool.get('test.reference')
         target, = Target.create([{'name': "Target"}])
@@ -234,7 +234,7 @@ class FieldReferenceTestCase(TestCase):
     @with_transaction()
     def test_search_non_equals_none(self):
         "Test search reference non equals None"
-        pool = Pool()
+        pool = tx.pool
         Target = pool.get('test.reference.target')
         Reference = pool.get('test.reference')
         target, = Target.create([{'name': "Target"}])
@@ -251,7 +251,7 @@ class FieldReferenceTestCase(TestCase):
     @with_transaction()
     def test_search_in_string(self):
         "Test search reference in string"
-        pool = Pool()
+        pool = tx.pool
         Target = pool.get('test.reference.target')
         Reference = pool.get('test.reference')
         target, = Target.create([{'name': "Target"}])
@@ -268,7 +268,7 @@ class FieldReferenceTestCase(TestCase):
     @with_transaction()
     def test_search_in_tuple(self):
         "Test search reference in tuple"
-        pool = Pool()
+        pool = tx.pool
         Target = pool.get('test.reference.target')
         Reference = pool.get('test.reference')
         target, = Target.create([{'name': "Target"}])
@@ -285,7 +285,7 @@ class FieldReferenceTestCase(TestCase):
     @with_transaction()
     def test_search_in_none(self):
         "Test search reference in [None]"
-        pool = Pool()
+        pool = tx.pool
         Target = pool.get('test.reference.target')
         Reference = pool.get('test.reference')
         target, = Target.create([{'name': "Target"}])
@@ -302,7 +302,7 @@ class FieldReferenceTestCase(TestCase):
     @with_transaction()
     def test_search_not_in_string(self):
         "Test search reference not in string"
-        pool = Pool()
+        pool = tx.pool
         Target = pool.get('test.reference.target')
         Reference = pool.get('test.reference')
         target, = Target.create([{'name': "Target"}])
@@ -319,7 +319,7 @@ class FieldReferenceTestCase(TestCase):
     @with_transaction()
     def test_search_not_in_tuple(self):
         "Test search reference not in tuple"
-        pool = Pool()
+        pool = tx.pool
         Target = pool.get('test.reference.target')
         Reference = pool.get('test.reference')
         target, = Target.create([{'name': "Target"}])
@@ -336,7 +336,7 @@ class FieldReferenceTestCase(TestCase):
     @with_transaction()
     def test_search_not_in_none(self):
         "Test search reference not in [None]"
-        pool = Pool()
+        pool = tx.pool
         Target = pool.get('test.reference.target')
         Reference = pool.get('test.reference')
         target, = Target.create([{'name': "Target"}])
@@ -353,7 +353,7 @@ class FieldReferenceTestCase(TestCase):
     @with_transaction()
     def test_search_join(self):
         "Test search reference join"
-        pool = Pool()
+        pool = tx.pool
         Target = pool.get('test.reference.target')
         Reference = pool.get('test.reference')
         target, = Target.create([{'name': "Target"}])
@@ -370,7 +370,7 @@ class FieldReferenceTestCase(TestCase):
     @with_transaction()
     def test_search_join_null(self):
         "Test search by null reference join"
-        pool = Pool()
+        pool = tx.pool
         Target = pool.get('test.reference.target')
         Reference = pool.get('test.reference')
         reference, = Reference.create([{
@@ -411,7 +411,7 @@ class FieldReferenceTestCase(TestCase):
     @with_transaction()
     def test_write_string(self):
         "Test write reference string"
-        pool = Pool()
+        pool = tx.pool
         Target = pool.get('test.reference.target')
         Reference = pool.get('test.reference')
         target, = Target.create([{'name': "Target"}])
@@ -426,7 +426,7 @@ class FieldReferenceTestCase(TestCase):
     @with_transaction()
     def test_write_tuple(self):
         "Test write reference string"
-        pool = Pool()
+        pool = tx.pool
         Target = pool.get('test.reference.target')
         Reference = pool.get('test.reference')
         target, = Target.create([{'name': "Target"}])
@@ -441,7 +441,7 @@ class FieldReferenceTestCase(TestCase):
     @with_transaction()
     def test_write_none(self):
         "Test write reference None"
-        pool = Pool()
+        pool = tx.pool
         Target = pool.get('test.reference.target')
         Reference = pool.get('test.reference')
         target, = Target.create([{'name': "Target"}])
@@ -458,7 +458,7 @@ class FieldReferenceTestCase(TestCase):
     @with_transaction()
     def test_context_attribute(self):
         "Test context on reference attribute"
-        pool = Pool()
+        pool = tx.pool
         Reference = pool.get('test.reference_context')
         Target = pool.get('test.reference_context.target')
 
@@ -472,7 +472,7 @@ class FieldReferenceTestCase(TestCase):
     @with_transaction()
     def test_context_read(self):
         "Test context on reference read"
-        pool = Pool()
+        pool = tx.pool
         Reference = pool.get('test.reference_context')
         Target = pool.get('test.reference_context.target')
 
@@ -487,7 +487,7 @@ class FieldReferenceTestCase(TestCase):
     @with_transaction()
     def test_context_read_multi(self):
         "Test context on reference read with value and None"
-        pool = Pool()
+        pool = tx.pool
         Reference = pool.get('test.reference_context')
         Target = pool.get('test.reference_context.target')
 
@@ -505,7 +505,7 @@ class FieldReferenceTestCase(TestCase):
     @with_transaction()
     def test_context_set(self):
         "Test context on reference set"
-        pool = Pool()
+        pool = tx.pool
         Reference = pool.get('test.reference_context')
         Target = pool.get('test.reference_context.target')
 
@@ -517,7 +517,7 @@ class FieldReferenceTestCase(TestCase):
     @with_transaction()
     def test_domain_valid(self):
         "Test reference with valid domain"
-        pool = Pool()
+        pool = tx.pool
         Reference = pool.get('test.reference_domain_validation')
         Target = pool.get('test.reference_domain_validation.target')
         target = Target(value=42)
@@ -531,7 +531,7 @@ class FieldReferenceTestCase(TestCase):
     @with_transaction()
     def test_domain_invalid(self):
         "Test reference with invalid domain"
-        pool = Pool()
+        pool = tx.pool
         Reference = pool.get('test.reference_domain_validation')
         Target = pool.get('test.reference_domain_validation.target')
         target = Target(value=1)
@@ -548,7 +548,7 @@ class FieldReferenceTestCase(TestCase):
     @with_transaction()
     def test_no_domain(self):
         "Test reference with no domain"
-        pool = Pool()
+        pool = tx.pool
         Reference = pool.get('test.reference_domain_validation')
         Target = pool.get('test.reference.target')
         target = Target(name="Test")
@@ -562,7 +562,7 @@ class FieldReferenceTestCase(TestCase):
     @with_transaction()
     def test_domain_none_value(self):
         "Test reference with domain and None value"
-        pool = Pool()
+        pool = tx.pool
         Reference = pool.get('test.reference_domain_validation')
 
         reference, = Reference.create([{
@@ -573,7 +573,7 @@ class FieldReferenceTestCase(TestCase):
     @with_transaction()
     def test_domain_no_id_value(self):
         "Test reference with domain and no id"
-        pool = Pool()
+        pool = tx.pool
         Reference = pool.get('test.reference_domain_validation')
 
         reference, = Reference.create([{
@@ -584,7 +584,7 @@ class FieldReferenceTestCase(TestCase):
     @with_transaction()
     def test_domain_negative_id_value(self):
         "Test reference with domain and negative id"
-        pool = Pool()
+        pool = tx.pool
         Reference = pool.get('test.reference_domain_validation')
 
         reference, = Reference.create([{
@@ -595,7 +595,7 @@ class FieldReferenceTestCase(TestCase):
     @with_transaction()
     def test_domain_different_targets(self):
         "Test reference with domain and different targets"
-        pool = Pool()
+        pool = tx.pool
         Reference = pool.get('test.reference_domain_validation')
         Target1 = pool.get('test.reference.target')
         target1 = Target1(name="Test")
@@ -614,7 +614,7 @@ class FieldReferenceTestCase(TestCase):
     @with_transaction()
     def test_domain_pyson(self):
         "Test reference with pyson domain"
-        pool = Pool()
+        pool = tx.pool
         Reference = pool.get('test.reference_domain_validation_pyson')
         Target = pool.get('test.reference_domain_validation.target')
         target = Target(value=42)
@@ -629,7 +629,7 @@ class FieldReferenceTestCase(TestCase):
     @with_transaction()
     def test_domain_pyson_no_id_value(self):
         "Test reference with pyson domain and no id"
-        pool = Pool()
+        pool = tx.pool
         Reference = pool.get('test.reference_domain_validation_pyson')
 
         reference, = Reference.create([{
@@ -640,7 +640,7 @@ class FieldReferenceTestCase(TestCase):
     @with_transaction()
     def test_domain_pyson_negative_id_value(self):
         "Test reference with pyson domain and negative id"
-        pool = Pool()
+        pool = tx.pool
         Reference = pool.get('test.reference_domain_validation_pyson')
 
         reference, = Reference.create([{
@@ -651,7 +651,7 @@ class FieldReferenceTestCase(TestCase):
     @with_transaction()
     def test_domain_pyson_different_targets(self):
         "Test reference with pyson domain and different targets"
-        pool = Pool()
+        pool = tx.pool
         Reference = pool.get('test.reference_domain_validation_pyson')
         Target1 = pool.get('test.reference.target')
         target1 = Target1(name="Test")

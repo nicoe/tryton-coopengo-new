@@ -1,9 +1,9 @@
 # This file is part of Tryton.  The COPYRIGHT file at the top level of
 # this repository contains the full copyright notices and license terms.
-from trytond.pool import Pool, PoolMeta
+from trytond import tx
+from trytond.pool import PoolMeta
 from trytond.pyson import Eval
 from trytond.report import Report
-from trytond.transaction import Transaction
 
 from .model import CompanyMultiValueMixin, CompanyValueMixin
 
@@ -45,7 +45,7 @@ class Erase(metaclass=PoolMeta):
     __name__ = 'party.erase'
 
     def check_erase(self, party):
-        pool = Pool()
+        pool = tx.pool
         Party = pool.get('party.party')
         Company = pool.get('company.company')
 
@@ -53,7 +53,7 @@ class Erase(metaclass=PoolMeta):
 
         companies = Company.search([])
         for company in companies:
-            with Transaction().set_context(company=company.id):
+            with tx.transaction.set_context(company=company.id):
                 party = Party(party.id)
                 self.check_erase_company(party, company)
 
@@ -65,9 +65,9 @@ class ContactMechanism(CompanyMultiValueMixin, metaclass=PoolMeta):
     __name__ = 'party.contact_mechanism'
 
     def _phone_country_codes(self):
-        pool = Pool()
+        pool = tx.pool
         Company = pool.get('company.company')
-        context = Transaction().context
+        context = tx.transaction.context
 
         yield from super()._phone_country_codes()
 
@@ -93,5 +93,5 @@ class LetterReport(Report):
 
     @classmethod
     def execute(cls, ids, data):
-        with Transaction().set_context(address_with_party=True):
+        with tx.transaction.set_context(address_with_party=True):
             return super().execute(ids, data)

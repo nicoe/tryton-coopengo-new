@@ -9,16 +9,17 @@ import copy
 import json
 from collections import defaultdict
 
+from trytond import tx
 from trytond.i18n import gettext
 from trytond.model import ModelSQL
 from trytond.model.exceptions import AccessError
 from trytond.model.fields import states_validate
-from trytond.pool import Pool, PoolBase
+from trytond.pool import PoolBase
 from trytond.protocols.jsonrpc import JSONDecoder, JSONEncoder
 from trytond.pyson import PYSONEncoder
 from trytond.rpc import RPC
 from trytond.tools import cached_property
-from trytond.transaction import Transaction, check_access
+from trytond.transaction import check_access
 from trytond.url import URLMixin
 
 
@@ -75,23 +76,23 @@ class StateView(State):
         '''
         Returns the view definition
         '''
-        Model_ = Pool().get(self.model_name)
-        ModelData = Pool().get('ir.model.data')
+        Model_ = tx.pool.get(self.model_name)
+        ModelData = tx.pool.get('ir.model.data')
         if self.view:
             module, fs_id = self.view.split('.')
             view_id = ModelData.get_id(module, fs_id)
         else:
             view_id = None
-        with Transaction().set_context(view_tree_width=True):
+        with tx.transaction.set_context(view_tree_width=True):
             return Model_.fields_view_get(view_id=view_id, view_type='form')
 
     def get_defaults(self, wizard, state_name, fields):
         '''
         Returns defaults values for the fields
         '''
-        pool = Pool()
+        pool = tx.pool
         Model_ = pool.get(self.model_name)
-        transaction = Transaction()
+        transaction = tx.transaction
         context = transaction.context
         default_ctx = {}
         if default_func := getattr(wizard, f'default_{state_name}', None):
@@ -104,9 +105,9 @@ class StateView(State):
 
     def get_values(self, wizard, state_name, fields):
         "Return values for the fields"
-        pool = Pool()
+        pool = tx.pool
         Model_ = pool.get(self.model_name)
-        transaction = Transaction()
+        transaction = tx.transaction
         default_ctx = {}
         value_fields = []
         if value_func := getattr(wizard, f'value_{state_name}', None):
@@ -120,11 +121,11 @@ class StateView(State):
         '''
         Returns button definitions translated
         '''
-        Translation = Pool().get('ir.translation')
+        Translation = tx.pool.get('ir.translation')
 
         def translation_key(button):
             return (','.join((wizard.__name__, state_name, button.state)),
-                'wizard_button', Transaction().language, button.string)
+                'wizard_button', tx.transaction.language, button.string)
         translation_keys = [translation_key(button) for button in self.buttons]
         translations = Translation.get_sources(translation_keys)
         encoder = PYSONEncoder()
@@ -165,7 +166,7 @@ class StateAction(StateTransition):
 
     def get_action(self):
         "Returns action definition"
-        pool = Pool()
+        pool = tx.pool
         ModelData = pool.get('ir.model.data')
         Action = pool.get('ir.action')
         module, fs_id = self.action_id.split('.')
@@ -184,7 +185,7 @@ class StateReport(StateAction):
 
     def get_action(self):
         'Return report definition'
-        pool = Pool()
+        pool = tx.pool
         ActionReport = pool.get('ir.action.report')
         action_reports = ActionReport.search([
                 ('report_name', '=', self.report_name),
@@ -239,18 +240,18 @@ class Wizard(URLMixin, PoolBase):
     @classmethod
     def __register__(cls, module_name):
         super().__register__(module_name)
-        pool = Pool()
+        pool = tx.pool
         Translation = pool.get('ir.translation')
         Translation.register_wizard(cls, module_name)
 
     @classmethod
     def check_access(cls):
-        pool = Pool()
+        pool = tx.pool
         ModelAccess = pool.get('ir.model.access')
         ActionWizard = pool.get('ir.action.wizard')
         User = pool.get('res.user')
         Group = pool.get('res.group')
-        transaction = Transaction()
+        transaction = tx.transaction
         context = transaction.context
 
         if transaction.user == 0:
@@ -303,14 +304,14 @@ class Wizard(URLMixin, PoolBase):
     @classmethod
     def create(cls):
         "Create a session"
-        Session = Pool().get('ir.session.wizard')
+        Session = tx.pool.get('ir.session.wizard')
         cls.check_access()
         return (Session.create([{}])[0].id, cls.start_state, cls.end_state)
 
     @classmethod
     def delete(cls, session_id):
         "Delete the session"
-        Session = Pool().get('ir.session.wizard')
+        Session = tx.pool.get('ir.session.wizard')
         end = getattr(cls, cls.end_state, None)
         if end:
             wizard = cls(session_id)
@@ -337,7 +338,7 @@ class Wizard(URLMixin, PoolBase):
                 - ``values``: a dictionary with values
                 - ``buttons``: a list of buttons
         '''
-        transaction = Transaction()
+        transaction = tx.transaction
         counter = transaction.counter
         cls.check_access()
         wizard = cls(session_id)
@@ -397,7 +398,7 @@ class Wizard(URLMixin, PoolBase):
         return result
 
     def __init__(self, session_id):
-        pool = Pool()
+        pool = tx.pool
         Session = pool.get('ir.session.wizard')
         self._session_id = session_id
         session = Session(session_id)
@@ -416,7 +417,7 @@ class Wizard(URLMixin, PoolBase):
 
     def _save(self):
         "Save the session in database"
-        Session = Pool().get('ir.session.wizard')
+        Session = tx.pool.get('ir.session.wizard')
         data = {}
         for state_name, state in self.states.items():
             if isinstance(state, StateView):
@@ -430,20 +431,20 @@ class Wizard(URLMixin, PoolBase):
 
     @cached_property
     def model(self):
-        pool = Pool()
-        context = Transaction().context
+        pool = tx.pool
+        context = tx.transaction.context
         if context.get('active_model'):
             return pool.get(context['active_model'])
 
     @cached_property
     def record(self):
-        context = Transaction().context
+        context = tx.transaction.context
         if context.get('active_id') is not None:
             return self.model(context['active_id'])
 
     @cached_property
     def records(self):
-        context = Transaction().context
+        context = tx.transaction.context
         if context.get('active_ids'):
             return self.model.browse(context['active_ids'])
         return []

@@ -6,13 +6,11 @@ from unittest.mock import patch
 
 from sql import Literal
 
-from trytond import backend
+from trytond import backend, tx
 from trytond.model.exceptions import (
     ForbiddenCharValidationError, RequiredValidationError, SizeValidationError)
-from trytond.pool import Pool
 from trytond.tests.test_tryton import (
     ExtensionTestCase, TestCase, activate_module, with_transaction)
-from trytond.transaction import Transaction
 
 
 class CommonTestCaseMixin:
@@ -420,7 +418,7 @@ class FieldCharTestCase(TestCase, CommonTestCaseMixin):
         activate_module('tests')
 
     def Char(self):
-        return Pool().get('test.char')
+        return tx.pool.get('test.char')
 
     @with_transaction()
     def test_create_with_sql_value(self):
@@ -444,7 +442,7 @@ class FieldCharTestCase(TestCase, CommonTestCaseMixin):
     @with_transaction()
     def test_create_without_default(self):
         "Test create char without default"
-        Char = Pool().get('test.char')
+        Char = tx.pool.get('test.char')
 
         char, = Char.create([{}])
 
@@ -453,7 +451,7 @@ class FieldCharTestCase(TestCase, CommonTestCaseMixin):
     @with_transaction()
     def test_create_with_default(self):
         "Test create char without default"
-        Char = Pool().get('test.char_default')
+        Char = tx.pool.get('test.char_default')
 
         char, = Char.create([{}])
 
@@ -462,7 +460,7 @@ class FieldCharTestCase(TestCase, CommonTestCaseMixin):
     @with_transaction()
     def test_create_required_with_value(self):
         "Test create char required with value"
-        Char = Pool().get('test.char_required')
+        Char = tx.pool.get('test.char_required')
 
         char, = Char.create([{
                     'char': "Test",
@@ -473,7 +471,7 @@ class FieldCharTestCase(TestCase, CommonTestCaseMixin):
     @with_transaction()
     def test_create_required_without_value(self):
         "Test create char required without value"
-        Char = Pool().get('test.char_required')
+        Char = tx.pool.get('test.char_required')
 
         with self.assertRaises(RequiredValidationError):
             Char.create([{}])
@@ -481,7 +479,7 @@ class FieldCharTestCase(TestCase, CommonTestCaseMixin):
     @with_transaction()
     def test_create_required_with_empty(self):
         "Test create char required with empty"
-        Char = Pool().get('test.char_required')
+        Char = tx.pool.get('test.char_required')
 
         with self.assertRaises(RequiredValidationError):
             Char.create([{
@@ -491,7 +489,7 @@ class FieldCharTestCase(TestCase, CommonTestCaseMixin):
     @with_transaction()
     def test_create_size_valid(self):
         "Test create char with size"
-        Char = Pool().get('test.char_size')
+        Char = tx.pool.get('test.char_size')
 
         char, = Char.create([{
                     'char': "Test",
@@ -502,7 +500,7 @@ class FieldCharTestCase(TestCase, CommonTestCaseMixin):
     @with_transaction()
     def test_create_size_invalid(self):
         "Test create char with invalid size"
-        Char = Pool().get('test.char_size')
+        Char = tx.pool.get('test.char_size')
 
         with self.assertRaises(SizeValidationError):
             Char.create([{
@@ -512,7 +510,7 @@ class FieldCharTestCase(TestCase, CommonTestCaseMixin):
     @with_transaction()
     def test_create_size_pyson_valid(self):
         "Test create char with PYSON size"
-        Char = Pool().get('test.char_size_pyson')
+        Char = tx.pool.get('test.char_size_pyson')
 
         char, = Char.create([{
                     'char': "Test",
@@ -524,7 +522,7 @@ class FieldCharTestCase(TestCase, CommonTestCaseMixin):
     @with_transaction()
     def test_create_size_pyson_invalid(self):
         "Test create char with invalid PYSON size"
-        Char = Pool().get('test.char_size_pyson')
+        Char = tx.pool.get('test.char_size_pyson')
 
         with self.assertRaises(SizeValidationError):
             Char.create([{
@@ -535,7 +533,7 @@ class FieldCharTestCase(TestCase, CommonTestCaseMixin):
     @with_transaction()
     def test_create_size_pyson_none(self):
         "Test create char with PYSON size as None"
-        pool = Pool()
+        pool = tx.pool
         Char = pool.get('test.char_size_pyson')
 
         char, = Char.create([{
@@ -546,7 +544,7 @@ class FieldCharTestCase(TestCase, CommonTestCaseMixin):
     @with_transaction()
     def test_create_invalid_char(self):
         "Test create char with invalid char"
-        Char = Pool().get('test.char')
+        Char = tx.pool.get('test.char')
 
         with self.assertRaises(ForbiddenCharValidationError):
             Char.create([{
@@ -556,7 +554,7 @@ class FieldCharTestCase(TestCase, CommonTestCaseMixin):
     @with_transaction()
     def test_write(self):
         "Test write char"
-        Char = Pool().get('test.char')
+        Char = tx.pool.get('test.char')
         char, = Char.create([{
                     'char': "Foo",
                     }])
@@ -570,7 +568,7 @@ class FieldCharTestCase(TestCase, CommonTestCaseMixin):
     @with_transaction()
     def test_write_none(self):
         "Test write char None"
-        Char = Pool().get('test.char')
+        Char = tx.pool.get('test.char')
         char, = Char.create([{
                     'char': "Foo",
                     }])
@@ -584,7 +582,7 @@ class FieldCharTestCase(TestCase, CommonTestCaseMixin):
     @with_transaction()
     def test_write_size_invalid(self):
         "Test write char with invalid size"
-        Char = Pool().get('test.char_size')
+        Char = tx.pool.get('test.char_size')
 
         char, = Char.create([{
                     'char': "Test",
@@ -647,7 +645,7 @@ class FieldCharTranslatedTestCase(TestCase, CommonTestCaseMixin):
         activate_module('tests')
 
     def Char(self):
-        return Pool().get('test.char_translate')
+        return tx.pool.get('test.char_translate')
 
     @with_transaction()
     def test_create_with_sql_value(self):
@@ -661,11 +659,11 @@ class FieldCharTranslatedTestCase(TestCase, CommonTestCaseMixin):
     def test_translation_default_language_cache(self):
         """Test set translation for default language does not fill
         transactional cache with former value"""
-        pool = Pool()
+        pool = tx.pool
         Config = pool.get('ir.configuration')
         Char = self.Char()
 
-        with Transaction().set_context(language=Config.get_language()):
+        with tx.transaction.set_context(language=Config.get_language()):
             char, = Char.create([{
                         'char': "foo",
                         }])
@@ -677,7 +675,7 @@ class FieldCharTranslatedTestCase(TestCase, CommonTestCaseMixin):
 
     @with_transaction()
     def test_translated(self):
-        pool = Pool()
+        pool = tx.pool
         Language = pool.get('ir.lang')
         Char = self.Char()
 
@@ -689,16 +687,16 @@ class FieldCharTranslatedTestCase(TestCase, CommonTestCaseMixin):
         french.translatable = True
         french.save()
 
-        with Transaction().set_context(language='en'):
+        with tx.transaction.set_context(language='en'):
             record, = Char.create([{'char': 'foo'}])
-        with Transaction().set_context(language='fr'):
+        with tx.transaction.set_context(language='fr'):
             Char.write([record], {'char': 'bar'})
 
         self.assertEqual(record.char, 'foo')
         self.assertEqual(record.char_translated('en'), 'foo')
         self.assertEqual(record.char_translated('fr'), 'bar')
 
-        with Transaction().set_context(language='fr'):
+        with tx.transaction.set_context(language='fr'):
             record = Char(record.id)
 
         self.assertEqual(record.char, 'bar')
@@ -727,7 +725,7 @@ class FieldCharUnaccentedTestCase(ExtensionTestCase):
     @with_transaction()
     def test_normal_search(self):
         "Test searches without the unaccented feature"
-        Char = Pool().get('test.char_unaccented_off')
+        Char = tx.pool.get('test.char_unaccented_off')
         char, = Char.create([{
                     'char': 'Stéphanie',
                     }])
@@ -741,7 +739,7 @@ class FieldCharUnaccentedTestCase(ExtensionTestCase):
     @with_transaction()
     def test_accented_search(self):
         "Test searches of accented value"
-        Char = Pool().get('test.char_unaccented_on')
+        Char = tx.pool.get('test.char_unaccented_on')
         char, = Char.create([{
                     'char': 'Stéphanie',
                     }])
@@ -755,7 +753,7 @@ class FieldCharUnaccentedTestCase(ExtensionTestCase):
     @with_transaction()
     def test_unaccented_search(self):
         "Test searches of unaccented value"
-        Char = Pool().get('test.char_unaccented_on')
+        Char = tx.pool.get('test.char_unaccented_on')
         char, = Char.create([{
                     'char': 'Stephanie',
                     }])
@@ -768,7 +766,7 @@ class FieldCharUnaccentedTestCase(ExtensionTestCase):
     @with_transaction()
     def test_unaccented_translated_search(self):
         "Test unaccented translated search"
-        pool = Pool()
+        pool = tx.pool
         Char = pool.get('test.char_unaccented_translate')
         Lang = pool.get('ir.lang')
 
@@ -782,7 +780,7 @@ class FieldCharUnaccentedTestCase(ExtensionTestCase):
                     'char': 'School',
                     }])
 
-        with Transaction().set_context(lang=lang.code):
+        with tx.transaction.set_context(lang=lang.code):
             trans_char = Char(char.id)
             trans_char.char = 'École'
             trans_char.save()
@@ -811,7 +809,7 @@ class FieldCharSimilarityTestCase(ExtensionTestCase):
                     'char': "Foo",
                     }])
 
-        with Transaction().set_context(search_similarity=0.3):
+        with tx.transaction.set_context(search_similarity=0.3):
             self.assertListEqual(Model.search([
                         ('char', 'ilike', 'two words'),
                         ]), [record1])
@@ -819,19 +817,19 @@ class FieldCharSimilarityTestCase(ExtensionTestCase):
     @with_transaction()
     def test_search(self):
         "Test search"
-        pool = Pool()
+        pool = tx.pool
         self._test_search(pool.get('test.char'))
 
     @with_transaction()
     def test_search_translated(self):
         "Test search translated"
-        pool = Pool()
+        pool = tx.pool
         self._test_search(pool.get('test.char_translate'))
 
     @with_transaction()
     def test_search_empty(self):
         "Test a full text search with an empty string"
-        pool = Pool()
+        pool = tx.pool
         Char = pool.get('test.char')
 
         record1, record2 = Char.create([{
@@ -840,7 +838,7 @@ class FieldCharSimilarityTestCase(ExtensionTestCase):
                     'char': "",
                     }])
 
-        with Transaction().set_context(search_similarity=0.3):
+        with tx.transaction.set_context(search_similarity=0.3):
             self.assertEqual(
                 Char.search([('char', 'ilike', '')]),
                 [record2])
@@ -848,7 +846,7 @@ class FieldCharSimilarityTestCase(ExtensionTestCase):
     @with_transaction()
     def test_search_null(self):
         "Test a full text search with NULL"
-        pool = Pool()
+        pool = tx.pool
         Char = pool.get('test.char')
 
         record1, record2 = Char.create([{
@@ -857,7 +855,7 @@ class FieldCharSimilarityTestCase(ExtensionTestCase):
                     'char': None,
                     }])
 
-        with Transaction().set_context(search_similarity=0.3):
+        with tx.transaction.set_context(search_similarity=0.3):
             self.assertEqual(
                 Char.search([('char', 'ilike', None)]),
                 [record2])
@@ -868,7 +866,7 @@ class FieldCharSimilarityTestCase(ExtensionTestCase):
                     }, {
                     'char': "Foo",
                     }])
-        with Transaction().set_context({
+        with tx.transaction.set_context({
                     '%s.char.order' % Model.__name__: 'foo bar',
                     }):
             self.assertListEqual(Model.search([
@@ -878,11 +876,11 @@ class FieldCharSimilarityTestCase(ExtensionTestCase):
     @with_transaction()
     def test_order(self):
         "Test order"
-        pool = Pool()
+        pool = tx.pool
         self._test_order(pool.get('test.char'))
 
     @with_transaction()
     def test_order_translated(self):
         "Test order translated"
-        pool = Pool()
+        pool = tx.pool
         self._test_order(pool.get('test.char_translate'))

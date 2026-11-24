@@ -6,17 +6,17 @@ from sql.functions import CharLength
 from sql.operators import Equal
 
 import trytond.config as config
+from trytond import tx
 from trytond.i18n import gettext
 from trytond.model import Exclude, ModelSQL, ModelView, Workflow, fields
 from trytond.modules.company.model import CompanyValueMixin
 from trytond.modules.currency.fields import Monetary
-from trytond.pool import Pool, PoolMeta
+from trytond.pool import PoolMeta
 from trytond.pyson import Bool, Eval, Id
 from trytond.report import Report, get_email
 from trytond.sendmail import send_message_transactional
 from trytond.tools.email_ import (
     EmailNotValidError, set_from_header, validate_email)
-from trytond.transaction import Transaction
 from trytond.wizard import Button, StateTransition, StateView
 
 from .exceptions import GiftCardLineValidationError
@@ -36,7 +36,7 @@ class Configuration(metaclass=PoolMeta):
 
     @classmethod
     def multivalue_model(cls, field):
-        pool = Pool()
+        pool = tx.pool
         if field == 'gift_card_sequence':
             return pool.get('sale.configuration.gift_card.sequence')
         return super().multivalue_model(field)
@@ -105,7 +105,7 @@ class GiftCard(ModelSQL, ModelView):
 
     @classmethod
     def default_company(cls):
-        return Transaction().context.get('company')
+        return tx.transaction.context.get('company')
 
     @classmethod
     def _get_origin(cls):
@@ -113,14 +113,14 @@ class GiftCard(ModelSQL, ModelView):
 
     @classmethod
     def get_origin(cls):
-        pool = Pool()
+        pool = tx.pool
         Model = pool.get('ir.model')
         return [(None, '')] + [
             (m, Model.get_name(m)) for m in cls._get_origin()]
 
     @fields.depends('origin', 'value', 'currency')
     def on_change_origin(self):
-        pool = Pool()
+        pool = tx.pool
         SaleLine = pool.get('sale.line')
         StockMove = pool.get('stock.move')
         UoM = pool.get('product.uom')
@@ -149,21 +149,21 @@ class GiftCard(ModelSQL, ModelView):
 
     @classmethod
     def get_spent_on(cls):
-        pool = Pool()
+        pool = tx.pool
         Model = pool.get('ir.model')
         return [(None, '')] + [
             (m, Model.get_name(m)) for m in cls._get_spent_on()]
 
     @property
     def _email(self):
-        pool = Pool()
+        pool = tx.pool
         SaleLine = pool.get('sale.line')
         if isinstance(self.origin, SaleLine):
             return self.origin.gift_card_email or self.origin.sale.party.email
 
     @property
     def _languages(self):
-        pool = Pool()
+        pool = tx.pool
         SaleLine = pool.get('sale.line')
         languages = []
         if isinstance(self.origin, SaleLine):
@@ -174,7 +174,7 @@ class GiftCard(ModelSQL, ModelView):
 
     @classmethod
     def send(cls, gift_cards, from_=None):
-        pool = Pool()
+        pool = tx.pool
         Lang = pool.get('ir.lang')
         from_cfg = config.get('email', 'from')
         for gift_card in gift_cards:
@@ -197,7 +197,7 @@ class GiftCardReport(Report):
 
     @classmethod
     def _get_records(cls, ids, model, data):
-        pool = Pool()
+        pool = tx.pool
         if model in {'sale.sale', 'sale.point.sale'}:
             Sale = pool.get(model)
             sales = Sale.browse(ids)
@@ -222,7 +222,7 @@ class GiftCard_POS(metaclass=PoolMeta):
 
     @fields.depends('origin')
     def on_change_origin(self):
-        pool = Pool()
+        pool = tx.pool
         POSLine = pool.get('sale.point.sale.line')
         UOM = pool.get('product.uom')
         if isinstance(self.origin, POSLine):
@@ -241,7 +241,7 @@ class GiftCard_POS(metaclass=PoolMeta):
 
     @property
     def _email(self):
-        pool = Pool()
+        pool = tx.pool
         POSLine = pool.get('sale.point.sale.line')
         email = super()._email
         if isinstance(self.origin, POSLine):
@@ -284,7 +284,7 @@ class Sale(metaclass=PoolMeta):
         self.lines = lines
 
     def get_return_gift_card_line(self, gift_card):
-        pool = Pool()
+        pool = tx.pool
         Line = pool.get('sale.line')
         sequence = None
         if self.lines:
@@ -304,7 +304,7 @@ class Sale(metaclass=PoolMeta):
     @classmethod
     @ModelView.button
     def process(cls, sales):
-        pool = Pool()
+        pool = tx.pool
         GiftCard = pool.get('sale.gift_card')
         cls.lock(sales)
         gift_cards = []
@@ -348,7 +348,7 @@ class POSSale(metaclass=PoolMeta):
             sale.add_return_gift_cards()
         cls.save(sales)
         super().do(sales)
-        pool = Pool()
+        pool = tx.pool
         GiftCard = pool.get('sale.gift_card')
         cls.lock(sales)
         gift_cards = []
@@ -372,7 +372,7 @@ class POSSale(metaclass=PoolMeta):
         self.lines = lines
 
     def get_return_gift_card_line(self, gift_card):
-        pool = Pool()
+        pool = tx.pool
         Line = pool.get('sale.point.sale.line')
         return Line(
             sale=self,
@@ -426,7 +426,7 @@ class _LineMixin:
                 or self.quantity < 0
                 or self.gift_cards):
             return
-        pool = Pool()
+        pool = tx.pool
         GiftCard = pool.get('sale.gift_card')
         UoM = pool.get('product.uom')
         Config = pool.get('sale.configuration')
@@ -534,7 +534,7 @@ class POSPay(metaclass=PoolMeta):
             return 'end'
 
     def _add_gift_card(self):
-        pool = Pool()
+        pool = tx.pool
         Line = pool.get('sale.point.sale.line')
         return Line(
             sale=self.record,

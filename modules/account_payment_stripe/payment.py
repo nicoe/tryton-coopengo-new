@@ -12,6 +12,7 @@ from operator import attrgetter
 import stripe
 
 import trytond.config as config
+from trytond import tx
 from trytond.cache import Cache
 from trytond.i18n import gettext
 from trytond.model import (
@@ -22,14 +23,13 @@ from trytond.modules.account_payment.exceptions import (
 from trytond.modules.company.model import (
     employee_field, reset_employee, set_employee)
 from trytond.modules.currency.fields import Monetary
-from trytond.pool import Pool, PoolMeta
+from trytond.pool import PoolMeta
 from trytond.pyson import Eval, TimeDelta
 from trytond.report import Report, get_email
 from trytond.rpc import RPC
 from trytond.sendmail import send_message_transactional
 from trytond.tools import sql_pairing
 from trytond.tools.email_ import set_from_header
-from trytond.transaction import Transaction
 from trytond.url import http_host
 from trytond.wizard import Button, StateTransition, StateView, Wizard
 
@@ -102,8 +102,8 @@ class CheckoutMixin:
 
     @property
     def stripe_checkout_url(self):
-        pool = Pool()
-        database = Transaction().database.name
+        pool = tx.pool
+        database = tx.transaction.database.name
         ModelData = pool.get('ir.model.data')
         URL = pool.get('ir.action.url')
         action = URL(ModelData.get_id('account_payment_stripe.url_checkout'))
@@ -417,7 +417,7 @@ class Payment(StripeCustomerMethodMixin, CheckoutMixin, metaclass=PoolMeta):
         return super().stripe_checkout(payments)
 
     def _send_email_checkout(self, from_=None):
-        pool = Pool()
+        pool = tx.pool
         Language = pool.get('ir.lang')
         from_cfg = config.get('email', 'from')
         self.stripe_checkout([self])
@@ -469,7 +469,7 @@ class Payment(StripeCustomerMethodMixin, CheckoutMixin, metaclass=PoolMeta):
 
         The transaction is committed after each payment charge.
         """
-        pool = Pool()
+        pool = tx.pool
         Customer = pool.get('account.payment.stripe.customer')
         if payments is None:
             payments = cls.search([
@@ -485,7 +485,7 @@ class Payment(StripeCustomerMethodMixin, CheckoutMixin, metaclass=PoolMeta):
                         ],
                     ('stripe_charge_id', '=', None),
                     ('stripe_payment_intent_id', '=', None),
-                    ('company', '=', Transaction().context.get('company')),
+                    ('company', '=', tx.transaction.context.get('company')),
                     ])
 
         def create_charge(payment):
@@ -541,7 +541,7 @@ class Payment(StripeCustomerMethodMixin, CheckoutMixin, metaclass=PoolMeta):
                     "Error when processing payment %d", payment.id,
                     exc_info=True)
                 continue
-            Transaction().commit()
+            tx.transaction.commit()
 
         customers = [p.stripe_customer for p in payments if p.stripe_customer]
         if customers:
@@ -597,7 +597,7 @@ class Payment(StripeCustomerMethodMixin, CheckoutMixin, metaclass=PoolMeta):
                         ],
                     ('stripe_captured', '=', False),
                     ('stripe_capture', '=', True),
-                    ('company', '=', Transaction().context.get('company')),
+                    ('company', '=', tx.transaction.context.get('company')),
                     ])
 
         def capture_charge(payment):
@@ -652,7 +652,7 @@ class Payment(StripeCustomerMethodMixin, CheckoutMixin, metaclass=PoolMeta):
                     "Error when capturing payment %d", payment.id,
                     exc_info=True)
                 continue
-            Transaction().commit()
+            tx.transaction.commit()
 
     def _capture_parameters(self):
         idempotency_key = None
@@ -972,7 +972,7 @@ class Refund(Workflow, ModelSQL, ModelView):
                     refund.stripe_error_code = rf['failure_reason']
                     cls.fail([refund])
             refund.save()
-            Transaction().commit()
+            tx.transaction.commit()
 
     def _refund_parameters(self):
         idempotency_key = None
@@ -1026,7 +1026,7 @@ class Account(ModelSQL, ModelView):
                     'icon': 'tryton-refresh',
                     },
                 })
-        if Pool().test:
+        if tx.pool.test:
             cls.__rpc__['webhook'] = RPC(
                 readonly=False, instantiate=0, check_access=False)
 
@@ -1037,7 +1037,7 @@ class Account(ModelSQL, ModelView):
         # TODO add basic authentication support
         url_part = {
             'identifier': self.webhook_identifier,
-            'database_name': Transaction().database.name,
+            'database_name': tx.transaction.database.name,
             }
         return http_host() + (
             urllib.parse.quote(
@@ -1071,7 +1071,7 @@ class Account(ModelSQL, ModelView):
                     account.webhook(event)
                     account.last_event = event.id
                     account.save()
-                    Transaction().commit()
+                    tx.transaction.commit()
 
     def webhook(self, event):
         """This method handles stripe webhook callbacks
@@ -1118,7 +1118,7 @@ class Account(ModelSQL, ModelView):
         return None
 
     def webhook_charge_succeeded(self, payload, _event='charge.succeeded'):
-        pool = Pool()
+        pool = tx.pool
         Payment = pool.get('account.payment')
 
         charge = payload['object']
@@ -1169,7 +1169,7 @@ class Account(ModelSQL, ModelView):
         return self.webhook_charge_succeeded(payload, _event='charge.refunded')
 
     def webhook_charge_refund_updated(self, payload):
-        pool = Pool()
+        pool = tx.pool
         Payment = pool.get('account.payment')
         Refund = pool.get('account.payment.stripe.refund')
 
@@ -1194,7 +1194,7 @@ class Account(ModelSQL, ModelView):
         return bool(refunds)
 
     def webhook_charge_failed(self, payload, _event='charge.failed'):
-        pool = Pool()
+        pool = tx.pool
         Payment = pool.get('account.payment')
 
         charge = payload['object']
@@ -1225,7 +1225,7 @@ class Account(ModelSQL, ModelView):
         return bool(payments)
 
     def webhook_charge_dispute_created(self, payload):
-        pool = Pool()
+        pool = tx.pool
         Payment = pool.get('account.payment')
 
         source = payload['object']
@@ -1252,7 +1252,7 @@ class Account(ModelSQL, ModelView):
         return bool(payments)
 
     def webhook_charge_dispute_closed(self, payload):
-        pool = Pool()
+        pool = tx.pool
         Payment = pool.get('account.payment')
 
         source = payload['object']
@@ -1285,7 +1285,7 @@ class Account(ModelSQL, ModelView):
         return bool(payments)
 
     def webhook_source_chargeable(self, payload):
-        pool = Pool()
+        pool = tx.pool
         Payment = pool.get('account.payment')
 
         source = payload['object']
@@ -1297,7 +1297,7 @@ class Account(ModelSQL, ModelView):
         return True
 
     def webhook_source_failed(self, payload):
-        pool = Pool()
+        pool = tx.pool
         Payment = pool.get('account.payment')
 
         source = payload['object']
@@ -1309,7 +1309,7 @@ class Account(ModelSQL, ModelView):
         return True
 
     def webhook_source_canceled(self, payload):
-        pool = Pool()
+        pool = tx.pool
         Payment = pool.get('account.payment')
 
         source = payload['object']
@@ -1321,7 +1321,7 @@ class Account(ModelSQL, ModelView):
         return True
 
     def webhook_payment_intent_succeeded(self, payload):
-        pool = Pool()
+        pool = tx.pool
         Payment = pool.get('account.payment')
 
         payment_intent = payload['object']
@@ -1347,7 +1347,7 @@ class Account(ModelSQL, ModelView):
         return bool(payments)
 
     def webhook_payment_intent_amount_capturable_updated(self, payload):
-        pool = Pool()
+        pool = tx.pool
         Payment = pool.get('account.payment')
 
         payment_intent = payload['object']
@@ -1370,7 +1370,7 @@ class Account(ModelSQL, ModelView):
         return bool(payments)
 
     def webhook_payment_intent_payment_failed(self, payload):
-        pool = Pool()
+        pool = tx.pool
         Payment = pool.get('account.payment')
 
         payment_intent = payload['object']
@@ -1396,7 +1396,7 @@ class Account(ModelSQL, ModelView):
         return bool(payments)
 
     def webhook_payment_intent_canceled(self, payload):
-        pool = Pool()
+        pool = tx.pool
         Payment = pool.get('account.payment')
 
         payment_intent = payload['object']
@@ -1424,7 +1424,7 @@ class Account(ModelSQL, ModelView):
 
     @classmethod
     def check_modification(cls, mode, accounts, values=None, external=False):
-        pool = Pool()
+        pool = tx.pool
         Warning = pool.get('res.user.warning')
 
         super().check_modification(
@@ -1620,7 +1620,7 @@ class Customer(CheckoutMixin, DeactivableMixin, ModelSQL, ModelView):
                 customer.stripe_customer_id = cu.id
                 # TODO add card
             customer.save()
-            Transaction().commit()
+            tx.transaction.commit()
         cls.__queue__.find_identical(customers)
 
     def _customer_parameters(self):
@@ -1684,7 +1684,7 @@ class Customer(CheckoutMixin, DeactivableMixin, ModelSQL, ModelView):
             customer.stripe_token = None
             customer.stripe_customer_id = None
             customer.save()
-            Transaction().commit()
+            tx.transaction.commit()
 
     def retrieve(self, **params):
         if not self.stripe_customer_id:
@@ -1895,7 +1895,7 @@ class Customer(CheckoutMixin, DeactivableMixin, ModelSQL, ModelView):
             customer.stripe_setup_intent_id = None
             customer.save()
             cls._payment_methods_cache.clear()
-            Transaction().commit()
+            tx.transaction.commit()
 
     def fetch_fingeprints(self):
         customer = self.retrieve(expand=['sources'])
@@ -1919,7 +1919,7 @@ class Customer(CheckoutMixin, DeactivableMixin, ModelSQL, ModelView):
     @classmethod
     @ModelView.button
     def find_identical(cls, customers):
-        pool = Pool()
+        pool = tx.pool
         Fingerprint = pool.get('account.payment.stripe.customer.fingerprint')
         new = []
         for customer in customers:
@@ -1957,7 +1957,7 @@ class CustomerIdentical(ModelSQL):
 
     @classmethod
     def table_query(cls):
-        pool = Pool()
+        pool = tx.pool
         Fingerprint = pool.get('account.payment.stripe.customer.fingerprint')
         source = Fingerprint.__table__()
         target = Fingerprint.__table__()

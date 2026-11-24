@@ -181,9 +181,10 @@ class _TrytondMethod(object):
         self._config = config
 
     def __call__(self, *args, **kwargs):
+        from trytond import tx
         from trytond.rpc import RPC, RPCReturnException
         from trytond.tools import is_instance_method
-        from trytond.transaction import Transaction, TransactionError
+        from trytond.transaction import TransactionError
         from trytond.worker import run_task
 
         if self._name in self._object.__rpc__:
@@ -195,7 +196,7 @@ class _TrytondMethod(object):
 
         extras = {}
         while True:
-            with Transaction().start(self._config.database_name,
+            with tx.transaction.start(self._config.database_name,
                     self._config.user, readonly=rpc.readonly,
                     **extras) as transaction:
                 try:
@@ -266,8 +267,8 @@ class TrytondConfig(Config):
             config_file = os.environ.get('TRYTOND_CONFIG')
         import trytond.config as config
         config.update_etc(config_file)
+        from trytond import tx
         from trytond.pool import Pool
-        from trytond.transaction import Transaction
         self.database = database
         database_name = None
         if database:
@@ -286,7 +287,7 @@ class TrytondConfig(Config):
         self.pool.init()
         Pool.app_initialization_completed()
 
-        with Transaction().start(self.database_name, 0) as transaction:
+        with tx.transaction.start(self.database_name, 0) as transaction:
             User = self.pool.get('res.user')
             transaction.context = self.context
             with transaction.set_context(active_test=False):

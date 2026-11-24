@@ -11,18 +11,18 @@ from sql import Null
 from sql.conditionals import NullIf
 
 import trytond.config as config
+from trytond import tx
 from trytond.bus import Bus
 from trytond.i18n import gettext
 from trytond.model import ChatMixin, Check, ModelSQL, ModelView, Unique, fields
 from trytond.model.exceptions import ValidationError
-from trytond.pool import Pool
 from trytond.pyson import Bool, Eval
 from trytond.rpc import RPC
 from trytond.sendmail import send_message_transactional
 from trytond.tools import cached_property, firstline
 from trytond.tools.email_ import (
     EmailNotValidError, normalize_email, set_from_header, validate_email)
-from trytond.transaction import Transaction, check_access
+from trytond.transaction import check_access
 from trytond.url import host
 
 FOLLOWER_SEARCH_LIMIT = 20
@@ -78,7 +78,7 @@ class Channel(ModelSQL, ModelView):
 
     @cached_property
     def language(self):
-        pool = Pool()
+        pool = tx.pool
         Configuration = pool.get('ir.configuration')
 
         language = self.resource.chat_language(audience='public')
@@ -88,7 +88,7 @@ class Channel(ModelSQL, ModelView):
 
     @classmethod
     def get_models(cls):
-        pool = Pool()
+        pool = tx.pool
         Model = pool.get('ir.model')
         return [
             (m, n) for m, n in Model.get_name_items()
@@ -100,7 +100,7 @@ class Channel(ModelSQL, ModelView):
     @classmethod
     @check_access
     def check_access(cls, resource):
-        pool = Pool()
+        pool = tx.pool
         ModelAccess = pool.get('ir.model.access')
         model, id_ = str(resource).split(',')
         ModelAccess.check(model, mode='read')
@@ -113,7 +113,7 @@ class Channel(ModelSQL, ModelView):
                 ])
         if channels:
             channel, = channels
-        elif not Transaction().readonly:
+        elif not tx.transaction.readonly:
             channel = cls(resource=str(resource))
             channel.save()
         else:
@@ -124,7 +124,7 @@ class Channel(ModelSQL, ModelView):
     def subscribe(cls, resource, username=None):
         cls.check_access(resource)
 
-        pool = Pool()
+        pool = tx.pool
         Follower = pool.get('ir.chat.follower')
         User = pool.get('res.user')
 
@@ -133,11 +133,11 @@ class Channel(ModelSQL, ModelView):
                     ('login', '=', username),
                     ])
         else:
-            user = User(Transaction().user)
+            user = User(tx.transaction.user)
         channel = cls._get_channel(resource)
         Follower.add_user(channel, user)
 
-        with Transaction().set_context(
+        with tx.transaction.set_context(
                 language=channel.language, user=0, _notify=False):
             msg = gettext('ir.msg_chat_follower_joined', name=user.login)
             cls.post(resource, msg)
@@ -146,7 +146,7 @@ class Channel(ModelSQL, ModelView):
     def unsubscribe(cls, resource, username=None):
         cls.check_access(resource)
 
-        pool = Pool()
+        pool = tx.pool
         Follower = pool.get('ir.chat.follower')
         User = pool.get('res.user')
 
@@ -156,12 +156,12 @@ class Channel(ModelSQL, ModelView):
             except ValueError:
                 return None
         else:
-            user = User(Transaction().user)
+            user = User(tx.transaction.user)
 
         channel = cls._get_channel(resource)
         Follower.remove_user(channel, user)
 
-        with Transaction().set_context(
+        with tx.transaction.set_context(
                 language=channel.language, user=0, _notify=False):
             msg = gettext('ir.msg_chat_follower_left', name=user.login)
             cls.post(resource, msg)
@@ -170,14 +170,14 @@ class Channel(ModelSQL, ModelView):
     def subscribe_email(cls, resource, email):
         cls.check_access(resource)
 
-        pool = Pool()
+        pool = tx.pool
         Follower = pool.get('ir.chat.follower')
 
         channel = cls._get_channel(resource)
         email = Follower.add_email(channel, email)
 
         if email:
-            with Transaction().set_context(
+            with tx.transaction.set_context(
                     language=channel.language, user=0, _notify=False):
                 msg = gettext('ir.msg_chat_follower_joined', name=email)
                 cls.post(resource, msg)
@@ -186,21 +186,21 @@ class Channel(ModelSQL, ModelView):
     def unsubscribe_email(cls, resource, email):
         cls.check_access(resource)
 
-        pool = Pool()
+        pool = tx.pool
         Follower = pool.get('ir.chat.follower')
 
         channel = cls._get_channel(resource)
         email = Follower.remove_email(channel, email)
 
         if email:
-            with Transaction().set_context(
+            with tx.transaction.set_context(
                     language=channel.language, user=0, _notify=False):
                 msg = gettext('ir.msg_chat_follower_left', name=email)
                 cls.post(resource, msg)
 
     @classmethod
     def _get_followers(cls, resource):
-        pool = Pool()
+        pool = tx.pool
         Follower = pool.get('ir.chat.follower')
         followers = {}
         channel = cls._get_channel(resource)
@@ -234,7 +234,7 @@ class Channel(ModelSQL, ModelView):
 
     @classmethod
     def _search_followers(cls, resource, text):
-        pool = Pool()
+        pool = tx.pool
         User = pool.get('res.user')
 
         users = User.search([('rec_name', 'ilike', f'%{text}%')])
@@ -263,10 +263,10 @@ class Channel(ModelSQL, ModelView):
     def post(cls, resource, content, audience='internal'):
         cls.check_access(resource)
 
-        pool = Pool()
+        pool = tx.pool
         Message = pool.get('ir.chat.message')
         User = pool.get('res.user')
-        transaction = Transaction()
+        transaction = tx.transaction
         ctx_user = User(transaction.context.get('user', transaction.user))
         channel = cls._get_channel(resource)
         message = Message(
@@ -290,7 +290,7 @@ class Channel(ModelSQL, ModelView):
 
     @classmethod
     def post_from_email(cls, email):
-        pool = Pool()
+        pool = tx.pool
         Message = pool.get('ir.chat.message')
 
         if 'From' in email:
@@ -340,7 +340,7 @@ class Channel(ModelSQL, ModelView):
                 'message': message.as_dict(),
                 })
 
-        if not Transaction().context.get('_notify', True):
+        if not tx.transaction.context.get('_notify', True):
             return
 
         to_email = []
@@ -353,7 +353,7 @@ class Channel(ModelSQL, ModelView):
                 to_email.append(follower.email)
 
         if to_email:
-            with Transaction().set_context(language=message.channel.language):
+            with tx.transaction.set_context(language=message.channel.language):
                 subject = gettext(
                     'ir.msg_chat_subject',
                     author=message.author,
@@ -382,7 +382,7 @@ class Channel(ModelSQL, ModelView):
     def get(cls, resource, before=None, after=None):
         cls.check_access(resource)
 
-        pool = Pool()
+        pool = tx.pool
         Message = pool.get('ir.chat.message')
         domain = [
             ('channel.resource', '=', resource),
@@ -521,7 +521,7 @@ class Follower(AuthorMixin, ModelView, ModelSQL):
             return email
 
     def notify(self, message):
-        pool = Pool()
+        pool = tx.pool
         Notification = pool.get('res.notification')
 
         if self.user:

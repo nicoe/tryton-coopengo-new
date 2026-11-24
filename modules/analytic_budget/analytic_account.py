@@ -3,12 +3,11 @@
 from sql.aggregate import Sum
 from sql.conditionals import Coalesce
 
+from trytond import tx
 from trytond.model import ModelSQL, ModelView, Unique, fields
 from trytond.modules.account_budget import (
     BudgetLineMixin, BudgetMixin, CopyBudgetMixin, CopyBudgetStartMixin)
-from trytond.pool import Pool
 from trytond.pyson import Eval
-from trytond.transaction import Transaction
 from trytond.wizard import Button, StateAction, StateView, Wizard
 
 
@@ -20,10 +19,10 @@ class BudgetContext(ModelView):
 
     @classmethod
     def default_budget(cls):
-        pool = Pool()
+        pool = tx.pool
         Budget = pool.get('analytic_account.budget')
         Date = pool.get('ir.date')
-        context = Transaction().context
+        context = tx.transaction.context
         if 'budget' in context:
             return context.get('budget')
         today = Date.today()
@@ -80,7 +79,7 @@ class Budget(BudgetMixin, ModelSQL, ModelView):
                 })
 
     def get_rec_name(self, name):
-        pool = Pool()
+        pool = tx.pool
         Lang = pool.get('ir.lang')
         lang = Lang.get()
         return '%s (%s - %s)' % (
@@ -98,7 +97,7 @@ class Budget(BudgetMixin, ModelSQL, ModelView):
     @classmethod
     @ModelView.button
     def update_lines(cls, budgets):
-        pool = Pool()
+        pool = tx.pool
         Account = pool.get('analytic_account.account')
         Line = pool.get('analytic_account.budget.line')
         company_accounts = {}
@@ -170,7 +169,7 @@ class BudgetLine(BudgetLineMixin, ModelSQL, ModelView):
 
     @classmethod
     def _get_amount_query(cls, records, context):
-        pool = Pool()
+        pool = tx.pool
         Line = pool.get('analytic_account.line')
 
         line = Line.__table__()
@@ -179,7 +178,7 @@ class BudgetLine(BudgetLineMixin, ModelSQL, ModelView):
 
         balance = Sum(Coalesce(line.credit, 0) - Coalesce(line.debit, 0))
         red_sql = fields.SQL_OPERATORS['in'](table.id, [r.id for r in records])
-        with Transaction().set_context(context):
+        with tx.transaction.set_context(context):
             query_where = Line.query_get(line)
         return (table
             .join(

@@ -1,10 +1,10 @@
 # This file is part of Tryton.  The COPYRIGHT file at the top level of
 # this repository contains the full copyright notices and license terms.
 
+from trytond import tx
 from trytond.model import DeactivableMixin, ModelSQL, ModelView, Unique, fields
 from trytond.pool import PoolMeta
 from trytond.pyson import Bool, Eval, If
-from trytond.transaction import Transaction
 
 
 class Template(metaclass=PoolMeta):
@@ -112,7 +112,7 @@ class PriceList(metaclass=PoolMeta):
     __name__ = 'product.price_list'
 
     def compute(self, product, quantity, uom, pattern=None):
-        context = Transaction().context
+        context = tx.transaction.context
         pattern = pattern.copy() if pattern is not None else {}
         pattern.setdefault('eu_excise_tax', context.get('eu_excise_tax'))
         pattern.setdefault('eu_excise_duty', context.get('eu_excise_duty'))

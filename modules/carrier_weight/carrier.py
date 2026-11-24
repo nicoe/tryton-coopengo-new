@@ -2,11 +2,11 @@
 # this repository contains the full copyright notices and license terms.
 from decimal import Decimal
 
+from trytond import tx
 from trytond.model import ModelSQL, ModelView, fields
 from trytond.modules.currency.fields import Monetary
 from trytond.pool import PoolMeta
 from trytond.pyson import Bool, Eval, Id
-from trytond.transaction import Transaction
 
 
 class Carrier(metaclass=PoolMeta):
@@ -56,7 +56,7 @@ class Carrier(metaclass=PoolMeta):
         return Decimal(0)
 
     def _get_weight_price(self):
-        weights = Transaction().context.get('weights', [])
+        weights = tx.transaction.context.get('weights', [])
         if weights:
             weight_price = sum(
                 self.compute_weight_price(w) for w in weights)

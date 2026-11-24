@@ -3,10 +3,10 @@
 
 from sql import Column, Literal
 
+from trytond import tx
 from trytond.i18n import lazy_gettext
 from trytond.model import ModelView, fields
-from trytond.pool import Pool, PoolMeta
-from trytond.transaction import Transaction
+from trytond.pool import PoolMeta
 
 try:
     from trytond.modules.sale.sale_reporting import Abstract
@@ -23,7 +23,7 @@ class AbstractMarketingCampaign:
 
     @classmethod
     def _marketing_campaign_fields(cls):
-        pool = Pool()
+        pool = tx.pool
         Context = pool.get('sale.reporting.context')
         if hasattr(Context, 'marketing_campaign_fields'):
             yield from Context.marketing_campaign_fields()
@@ -42,7 +42,7 @@ class AbstractMarketingCampaign:
 
     @classmethod
     def _where(cls, tables, withs):
-        context = Transaction().context
+        context = tx.transaction.context
         where = super()._where(tables, withs)
         line = tables['line']
         for fname in cls._marketing_campaign_fields():
@@ -58,7 +58,7 @@ class Context(MarketingCampaignMixin, metaclass=PoolMeta):
     @classmethod
     def default_get(
             cls, fields_names=None, with_rec_name=True, with_default=True):
-        transaction = Transaction()
+        transaction = tx.transaction
         context = transaction.context
         default = super().default_get(
             fields_names=fields_names,
@@ -86,7 +86,7 @@ class Marketing(MarketingCampaignMixin, ModelView, Abstract):
 
     @classmethod
     def _columns(cls, tables, withs):
-        context = Transaction().context
+        context = tx.transaction.context
         line = tables['line']
         return super()._columns(tables, withs) + [
             (Column(line, fname)
@@ -96,7 +96,7 @@ class Marketing(MarketingCampaignMixin, ModelView, Abstract):
 
     @classmethod
     def _group_by(cls, tables, withs):
-        context = Transaction().context
+        context = tx.transaction.context
         line = tables['line']
         return super()._group_by(tables, withs) + [
             Column(line, fname).as_(fname)

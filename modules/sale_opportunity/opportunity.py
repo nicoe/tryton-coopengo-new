@@ -6,6 +6,7 @@ from itertools import groupby
 
 from sql.functions import CharLength
 
+from trytond import tx
 from trytond.i18n import gettext
 from trytond.ir.attachment import AttachmentCopyMixin
 from trytond.ir.note import NoteCopyMixin
@@ -14,10 +15,8 @@ from trytond.model import (
 from trytond.model.exceptions import AccessError
 from trytond.modules.company.model import employee_field, set_employee
 from trytond.modules.currency.fields import Monetary
-from trytond.pool import Pool
 from trytond.pyson import Bool, Eval, Get, If, In
 from trytond.tools import firstline
-from trytond.transaction import Transaction
 
 
 class SaleOpportunity(
@@ -126,9 +125,9 @@ class SaleOpportunity(
 
     @classmethod
     def __register__(cls, module_name):
-        pool = Pool()
+        pool = tx.pool
         Company = pool.get('company.company')
-        transaction = Transaction()
+        transaction = tx.transaction
         cursor = transaction.connection.cursor()
         sql_table = cls.__table__()
         company = Company.__table__()
@@ -226,7 +225,7 @@ class SaleOpportunity(
 
     @staticmethod
     def default_start_date():
-        Date = Pool().get('ir.date')
+        Date = tx.pool.get('ir.date')
         return Date.today()
 
     @staticmethod
@@ -235,7 +234,7 @@ class SaleOpportunity(
 
     @staticmethod
     def default_company():
-        return Transaction().context.get('company')
+        return tx.transaction.context.get('company')
 
     @fields.depends('amount', 'company')
     def on_change_company(self):
@@ -247,7 +246,7 @@ class SaleOpportunity(
 
     @classmethod
     def default_currency(cls, **pattern):
-        pool = Pool()
+        pool = tx.pool
         Company = pool.get('company.company')
         company = pattern.get('company')
         if not company:
@@ -257,11 +256,11 @@ class SaleOpportunity(
 
     @staticmethod
     def default_employee():
-        return Transaction().context.get('employee')
+        return tx.transaction.context.get('employee')
 
     @classmethod
     def default_payment_term(cls, **pattern):
-        pool = Pool()
+        pool = tx.pool
         Configuration = pool.get('account.configuration')
         config = Configuration(1)
         payment_term = config.get_multivalue(
@@ -307,7 +306,7 @@ class SaleOpportunity(
 
     @classmethod
     def preprocess_values(cls, mode, values):
-        pool = Pool()
+        pool = tx.pool
         Configuration = pool.get('sale.configuration')
         values = super().preprocess_values(mode, values)
         if mode == 'create' and not values.get('number'):
@@ -358,7 +357,7 @@ class SaleOpportunity(
         '''
         Return sale for an opportunity
         '''
-        pool = Pool()
+        pool = tx.pool
         Sale = pool.get('sale.sale')
         sale = Sale(
             description=self.description,
@@ -406,7 +405,7 @@ class SaleOpportunity(
     @Workflow.transition('converted')
     @set_employee('converted_by')
     def convert(cls, opportunities):
-        pool = Pool()
+        pool = tx.pool
         Sale = pool.get('sale.sale')
         sales = [o.create_sale() for o in opportunities if not o.sales]
         Sale.save(sales)
@@ -418,20 +417,20 @@ class SaleOpportunity(
 
     @property
     def is_forecast(self):
-        pool = Pool()
+        pool = tx.pool
         Date = pool.get('ir.date')
-        with Transaction().set_context(company=self.company.id):
+        with tx.transaction.set_context(company=self.company.id):
             today = Date.today()
         return self.end_date or datetime.date.max > today
 
     @classmethod
     @Workflow.transition('won')
     def won(cls, opportunities):
-        pool = Pool()
+        pool = tx.pool
         Date = pool.get('ir.date')
         for company, c_opportunities in groupby(
                 opportunities, key=lambda o: o.company):
-            with Transaction().set_context(company=company.id):
+            with tx.transaction.set_context(company=company.id):
                 today = Date.today()
             cls.write([o for o in c_opportunities if o.is_forecast], {
                     'end_date': today,
@@ -442,11 +441,11 @@ class SaleOpportunity(
     @ModelView.button
     @Workflow.transition('lost')
     def lost(cls, opportunities):
-        pool = Pool()
+        pool = tx.pool
         Date = pool.get('ir.date')
         for company, c_opportunities in groupby(
                 opportunities, key=lambda o: o.company):
-            with Transaction().set_context(company=company.id):
+            with tx.transaction.set_context(company=company.id):
                 today = Date.today()
             cls.write([o for o in c_opportunities if o.is_forecast], {
                     'end_date': today,
@@ -457,11 +456,11 @@ class SaleOpportunity(
     @ModelView.button
     @Workflow.transition('cancelled')
     def cancel(cls, opportunities):
-        pool = Pool()
+        pool = tx.pool
         Date = pool.get('ir.date')
         for company, c_opportunities in groupby(
                 opportunities, key=lambda o: o.company):
-            with Transaction().set_context(company=company.id):
+            with tx.transaction.set_context(company=company.id):
                 today = Date.today()
             cls.write([o for o in c_opportunities if o.is_forecast], {
                     'end_date': today,
@@ -491,7 +490,7 @@ class SaleOpportunity(
 
     @property
     def sale_amount(self):
-        pool = Pool()
+        pool = tx.pool
         Currency = pool.get('currency.currency')
 
         if not self.sales:
@@ -603,7 +602,7 @@ class SaleOpportunityLine(sequence_ordered(), ModelSQL, ModelView):
 
     @classmethod
     def get_opportunity_states(cls):
-        pool = Pool()
+        pool = tx.pool
         Opportunity = pool.get('sale.opportunity')
         return Opportunity.fields_get(['state'])['state']['selection']
 
@@ -641,7 +640,7 @@ class SaleOpportunityLine(sequence_ordered(), ModelSQL, ModelView):
         '''
         Return sale line for opportunity line
         '''
-        SaleLine = Pool().get('sale.line')
+        SaleLine = tx.pool.get('sale.line')
         sale_line = SaleLine(
             type='line',
             product=self.product,
@@ -658,7 +657,7 @@ class SaleOpportunityLine(sequence_ordered(), ModelSQL, ModelView):
         sale_line.unit = self.unit
 
     def get_rec_name(self, name):
-        pool = Pool()
+        pool = tx.pool
         Lang = pool.get('ir.lang')
         lang = Lang.get()
         if self.product:

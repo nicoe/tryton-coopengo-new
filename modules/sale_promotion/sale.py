@@ -5,16 +5,16 @@ from decimal import Decimal
 
 from simpleeval import simple_eval
 
+from trytond import tx
 from trytond.i18n import gettext
 from trytond.model import (
     DeactivableMixin, MatchMixin, ModelSQL, ModelView, Workflow, fields)
 from trytond.modules.currency.fields import Monetary
 from trytond.modules.product import price_digits, round_price
 from trytond.modules.product_price_list import Null
-from trytond.pool import Pool, PoolMeta
+from trytond.pool import PoolMeta
 from trytond.pyson import Bool, Eval, If
 from trytond.tools import decistmt
-from trytond.transaction import Transaction
 
 from .exceptions import FormulaError
 
@@ -54,7 +54,7 @@ class Sale(metaclass=PoolMeta):
             amounts['original_untaxed_amount'] = sum(
                 (line.original_amount for line in self.line_lines), Decimal(0))
             if {'original_tax_amount', 'original_total_amount'} & set(names):
-                with Transaction().set_context(_original_amount=True):
+                with tx.transaction.set_context(_original_amount=True):
                     amounts['original_tax_amount'] = self.get_tax_amount()
                 amounts['original_total_amount'] = sum(
                     filter(None, amounts.values()))
@@ -98,7 +98,7 @@ class Sale(metaclass=PoolMeta):
 
     def apply_promotion(self):
         "Apply promotion"
-        pool = Pool()
+        pool = tx.pool
         Promotion = pool.get('sale.promotion')
 
         for line in self.lines:
@@ -166,7 +166,7 @@ class Line(metaclass=PoolMeta):
     def taxable_lines(self):
         lines = super().taxable_lines
         if (self.type == 'line'
-                and Transaction().context.get('_original_amount')):
+                and tx.transaction.context.get('_original_amount')):
             lines = [(
                     self.taxes or [],
                     self.original_unit_price or self.unit_price or Decimal(0),
@@ -242,7 +242,7 @@ class Promotion(
 
     @staticmethod
     def default_company():
-        return Transaction().context.get('company')
+        return tx.transaction.context.get('company')
 
     @classmethod
     def default_untaxed_amount(cls):
@@ -272,9 +272,9 @@ class Promotion(
 
     @classmethod
     def _promotions_domain(cls, sale):
-        pool = Pool()
+        pool = tx.pool
         Date = pool.get('ir.date')
-        with Transaction().set_context(company=sale.company.id):
+        with tx.transaction.set_context(company=sale.company.id):
             sale_date = sale.sale_date or Date.today()
         return [
             ['OR',
@@ -306,7 +306,7 @@ class Promotion(
                 yield promotion
 
     def get_pattern(self, sale):
-        pool = Pool()
+        pool = tx.pool
         Currency = pool.get('currency.currency')
         Uom = pool.get('product.uom')
         Sale = pool.get('sale.sale')
@@ -389,10 +389,10 @@ class Promotion(
             sale.lines = sale.lines  # Trigger the change
 
     def get_context_formula(self, sale_line):
-        pool = Pool()
+        pool = tx.pool
         Product = pool.get('product.product')
         if sale_line:
-            with Transaction().set_context(
+            with tx.transaction.set_context(
                     sale_line._get_context_sale_price()):
                 prices = Product.get_sale_price([sale_line.product])
             unit_price = prices[sale_line.product.id]

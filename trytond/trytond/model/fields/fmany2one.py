@@ -3,8 +3,7 @@
 
 from sql import Column, Literal
 
-from trytond import backend
-from trytond.pool import Pool
+from trytond import backend, tx
 from trytond.tools import grouped_slice
 
 from .function import Function
@@ -19,7 +18,7 @@ def fmany2one(
     assert len(sources) == len(target_fields)
 
     def convert_value(value):
-        pool = Pool()
+        pool = tx.pool
         Target = pool.get(target_model)
         if isinstance(value, int):
             return getattr(Target(value), target_fields[0])
@@ -29,7 +28,7 @@ def fmany2one(
 
         @classmethod
         def __register__(cls, module):
-            pool = Pool()
+            pool = tx.pool
             Target = pool.get(target_model)
             table_h = cls.__table_handler__(module)
             target_h = Target.__table_handler__(module)
@@ -58,7 +57,7 @@ def fmany2one(
 
     @classmethod
     def getter(cls, records, name):
-        pool = Pool()
+        pool = tx.pool
         Target = pool.get(target_model)
         values = set(filter(all,
                 (tuple(getattr(r, s) for s in sources) for r in records)))
@@ -82,7 +81,7 @@ def fmany2one(
 
     @classmethod
     def searcher(cls, clause, tables):
-        pool = Pool()
+        pool = tx.pool
         Target = pool.get(target_model)
         table, _ = tables[None]
         if name not in tables:

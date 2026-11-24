@@ -6,14 +6,13 @@ from sql import Literal, Null
 from sql.aggregate import Sum
 from sql.conditionals import Coalesce
 
-from trytond import backend
+from trytond import backend, tx
 from trytond.i18n import gettext
 from trytond.model import fields
 from trytond.model.exceptions import AccessError
 from trytond.modules.currency.fields import Monetary
-from trytond.pool import Pool, PoolMeta
+from trytond.pool import PoolMeta
 from trytond.tools import sqlite_apply_types
-from trytond.transaction import Transaction
 
 
 class Company(metaclass=PoolMeta):
@@ -35,12 +34,12 @@ class Company(metaclass=PoolMeta):
     @classmethod
     def get_receivable_payable(cls, companies, names):
         amounts = {}
-        pool = Pool()
+        pool = tx.pool
         MoveLine = pool.get('account.move.line')
         Account = pool.get('account.account')
         AccountType = pool.get('account.account.type')
         Date = pool.get('ir.date')
-        cursor = Transaction().connection.cursor()
+        cursor = tx.transaction.connection.cursor()
 
         line = MoveLine.__table__()
         account = Account.__table__()
@@ -87,7 +86,7 @@ class Company(metaclass=PoolMeta):
 
     @classmethod
     def search_receivable_payable(cls, name, clause):
-        pool = Pool()
+        pool = tx.pool
         MoveLine = pool.get('account.move.line')
         Account = pool.get('account.account')
         AccountType = pool.get('account.account.type')
@@ -136,7 +135,7 @@ class Company(metaclass=PoolMeta):
 
     @classmethod
     def check_modification(cls, mode, companies, values=None, external=False):
-        pool = Pool()
+        pool = tx.pool
         Move = pool.get('account.move')
         super().check_modification(
             mode, companies, values=values, external=external)

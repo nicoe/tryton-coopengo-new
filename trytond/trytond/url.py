@@ -6,7 +6,7 @@ import socket
 import urllib.parse
 
 import trytond.config as config
-from trytond.transaction import Transaction
+from trytond import tx
 
 __all__ = ['URLMixin', 'is_secure', 'host', 'http_host']
 
@@ -25,7 +25,7 @@ class URLAccessor(object):
 
     @classmethod
     def is_secure(cls):
-        context = Transaction().context
+        context = tx.transaction.context
         if context:
             request = context.get('_request')
             if request and request['is_secure']:
@@ -36,7 +36,7 @@ class URLAccessor(object):
 
     @classmethod
     def host(cls):
-        context = Transaction().context
+        context = tx.transaction.context
         if context:
             request = context.get('_request')
             if request:
@@ -51,7 +51,7 @@ class URLAccessor(object):
 
     @classmethod
     def http_root_path(cls):
-        context = Transaction().context
+        context = tx.transaction.context
         if context:
             request = context.get('_request')
             if request:
@@ -96,7 +96,7 @@ class URLAccessor(object):
             raise NotImplementedError
 
         url_part['name'] = cls.__name__
-        url_part['database'] = Transaction().database.name
+        url_part['database'] = tx.transaction.database.name
 
         local_part = urllib.parse.quote(
             '%(database)s/%(type)s/%(name)s' % url_part)

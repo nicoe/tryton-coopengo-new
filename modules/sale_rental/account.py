@@ -1,8 +1,9 @@
 # This file is part of Tryton.  The COPYRIGHT file at the top level of
 # this repository contains the full copyright notices and license terms.
 
+from trytond import tx
 from trytond.model import fields
-from trytond.pool import Pool, PoolMeta
+from trytond.pool import PoolMeta
 from trytond.pyson import Bool, Eval, If
 from trytond.report import Report
 from trytond.tools import cached_property
@@ -16,7 +17,7 @@ class Invoice(metaclass=PoolMeta):
         'get_sale_rentals', searcher='search_sale_rentals')
 
     def get_sale_rentals(self, name):
-        pool = Pool()
+        pool = tx.pool
         RentalLine = pool.get('sale.rental.line')
         rentals = set()
         for line in self.lines:
@@ -52,7 +53,7 @@ class InvoiceLine(metaclass=PoolMeta):
 
     @fields.depends('product', 'origin')
     def on_change_product(self):
-        pool = Pool()
+        pool = tx.pool
         RentalLine = pool.get('sale.rental.line')
         super().on_change_product()
         if self.product and isinstance(self.origin, RentalLine):
@@ -61,7 +62,7 @@ class InvoiceLine(metaclass=PoolMeta):
 
     @cached_property
     def product_name(self):
-        pool = Pool()
+        pool = tx.pool
         RentalLine = pool.get('sale.rental.line')
         Lang = pool.get('ir.lang')
         lang = Lang.get()
@@ -77,7 +78,7 @@ class InvoiceLine(metaclass=PoolMeta):
 
     @property
     def origin_name(self):
-        pool = Pool()
+        pool = tx.pool
         RentalLine = pool.get('sale.rental.line')
         name = super().origin_name
         if isinstance(self.origin, RentalLine):
@@ -96,7 +97,7 @@ class InvoiceLine_Asset(metaclass=PoolMeta):
 
     @fields.depends('origin')
     def on_change_with_is_assets_depreciable(self, name=None):
-        pool = Pool()
+        pool = tx.pool
         RentalLine = pool.get('sale.rental.line')
         depreciable = super().on_change_with_is_assets_depreciable(name=name)
         if depreciable and isinstance(self.origin, RentalLine):

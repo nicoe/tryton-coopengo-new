@@ -3,7 +3,7 @@
 
 from sql import Null
 
-from trytond.pool import Pool
+from trytond import tx
 from trytond.tests.test_tryton import (
     TestCase, activate_module, with_transaction)
 
@@ -17,7 +17,7 @@ class TestGeographicFields(TestCase):
     @with_transaction()
     def test_fields_get(self):
         "Test fields_get"
-        pool = Pool()
+        pool = tx.pool
 
         GISPoint = pool.get('test.gis.point')
         point = {'dimension': 2, 'geometry_type': 'POINT'}
@@ -29,7 +29,7 @@ class TestGeographicFields(TestCase):
     @with_transaction()
     def test_create_save(self):
         "Testing create/write with GIS types"
-        pool = Pool()
+        pool = tx.pool
 
         GISPoint = pool.get('test.gis.point')
         point_a = {
@@ -64,7 +64,7 @@ class TestGeographicFields(TestCase):
     @with_transaction()
     def test_search(self):
         "Testing search with GIS types"
-        pool = Pool()
+        pool = tx.pool
 
         GISPoint = pool.get('test.gis.point')
         point_a = {

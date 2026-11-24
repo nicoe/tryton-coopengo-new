@@ -10,13 +10,13 @@ from urllib.parse import quote, urljoin
 import requests
 from lxml import etree
 
+from trytond import tx
 from trytond.i18n import gettext
 from trytond.model import fields
 from trytond.modules.edocument_peppol.exceptions import PeppolServiceError
-from trytond.pool import Pool, PoolMeta
+from trytond.pool import PoolMeta
 from trytond.protocols.wrappers import HTTPStatus
 from trytond.pyson import Eval
-from trytond.transaction import Transaction
 from trytond.url import http_host
 
 from .exceptions import PeppyrusCredentialWarning, PeppyrusError
@@ -105,7 +105,7 @@ class PeppolService(metaclass=PoolMeta):
         if self.peppyrus_identifier:
             url_part = {
                 'identifier': self.peppyrus_identifier,
-                'database_name': Transaction().database.name,
+                'database_name': tx.transaction.database.name,
                 }
             return http_host() + (
                 quote(
@@ -118,7 +118,7 @@ class PeppolService(metaclass=PoolMeta):
         if self.peppyrus_identifier:
             url_part = {
                 'identifier': self.peppyrus_identifier,
-                'database_name': Transaction().database.name,
+                'database_name': tx.transaction.database.name,
                 }
             return http_host() + (
                 quote(
@@ -249,9 +249,9 @@ class PeppolService(metaclass=PoolMeta):
             self.__class__.__queue__.peppyrus_store(self, message)
 
     def peppyrus_store(self, message):
-        pool = Pool()
+        pool = tx.pool
         Document = pool.get('edocument.peppol')
-        transaction = Transaction()
+        transaction = tx.transaction
         assert message['direction'] == 'IN'
 
         def confirm(server, api_key, message, silent=False):
@@ -303,7 +303,7 @@ class PeppolService(metaclass=PoolMeta):
 
     @classmethod
     def check_modification(cls, mode, services, values=None, external=False):
-        pool = Pool()
+        pool = tx.pool
         Warning = pool.get('res.user.warning')
 
         super().check_modification(

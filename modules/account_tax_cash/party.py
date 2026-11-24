@@ -1,8 +1,8 @@
 # This file is part of Tryton.  The COPYRIGHT file at the top level of
 # this repository contains the full copyright notices and license terms.
+from trytond import tx
 from trytond.model import fields
 from trytond.pool import PoolMeta
-from trytond.transaction import Transaction
 
 
 class Party(metaclass=PoolMeta):
@@ -16,7 +16,7 @@ class Party(metaclass=PoolMeta):
     @classmethod
     def copy(cls, parties, default=None):
         default = default.copy() if default else {}
-        if Transaction().check_access:
+        if tx.transaction.check_access:
             default.setdefault(
                 'supplier_tax_group_on_cash_basis',
                 cls.default_get(

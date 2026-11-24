@@ -2,10 +2,11 @@
 # this repository contains the full copyright notices and license terms.
 import datetime
 
+from trytond import tx
 from trytond.protocols.wrappers import (
     Response, abort, allow_null_origin, user_application, with_pool,
     with_transaction)
-from trytond.transaction import Transaction, without_check_access
+from trytond.transaction import without_check_access
 from trytond.wsgi import app
 
 timesheet_application = user_application('timesheet')
@@ -18,7 +19,7 @@ timesheet_application = user_application('timesheet')
 @timesheet_application
 def timesheet_employees(request, pool):
     User = pool.get('res.user')
-    user = User(Transaction().user)
+    user = User(tx.transaction.user)
     return [{'id': e.id, 'name': e.rec_name} for e in user.employees]
 
 
@@ -32,7 +33,7 @@ def timesheet_works(request, pool, employee):
     Work = pool.get('timesheet.work')
     Employee = pool.get('company.employee')
     employee = Employee(employee)
-    with Transaction().set_context(
+    with tx.transaction.set_context(
             company=employee.company.id, employee=employee.id):
         works = Work.search([
                 ('company', '=', employee.company.id),
@@ -61,11 +62,11 @@ def timesheet_lines(request, pool, employee, date):
 
     employee = Employee(employee)
     date = datetime.datetime.strptime(date, '%Y-%m-%d').date()
-    user = User(Transaction().user)
+    user = User(tx.transaction.user)
     if employee not in user.employees:
         abort(403)
 
-    with Transaction().set_context(
+    with tx.transaction.set_context(
             company=employee.company.id, employee=employee.id):
         lines = Line.search([
                 ('employee', '=', employee.id),
@@ -100,7 +101,7 @@ def timesheet(request, pool, line=None):
             employee = Employee(data['employee'])
             data['company'] = employee.company.id
         else:
-            employee = User(Transaction().user).employee
+            employee = User(tx.transaction.user).employee
         if 'date' in data:
             data['date'] = datetime.datetime.strptime(
                 data['date'], '%Y-%m-%d').date()
@@ -111,7 +112,7 @@ def timesheet(request, pool, line=None):
         for extra in set(data) - set(Line._fields):
             del data[extra]
 
-        with Transaction().set_context(
+        with tx.transaction.set_context(
                 company=employee.company.id, employee=employee.id):
             if not line:
                 line, = Line.create([data])
@@ -127,7 +128,7 @@ def timesheet(request, pool, line=None):
             lines = Line.search([('id', '=', line)])
         if lines:
             line, = lines
-            with Transaction().set_context(
+            with tx.transaction.set_context(
                     company=line.company.id, employee=line.employee.id):
                 lines = Line.search([('id', '=', line.id)])
                 Line.delete(lines)

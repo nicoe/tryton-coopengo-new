@@ -1,9 +1,10 @@
 # This file is part of Tryton.  The COPYRIGHT file at the top level of
 # this repository contains the full copyright notices and license terms.
+from trytond import tx
 from trytond.i18n import gettext
 from trytond.model import ModelView, dualmethod, fields
 from trytond.modules.account.exceptions import PostError
-from trytond.pool import Pool, PoolMeta
+from trytond.pool import PoolMeta
 
 
 class Journal(metaclass=PoolMeta):
@@ -28,7 +29,7 @@ class Move(metaclass=PoolMeta):
     @dualmethod
     @ModelView.button
     def post(cls, moves):
-        pool = Pool()
+        pool = tx.pool
         Statement = pool.get('account.statement')
         for move in moves:
             if (isinstance(move.origin, Statement)

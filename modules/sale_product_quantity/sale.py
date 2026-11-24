@@ -1,10 +1,11 @@
 # This file is part of Tryton.  The COPYRIGHT file at the top level of
 # this repository contains the full copyright notices and license terms.
 
+from trytond import tx
 from trytond.i18n import gettext
 from trytond.model import ModelStorage, fields
 from trytond.modules.sale.exceptions import SaleValidationError
-from trytond.pool import Pool, PoolMeta
+from trytond.pool import PoolMeta
 
 
 def product_quantity_mixin(states):
@@ -12,7 +13,7 @@ def product_quantity_mixin(states):
 
         @fields.depends('product', 'quantity', 'unit')
         def on_change_product(self):
-            pool = Pool()
+            pool = tx.pool
             Uom = pool.get('product.uom')
             super().on_change_product()
             if self.product and self.quantity is None:
@@ -33,7 +34,7 @@ def product_quantity_mixin(states):
                 line.check_quantity()
 
         def check_quantity(self):
-            pool = Pool()
+            pool = tx.pool
             Lang = pool.get('ir.lang')
             Uom = pool.get('product.uom')
             if (not self.product

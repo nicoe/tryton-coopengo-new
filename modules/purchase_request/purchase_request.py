@@ -4,15 +4,14 @@ import datetime
 from functools import partial
 from itertools import groupby
 
+from trytond import tx
 from trytond.i18n import gettext
 from trytond.model import ChatMixin, Index, ModelSQL, ModelView, fields
 from trytond.model.exceptions import AccessError
 from trytond.modules.company.model import (
     employee_field, reset_employee, set_employee)
-from trytond.pool import Pool
 from trytond.pyson import Bool, Eval, If
 from trytond.tools import firstline, sortable_values
-from trytond.transaction import Transaction
 from trytond.wizard import (
     Button, StateAction, StateTransition, StateView, Wizard)
 
@@ -143,7 +142,7 @@ class PurchaseRequest(ModelSQL, ModelView, ChatMixin):
         super().__register__(module_name)
 
     def get_rec_name(self, name):
-        pool = Pool()
+        pool = tx.pool
         Lang = pool.get('ir.lang')
         if self.product:
             lang = Lang.get()
@@ -181,7 +180,7 @@ class PurchaseRequest(ModelSQL, ModelView, ChatMixin):
 
     @staticmethod
     def default_company():
-        return Transaction().context.get('company')
+        return tx.transaction.context.get('company')
 
     @staticmethod
     def default_exception_ignored():
@@ -260,7 +259,7 @@ class PurchaseRequest(ModelSQL, ModelView, ChatMixin):
 
     @classmethod
     def get_origin(cls):
-        pool = Pool()
+        pool = tx.pool
         IrModel = pool.get('ir.model')
         get_name = IrModel.get_name
         models = cls._get_origin()
@@ -299,9 +298,9 @@ class PurchaseRequest(ModelSQL, ModelView, ChatMixin):
     @classmethod
     def find_best_product_supplier(cls, product, date, **pattern):
         "Return the best product supplier to request product at date"
-        pool = Pool()
+        pool = tx.pool
         Date = pool.get('ir.date')
-        with Transaction().set_context(context=product._context):
+        with tx.transaction.set_context(context=product._context):
             today = Date.today()
         earlier_date, fastest = datetime.date.max, None
         for product_supplier in product.product_suppliers_used(**pattern):
@@ -320,7 +319,7 @@ class PurchaseRequest(ModelSQL, ModelView, ChatMixin):
         '''
         Return the best supplier and purchase_date for the product.
         '''
-        pool = Pool()
+        pool = tx.pool
         Date = pool.get('ir.date')
 
         product_supplier = cls.find_best_product_supplier(
@@ -330,7 +329,7 @@ class PurchaseRequest(ModelSQL, ModelView, ChatMixin):
             purchase_date = product_supplier.compute_purchase_date(date)
         else:
             supplier = None
-            with Transaction().set_context(context=product._context):
+            with tx.transaction.set_context(context=product._context):
                 purchase_date = Date.today()
         return supplier, purchase_date
 
@@ -401,7 +400,7 @@ class CreatePurchase(Wizard):
             )
 
     def transition_start(self):
-        pool = Pool()
+        pool = tx.pool
         Request = pool.get('purchase.request')
         Purchase = pool.get('purchase.purchase')
         Line = pool.get('purchase.line')
@@ -451,7 +450,7 @@ class CreatePurchase(Wizard):
         for key, grouped_requests in groupby(requests, key=keyfunc):
             grouped_requests = list(grouped_requests)
             key = dict(key)
-            with Transaction().set_context(company=int(key['company'])):
+            with tx.transaction.set_context(company=int(key['company'])):
                 today = Date.today()
             try:
                 purchase_date = min(r.purchase_date
@@ -481,7 +480,7 @@ class CreatePurchase(Wizard):
 
     @classmethod
     def compute_purchase_line(cls, key, requests, purchase):
-        pool = Pool()
+        pool = tx.pool
         Line = pool.get('purchase.line')
 
         line = Line()
@@ -500,7 +499,7 @@ class CreatePurchase(Wizard):
 
     @classmethod
     def compute_quantity(cls, requests, line, purchase):
-        pool = Pool()
+        pool = tx.pool
         Uom = pool.get('product.uom')
         unit = line.unit
         compute_qty = Uom.compute_qty

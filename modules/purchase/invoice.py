@@ -2,21 +2,22 @@
 # this repository contains the full copyright notices and license terms.
 from functools import wraps
 
+from trytond import tx
 from trytond.i18n import gettext
 from trytond.model import ModelView, Workflow, fields
 from trytond.model.exceptions import AccessError
-from trytond.pool import Pool, PoolMeta
+from trytond.pool import PoolMeta
 from trytond.pyson import Bool, Eval, If
 from trytond.tools import cached_property
-from trytond.transaction import Transaction, without_check_access
+from trytond.transaction import without_check_access
 
 
 def process_purchase(func):
     @wraps(func)
     def wrapper(cls, invoices):
-        pool = Pool()
+        pool = tx.pool
         Purchase = pool.get('purchase.purchase')
-        transaction = Transaction()
+        transaction = tx.transaction
         context = transaction.context
         with without_check_access():
             purchases = set(
@@ -54,7 +55,7 @@ class Invoice(metaclass=PoolMeta):
         return ''
 
     def get_purchases(self, name):
-        pool = Pool()
+        pool = tx.pool
         PurchaseLine = pool.get('purchase.line')
         purchases = set()
         for line in self.lines:
@@ -121,7 +122,7 @@ class InvoiceLine(metaclass=PoolMeta):
 
     @cached_property
     def product_name(self):
-        pool = Pool()
+        pool = tx.pool
         PurchaseLine = pool.get('purchase.line')
         name = super().product_name
         if (isinstance(self.origin, PurchaseLine)
@@ -131,7 +132,7 @@ class InvoiceLine(metaclass=PoolMeta):
 
     @cached_property
     def product_supplier_code(self):
-        pool = Pool()
+        pool = tx.pool
         PurchaseLine = pool.get('purchase.line')
         code = super().product_supplier_code
         if (self.invoice.type == 'in'
@@ -142,7 +143,7 @@ class InvoiceLine(metaclass=PoolMeta):
 
     @fields.depends('origin')
     def on_change_with_product_uom_category(self, name=None):
-        pool = Pool()
+        pool = tx.pool
         PurchaseLine = pool.get('purchase.line')
         category = super().on_change_with_product_uom_category(name=name)
         # Enforce the same unit category as they are used to compute the
@@ -154,7 +155,7 @@ class InvoiceLine(metaclass=PoolMeta):
         return category
 
     def get_warehouse(self, name):
-        pool = Pool()
+        pool = tx.pool
         PurchaseLine = pool.get('purchase.line')
         warehouse = super().get_warehouse(name)
         if (not warehouse
@@ -165,7 +166,7 @@ class InvoiceLine(metaclass=PoolMeta):
 
     @property
     def origin_name(self):
-        pool = Pool()
+        pool = tx.pool
         PurchaseLine = pool.get('purchase.line')
         name = super().origin_name
         if isinstance(self.origin, PurchaseLine) and self.origin.id >= 0:
@@ -180,9 +181,9 @@ class InvoiceLine(metaclass=PoolMeta):
 
     @classmethod
     def on_delete(cls, lines):
-        pool = Pool()
+        pool = tx.pool
         Purchase = pool.get('purchase.purchase')
-        transaction = Transaction()
+        transaction = tx.transaction
         context = transaction.context
         with without_check_access():
             invoices = (l.invoice for l in cls.browse(lines)

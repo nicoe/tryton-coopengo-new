@@ -2,12 +2,12 @@
 # this repository contains the full copyright notices and license terms.
 from decimal import Decimal
 
+from trytond import tx
 from trytond.i18n import gettext
 from trytond.model import Check, ModelView, Workflow, fields
 from trytond.model.exceptions import AccessError
-from trytond.pool import Pool, PoolMeta
+from trytond.pool import PoolMeta
 from trytond.pyson import Eval
-from trytond.transaction import Transaction
 
 
 def _get_field(type_):
@@ -55,7 +55,7 @@ class Move(metaclass=PoolMeta):
         return 0.0
 
     def _get_account_stock_move_lines(self, type_):
-        pool = Pool()
+        pool = tx.pool
         Uom = pool.get('product.uom')
         AccountMoveLine = pool.get('account.move.line')
         Currency = pool.get('currency.currency')
@@ -65,7 +65,7 @@ class Move(metaclass=PoolMeta):
         if type_.endswith('supplier') and cost_price_method == 'fixed':
             cost_price = Uom.compute_price(
                 self.product.default_uom, self.cost_price, self.unit)
-            with Transaction().set_context(date=self.effective_date):
+            with tx.transaction.set_context(date=self.effective_date):
                 unit_price = Currency.compute(self.currency, self.unit_price,
                     self.company.currency, round=False)
             amount = self.company.currency.round(
@@ -103,7 +103,7 @@ class Move(metaclass=PoolMeta):
         consumed, qty is the quantity (in the product default uom) to be
         consumed on this move and cost_price is in the company currency.
         '''
-        pool = Pool()
+        pool = tx.pool
         Uom = pool.get('product.uom')
         Currency = pool.get('currency.currency')
 
@@ -123,7 +123,7 @@ class Move(metaclass=PoolMeta):
                 break
 
             if type_.endswith('supplier'):
-                with Transaction().set_context(date=move.effective_date):
+                with tx.transaction.set_context(date=move.effective_date):
                     unit_price = Currency.compute(move.currency,
                         move.unit_price, move.company.currency, round=False)
                 cost_price = Uom.compute_price(
@@ -141,7 +141,7 @@ class Move(metaclass=PoolMeta):
         Return the cost for quantity based on lines.
         Update anglo_saxon_quantity on the concerned moves.
         '''
-        pool = Pool()
+        pool = tx.pool
         Uom = pool.get('product.uom')
 
         assert all(m.product == product for m in moves), 'wrong product'

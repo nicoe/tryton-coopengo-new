@@ -6,11 +6,12 @@ from io import BytesIO
 import facturx
 from lxml import etree
 
+from trytond import tx
 from trytond.i18n import gettext
 from trytond.model import ModelSQL, fields
 from trytond.modules.account_invoice.exceptions import InvoiceReportError
 from trytond.modules.company.model import CompanyValueMixin
-from trytond.pool import Pool, PoolMeta
+from trytond.pool import PoolMeta
 
 PROFILES = [
     (None, ""),
@@ -33,7 +34,7 @@ class Configuration(metaclass=PoolMeta):
 
     @classmethod
     def multivalue_model(cls, field):
-        pool = Pool()
+        pool = tx.pool
         if field == 'default_factur_x_profile':
             return pool.get('account.configuration.factur_x')
         return super().multivalue_model(field)
@@ -64,7 +65,7 @@ class InvoiceReport(metaclass=PoolMeta):
     @classmethod
     def add_factur_x(cls, invoice, profile, pdf):
         "Add Factur-X objects to PDF"
-        pool = Pool()
+        pool = tx.pool
         EInvoice = pool.get('edocument.uncefact.invoice')
 
         pdf = BytesIO(pdf)

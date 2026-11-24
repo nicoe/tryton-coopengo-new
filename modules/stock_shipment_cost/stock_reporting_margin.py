@@ -3,9 +3,9 @@
 from sql.aggregate import Sum
 from sql.conditionals import Coalesce
 
+from trytond import tx
 from trytond.model import fields
 from trytond.pool import PoolMeta
-from trytond.transaction import Transaction
 
 
 class AbstractShipmentOutCostMixin:
@@ -15,7 +15,7 @@ class AbstractShipmentOutCostMixin:
     def _column_cost(cls, tables, withs, sign):
         move = tables['move']
         cost = super()._column_cost(tables, withs, sign)
-        if Transaction().context.get('include_shipment_cost'):
+        if tx.transaction.context.get('include_shipment_cost'):
             cost += Sum(
                 sign * cls.cost.sql_cast(move.internal_quantity)
                 * Coalesce(move.shipment_out_cost_price, 0))
@@ -29,4 +29,4 @@ class Context(metaclass=PoolMeta):
 
     @classmethod
     def default_include_shipment_cost(cls):
-        return Transaction().context.get('include_shipment_cost', False)
+        return tx.transaction.context.get('include_shipment_cost', False)

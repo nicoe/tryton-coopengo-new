@@ -12,15 +12,15 @@ from sql.aggregate import Max, Sum
 from sql.conditionals import Case, Coalesce
 from sql.functions import Round
 
+from trytond import tx
 from trytond.i18n import gettext
 from trytond.model import (
     Check, Index, Model, ModelSQL, ModelView, Workflow, fields)
 from trytond.model.exceptions import AccessError
 from trytond.modules.product import price_digits, round_price
-from trytond.pool import Pool
 from trytond.pyson import Bool, Eval, Id, If, TimeDelta
 from trytond.tools import cached_property
-from trytond.transaction import Transaction, without_check_access
+from trytond.transaction import without_check_access
 
 from .exceptions import MoveFutureWarning, MoveOriginWarning
 
@@ -44,10 +44,10 @@ class StockMixin(object):
 
     @classmethod
     def _quantity_context(cls, name):
-        pool = Pool()
+        pool = tx.pool
         Date = pool.get('ir.date')
         today = Date.today()
-        context = Transaction().context
+        context = tx.transaction.context
         new_context = {}
         stock_date_end = context.get('stock_date_end')
         if name == 'quantity':
@@ -78,17 +78,17 @@ class StockMixin(object):
 
         Return a dictionary with records id as key and quantity as value.
         """
-        pool = Pool()
+        pool = tx.pool
         Product = pool.get('product.product')
 
         quantities = defaultdict(float)
         if not location_ids:
             return quantities
 
-        with_childs = Transaction().context.get(
+        with_childs = tx.transaction.context.get(
             'with_childs', len(location_ids) == 1)
 
-        with Transaction().set_context(cls._quantity_context(name)):
+        with tx.transaction.set_context(cls._quantity_context(name)):
             pbl = Product.products_by_location(
                 location_ids,
                 with_childs=with_childs,
@@ -114,7 +114,7 @@ class StockMixin(object):
         position defines which field of grouping corresponds to the record
             whose quantity is computed.
         """
-        pool = Pool()
+        pool = tx.pool
         Product = pool.get('product.product')
         Move = pool.get('stock.move')
         Uom = pool.get('product.uom')
@@ -122,13 +122,14 @@ class StockMixin(object):
 
         if not location_ids or not domain:
             return []
-        with_childs = Transaction().context.get(
+        with_childs = tx.transaction.context.get(
             'with_childs', len(location_ids) == 1)
         _, operator_, operand = domain
 
-        with Transaction().set_context(cls._quantity_context(name)):
+        with tx.transaction.set_context(cls._quantity_context(name)):
             if (len(location_ids) == 1
-                    and not Transaction().context.get('stock_skip_warehouse')):
+                    and not tx.transaction.context.get(
+                        'stock_skip_warehouse')):
                 # We can use the compute quantities query if the request is for
                 # a single location because all the locations are children and
                 # so we can do a SUM.
@@ -505,10 +506,10 @@ class Move(Workflow, ModelSQL, ModelView):
 
     @staticmethod
     def default_planned_date():
-        return Transaction().context.get('planned_date')
+        return tx.transaction.context.get('planned_date')
 
     def get_delay(self, name):
-        pool = Pool()
+        pool = tx.pool
         Date = pool.get('ir.date')
         planned_date = self.origin_planned_date or self.planned_date
         if planned_date is not None:
@@ -517,7 +518,7 @@ class Move(Workflow, ModelSQL, ModelView):
             elif self.planned_date:
                 return self.planned_date - planned_date
             else:
-                with Transaction().set_context(company=self.company.id):
+                with tx.transaction.set_context(company=self.company.id):
                     today = Date.today()
                 return today - planned_date
 
@@ -527,7 +528,7 @@ class Move(Workflow, ModelSQL, ModelView):
 
     @staticmethod
     def default_company():
-        return Transaction().context.get('company')
+        return tx.transaction.context.get('company')
 
     @classmethod
     def default_unit_price_updated(cls):
@@ -556,7 +557,7 @@ class Move(Workflow, ModelSQL, ModelView):
 
     @fields.depends('quantity', 'unit', 'product')
     def on_change_with_internal_quantity(self):
-        pool = Pool()
+        pool = tx.pool
         UoM = pool.get('product.uom')
         if self.quantity is not None and self.unit and self.product:
             return UoM.compute_qty(
@@ -574,18 +575,18 @@ class Move(Workflow, ModelSQL, ModelView):
 
     @classmethod
     def get_unit_price_company(cls, moves, name):
-        pool = Pool()
+        pool = tx.pool
         Currency = pool.get('currency.currency')
         Uom = pool.get('product.uom')
         Date = pool.get('ir.date')
         prices = {}
         for company, c_moves in groupby(moves, key=lambda m: m.company):
-            with Transaction().set_context(company=company.id):
+            with tx.transaction.set_context(company=company.id):
                 today = Date.today()
             for move in c_moves:
                 if move.unit_price is not None:
                     date = move.effective_date or move.planned_date or today
-                    with Transaction().set_context(date=date):
+                    with tx.transaction.set_context(date=date):
                         unit_price = Currency.compute(
                             move.currency, move.unit_price,
                             move.company.currency, round=False)
@@ -665,7 +666,7 @@ class Move(Workflow, ModelSQL, ModelView):
 
     @classmethod
     def get_shipment(cls):
-        IrModel = Pool().get('ir.model')
+        IrModel = tx.pool.get('ir.model')
         get_name = IrModel.get_name
         models = cls._get_shipment()
         return [(None, '')] + [(m, get_name(m)) for m in models]
@@ -677,7 +678,7 @@ class Move(Workflow, ModelSQL, ModelView):
 
     @classmethod
     def get_origin(cls):
-        IrModel = Pool().get('ir.model')
+        IrModel = tx.pool.get('ir.model')
         get_name = IrModel.get_name
         models = cls._get_origin()
         return [(None, '')] + [(m, get_name(m)) for m in models]
@@ -690,7 +691,7 @@ class Move(Workflow, ModelSQL, ModelView):
     @classmethod
     @without_check_access
     def check_period_closed(cls, moves):
-        Period = Pool().get('stock.period')
+        Period = tx.pool.get('stock.period')
         for company, moves in groupby(moves, lambda m: m.company):
             periods = Period.search([
                     ('state', '=', 'closed'),
@@ -711,7 +712,7 @@ class Move(Workflow, ModelSQL, ModelView):
         return self.shipment
 
     def get_rec_name(self, name):
-        pool = Pool()
+        pool = tx.pool
         Lang = pool.get('ir.lang')
         lang = Lang.get()
         name = (lang.format_number_symbol(
@@ -730,7 +731,7 @@ class Move(Workflow, ModelSQL, ModelView):
         Update the cost price on the given product.
         The direction must be "in" if incoming and "out" if outgoing.
         """
-        pool = Pool()
+        pool = tx.pool
         Uom = pool.get('product.uom')
 
         if direction == 'in':
@@ -755,7 +756,7 @@ class Move(Workflow, ModelSQL, ModelView):
         return round_price(new_cost_price)
 
     def set_effective_date(self):
-        pool = Pool()
+        pool = tx.pool
         Date = pool.get('ir.date')
         ShipmentInternal = pool.get('stock.shipment.internal')
 
@@ -766,7 +767,7 @@ class Move(Workflow, ModelSQL, ModelView):
         elif not self.effective_date and self.shipment:
             self.effective_date = self.shipment.effective_date
         if not self.effective_date:
-            with Transaction().set_context(company=self.company.id):
+            with tx.transaction.set_context(company=self.company.id):
                 self.effective_date = Date.today()
 
         moves = [m for m in self.outcome_moves if m.state == 'done']
@@ -797,7 +798,7 @@ class Move(Workflow, ModelSQL, ModelView):
 
     @property
     def from_warehouse(self):
-        pool = Pool()
+        pool = tx.pool
         ShipmentInternal = pool.get('stock.shipment.internal')
         warehouse = self.from_location.warehouse
         if (not warehouse
@@ -809,7 +810,7 @@ class Move(Workflow, ModelSQL, ModelView):
 
     @property
     def to_warehouse(self):
-        pool = Pool()
+        pool = tx.pool
         ShipmentInternal = pool.get('stock.shipment.internal')
         warehouse = self.to_location.warehouse
         if (not warehouse
@@ -840,7 +841,7 @@ class Move(Workflow, ModelSQL, ModelView):
     @ModelView.button
     @Workflow.transition('done')
     def do(cls, moves):
-        pool = Pool()
+        pool = tx.pool
         Product = pool.get('product.product')
         Date = pool.get('ir.date')
         Warning = pool.get('res.user.warning')
@@ -848,7 +849,7 @@ class Move(Workflow, ModelSQL, ModelView):
 
         def in_future(move):
             if move.company not in today_cache:
-                with Transaction().set_context(company=move.company.id):
+                with tx.transaction.set_context(company=move.company.id):
                     today_cache[move.company] = Date.today()
             today = today_cache[move.company]
             if move.effective_date and move.effective_date > today:
@@ -870,7 +871,7 @@ class Move(Workflow, ModelSQL, ModelView):
             grouped_moves = list(grouped_moves)
             context = dict(key)
             context.update(cls._cost_price_context(grouped_moves))
-            with Transaction().set_context(context):
+            with tx.transaction.set_context(context):
                 grouped_moves = cls.browse(grouped_moves)
                 for move in grouped_moves:
                     move.set_effective_date()
@@ -943,7 +944,7 @@ class Move(Workflow, ModelSQL, ModelView):
 
     def get_cost_price(self, product_cost_price=None):
         "Return the cost price of the move for computation"
-        with Transaction().set_context(date=self.effective_date):
+        with tx.transaction.set_context(date=self.effective_date):
             if (self.from_location.type in {'supplier', 'production'}
                     or self.to_location.type == 'supplier'):
                 return self.unit_price_company
@@ -957,7 +958,7 @@ class Move(Workflow, ModelSQL, ModelView):
 
     @classmethod
     def _cost_price_context(cls, moves):
-        pool = Pool()
+        pool = tx.pool
         Location = pool.get('stock.location')
         Date = pool.get('ir.date')
         context = {}
@@ -966,7 +967,7 @@ class Move(Workflow, ModelSQL, ModelView):
                 ])
         context['with_childs'] = False
         context['locations'] = [l.id for l in locations]
-        with Transaction().set_context(company=moves[0].company.id):
+        with tx.transaction.set_context(company=moves[0].company.id):
             context['stock_date_end'] = Date.today()
         context['company'] = moves[0].company.id
         return context
@@ -1009,9 +1010,9 @@ class Move(Workflow, ModelSQL, ModelView):
 
     @classmethod
     def preprocess_values(cls, mode, values):
-        pool = Pool()
+        pool = tx.pool
         Product = pool.get('product.product')
-        context = Transaction().context
+        context = tx.transaction.context
         values = super().preprocess_values(mode, values)
         if mode == 'create':
             assert values.get('state', cls.default_state()) in {
@@ -1062,7 +1063,7 @@ class Move(Workflow, ModelSQL, ModelView):
 
     @classmethod
     def check_origin(cls, moves, types=None):
-        pool = Pool()
+        pool = tx.pool
         Warning = pool.get('res.user.warning')
         if types is None:
             types = cls.check_origin_types()
@@ -1133,7 +1134,7 @@ class Move(Workflow, ModelSQL, ModelView):
         It will split the moves to assign as much possible.
         Return True if succeed or False if not.
         '''
-        pool = Pool()
+        pool = tx.pool
         Product = pool.get('product.product')
         Uom = pool.get('product.uom')
         Date = pool.get('ir.date')
@@ -1158,14 +1159,14 @@ class Move(Workflow, ModelSQL, ModelView):
             pblc = {}
             companies = {m.company for m in moves}
             for company in companies:
-                with Transaction().set_context(company=company.id):
+                with tx.transaction.set_context(company=company.id):
                     stock_date_end = Date.today()
 
                 cls._assign_try_lock(
                     product_ids, location_ids, [company.id],
                     stock_date_end, grouping)
 
-                with Transaction().set_context(
+                with tx.transaction.set_context(
                         stock_date_end=stock_date_end,
                         stock_assign=True,
                         company=company.id):
@@ -1284,7 +1285,7 @@ class Move(Workflow, ModelSQL, ModelView):
 
                 pbl[key] = pbl.get(key, 0.0) - qty_default_uom
 
-        with Transaction().set_context(_stock_move_split=True):
+        with tx.transaction.set_context(_stock_move_split=True):
             while to_copy:
                 moves_to_copy = []
                 values = {}
@@ -1307,9 +1308,9 @@ class Move(Workflow, ModelSQL, ModelView):
     def _assign_try_lock(
             cls, product_ids, location_ids, company_ids, date, grouping):
         """Lock the database to prevent concurrent assignation"""
-        pool = Pool()
+        pool = tx.pool
         Period = pool.get('stock.period')
-        transaction = Transaction()
+        transaction = tx.transaction
         database = transaction.database
         connection = transaction.connection
 
@@ -1375,7 +1376,7 @@ class Move(Workflow, ModelSQL, ModelView):
         The query return the location as first column, after the fields in
             grouping, and the last column is the quantity.
         """
-        pool = Pool()
+        pool = tx.pool
         User = pool.get('res.user')
         Location = pool.get('stock.location')
         Date = pool.get('ir.date')
@@ -1385,7 +1386,7 @@ class Move(Workflow, ModelSQL, ModelView):
 
         move = Move.__table__()
         today = Date.today()
-        transaction = Transaction()
+        transaction = tx.transaction
 
         if not location_ids:
             return None
@@ -1720,7 +1721,7 @@ class Move(Workflow, ModelSQL, ModelView):
         Return a dictionary with location id and grouping as key
             and quantity as value.
         """
-        pool = Pool()
+        pool = tx.pool
         Product = pool.get('product.product')
         Template = pool.get('product.template')
 
@@ -1728,7 +1729,7 @@ class Move(Workflow, ModelSQL, ModelView):
             "Query in Move.compute_quantities() can't be None")
         assert 'product' in grouping or 'product.template' in grouping
 
-        cursor = Transaction().connection.cursor()
+        cursor = tx.transaction.connection.cursor()
         cursor.execute(*query)
 
         if 'product' in grouping:
@@ -1818,7 +1819,7 @@ class Move(Workflow, ModelSQL, ModelView):
 
 def _location_children(location_ids, query=False):
     "Return children location without including flat children"
-    pool = Pool()
+    pool = tx.pool
     Location = pool.get('stock.location')
     nested_location_ids = []
     flat_location_ids = []

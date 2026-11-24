@@ -3,9 +3,9 @@
 
 from collections import defaultdict
 
+from trytond import tx
 from trytond.model import fields
-from trytond.pool import Pool, PoolMeta
-from trytond.transaction import Transaction
+from trytond.pool import PoolMeta
 
 
 class Lot(metaclass=PoolMeta):
@@ -22,12 +22,12 @@ class Lot(metaclass=PoolMeta):
 
     @classmethod
     def get_subscribed(cls, lots, name):
-        pool = Pool()
+        pool = tx.pool
         Date = pool.get('ir.date')
         SubscriptionLine = pool.get('sale.subscription.line')
 
         subscribed_lines = defaultdict(lambda: None)
-        date = Transaction().context.get('date', Date.today())
+        date = tx.transaction.context.get('date', Date.today())
         lines = SubscriptionLine.search([
                 ('asset_lot', 'in', lots),
                 [
@@ -43,11 +43,11 @@ class Lot(metaclass=PoolMeta):
 
     @classmethod
     def search_subscribed(cls, name, clause):
-        pool = Pool()
+        pool = tx.pool
         Date = pool.get('ir.date')
 
         name, operator, value = clause[:3]
-        date = Transaction().context.get('date', Date.today())
+        date = tx.transaction.context.get('date', Date.today())
         domain = [
             ('asset_lot', '!=', None),
             ('start_date', '<=', date),

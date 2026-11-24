@@ -10,7 +10,7 @@ from sql.conditionals import Coalesce
 from sql.functions import CharLength
 from sql.operators import Equal
 
-from trytond import backend
+from trytond import backend, tx
 from trytond.i18n import gettext
 from trytond.model import (
     ChatMixin, DeactivableMixin, Exclude, Index, ModelSQL, ModelView, Workflow,
@@ -19,10 +19,8 @@ from trytond.model.exceptions import AccessError
 from trytond.modules.account.tax import TaxableMixin
 from trytond.modules.currency.fields import Monetary
 from trytond.modules.product import price_digits, round_price
-from trytond.pool import Pool
 from trytond.pyson import Bool, Eval, Id, If
 from trytond.tools import sqlite_apply_types
-from trytond.transaction import Transaction
 from trytond.wizard import Button, StateTransition, StateView, Wizard
 
 from .exceptions import SaleValidationError, SessionValidationError
@@ -66,7 +64,7 @@ class POS(ModelSQL, ModelView):
 
     @classmethod
     def default_company(cls):
-        return Transaction().context.get('company')
+        return tx.transaction.context.get('company')
 
     @classmethod
     def default_tax_included(cls):
@@ -74,7 +72,7 @@ class POS(ModelSQL, ModelView):
 
     @classmethod
     def check_modification(cls, mode, points, values=None, external=False):
-        pool = Pool()
+        pool = tx.pool
         Sale = pool.get('sale.point.sale')
 
         super().check_modification(
@@ -218,22 +216,22 @@ class POSSale(Workflow, ModelSQL, ModelView, TaxableMixin, ChatMixin):
 
     @classmethod
     def default_company(cls):
-        return Transaction().context.get('company')
+        return tx.transaction.context.get('company')
 
     @classmethod
     def default_employee(cls):
-        User = Pool().get('res.user')
+        User = tx.pool.get('res.user')
 
-        if Transaction().context.get('employee'):
-            return Transaction().context['employee']
+        if tx.transaction.context.get('employee'):
+            return tx.transaction.context['employee']
         else:
-            user = User(Transaction().user)
+            user = User(tx.transaction.user)
             if user.employee:
                 return user.employee.id
 
     @classmethod
     def default_date(cls):
-        return Pool().get('ir.date').today()
+        return tx.pool.get('ir.date').today()
 
     @classmethod
     def default_state(cls):
@@ -329,7 +327,7 @@ class POSSale(Workflow, ModelSQL, ModelView, TaxableMixin, ChatMixin):
                 sales_without_number,
                 key=lambda s: (s.company, s.point.sequence)):
             c_sales = list(c_sales)
-            with Transaction().set_context(company=company.id):
+            with tx.transaction.set_context(company=company.id):
                 for sale, number in zip(
                         c_sales, sequence.get_many(len(c_sales))):
                     sale.number = number
@@ -339,7 +337,7 @@ class POSSale(Workflow, ModelSQL, ModelView, TaxableMixin, ChatMixin):
     @ModelView.button
     @Workflow.transition('posted')
     def post(cls, sales):
-        pool = Pool()
+        pool = tx.pool
         StockMove = pool.get('stock.move')
         AccountMove = pool.get('account.move')
 
@@ -364,7 +362,7 @@ class POSSale(Workflow, ModelSQL, ModelView, TaxableMixin, ChatMixin):
 
     def get_account_move(self):
         'Return account move'
-        pool = Pool()
+        pool = tx.pool
         Move = pool.get('account.move')
         Period = pool.get('account.period')
 
@@ -395,7 +393,7 @@ class POSSale(Workflow, ModelSQL, ModelView, TaxableMixin, ChatMixin):
 
     def get_tax_move_lines(self):
         "Return account move lines for taxes"
-        pool = Pool()
+        pool = tx.pool
         Line = pool.get('account.move.line')
         TaxLine = pool.get('account.tax.line')
 
@@ -526,7 +524,7 @@ class POSSaleLine(ModelSQL, ModelView, TaxableMixin):
 
     @classmethod
     def get_sale_states(cls):
-        pool = Pool()
+        pool = tx.pool
         Sale = pool.get('sale.point.sale')
         return Sale.fields_get(['state'])['state']['selection']
 
@@ -539,7 +537,7 @@ class POSSaleLine(ModelSQL, ModelView, TaxableMixin):
         'product', 'sale', '_parent_sale.point', '_parent_sale.date',
         methods=['on_change_with_unit_price', 'on_change_with_amount'])
     def on_change_product(self):
-        pool = Pool()
+        pool = tx.pool
         Tax = pool.get('account.tax')
 
         self.unit_gross_price = None
@@ -644,7 +642,7 @@ class POSSaleLine(ModelSQL, ModelView, TaxableMixin):
 
     def get_stock_move(self):
         'Return stock move'
-        pool = Pool()
+        pool = tx.pool
         Move = pool.get('stock.move')
 
         if self.product.type == 'service':
@@ -679,7 +677,7 @@ class POSSaleLine(ModelSQL, ModelView, TaxableMixin):
 
     def get_account_move_lines(self):
         "Return account move lines"
-        pool = Pool()
+        pool = tx.pool
         Line = pool.get('account.move.line')
         TaxLine = pool.get('account.tax.line')
 
@@ -688,7 +686,7 @@ class POSSaleLine(ModelSQL, ModelView, TaxableMixin):
             line.debit, line.credit = Decimal(0), self.untax_amount
         else:
             line.debit, line.credit = -self.untax_amount, Decimal(0)
-        with Transaction().set_context(company=self.company.id):
+        with tx.transaction.set_context(company=self.company.id):
             line.account = self.product.account_revenue_used
         line.origin = self
 
@@ -704,9 +702,9 @@ class POSSaleLine(ModelSQL, ModelView, TaxableMixin):
 
     @property
     def taxes(self):
-        pool = Pool()
+        pool = tx.pool
         Product = pool.get('product.product')
-        with Transaction().set_context(company=self.company.id):
+        with tx.transaction.set_context(company=self.company.id):
             return Product(self.product).customer_taxes_used
 
     @property
@@ -851,12 +849,12 @@ class POSCashSession(Workflow, ModelSQL, ModelView):
 
     @classmethod
     def get_balance(cls, sessions, name):
-        pool = Pool()
+        pool = tx.pool
         Payment = pool.get('sale.point.payment')
         Transfer = pool.get('sale.point.cash.transfer')
         payment = Payment.__table__()
         transfer = Transfer.__table__()
-        cursor = Transaction().connection.cursor()
+        cursor = tx.transaction.connection.cursor()
         balances = defaultdict(Decimal)
         session_ids = [s.id for s in sessions]
         query = Union(
@@ -902,7 +900,7 @@ class POSCashSession(Workflow, ModelSQL, ModelView):
     @ModelView.button
     @Workflow.transition('closed')
     def close(cls, sessions):
-        pool = Pool()
+        pool = tx.pool
         Lang = pool.get('ir.lang')
         for session in sessions:
             if session.end_amount - session.start_amount != session.balance:
@@ -937,7 +935,7 @@ class POSCashSession(Workflow, ModelSQL, ModelView):
     @ModelView.button
     @Workflow.transition('posted')
     def post(cls, sessions):
-        pool = Pool()
+        pool = tx.pool
         Transfer = pool.get('sale.point.cash.transfer')
         Transfer.post(sum((s.transfers for s in sessions), ()))
 
@@ -972,7 +970,7 @@ class POSCashSessionRelation(ModelSQL):
 
     @classmethod
     def table_query(cls):
-        pool = Pool()
+        pool = tx.pool
         Session = pool.get('sale.point.cash.session')
         session = Session.__table__()
         return session.select(
@@ -1050,7 +1048,7 @@ class POSPayment(ModelSQL, ModelView):
 
     @classmethod
     def get_sale_states(cls):
-        pool = Pool()
+        pool = tx.pool
         Sale = pool.get('sale.point.sale')
         return Sale.fields_get(['state'])['state']['selection']
 
@@ -1070,7 +1068,7 @@ class POSPayment(ModelSQL, ModelView):
 
     @classmethod
     def preprocess_values(cls, mode, values):
-        pool = Pool()
+        pool = tx.pool
         Method = pool.get('sale.point.payment.method')
         Sale = pool.get('sale.point.sale')
         Session = pool.get('sale.point.cash.session')
@@ -1102,7 +1100,7 @@ class POSPayment(ModelSQL, ModelView):
 
     def get_account_move_lines(self):
         "Return account move lines"
-        pool = Pool()
+        pool = tx.pool
         Line = pool.get('account.move.line')
 
         line = Line()
@@ -1143,7 +1141,7 @@ class POSPaymentMethod(DeactivableMixin, ModelSQL, ModelView):
 
     @classmethod
     def default_company(cls):
-        return Transaction().context.get('company')
+        return tx.transaction.context.get('company')
 
 
 class POSPay(Wizard):
@@ -1163,7 +1161,7 @@ class POSPay(Wizard):
         cls.__rpc__['create'].fresh_session = True
 
     def default_payment(self, fields):
-        pool = Pool()
+        pool = tx.pool
         PaymentMethod = pool.get('sale.point.payment.method')
         default = {
             'sale': self.record.id,
@@ -1264,7 +1262,7 @@ class POSCashTransfer(Workflow, ModelSQL, ModelView):
 
     @classmethod
     def default_date(cls):
-        return Pool().get('ir.date').today()
+        return tx.pool.get('ir.date').today()
 
     @fields.depends('point')
     def on_change_with_company(self, name=None):
@@ -1294,7 +1292,7 @@ class POSCashTransfer(Workflow, ModelSQL, ModelView):
     @ModelView.button
     @Workflow.transition('posted')
     def post(cls, transfers):
-        pool = Pool()
+        pool = tx.pool
         Move = pool.get('account.move')
         PaymentMethod = pool.get('sale.point.payment.method')
 
@@ -1313,7 +1311,7 @@ class POSCashTransfer(Workflow, ModelSQL, ModelView):
         cls.save(transfers)
 
     def get_move(self, account):
-        pool = Pool()
+        pool = tx.pool
         Line = pool.get('account.move.line')
         Move = pool.get('account.move')
         Period = pool.get('account.period')
@@ -1340,7 +1338,7 @@ class POSCashTransfer(Workflow, ModelSQL, ModelView):
 
     @classmethod
     def preprocess_values(cls, mode, values):
-        pool = Pool()
+        pool = tx.pool
         Point = pool.get('sale.point')
         Session = pool.get('sale.point.cash.session')
         values = super().preprocess_values(mode, values)
@@ -1372,6 +1370,6 @@ class POSCashTransferType(ModelSQL, ModelView):
 
     @classmethod
     def default_company(cls):
-        return Transaction().context.get('company')
+        return tx.transaction.context.get('company')
 
 # TODO: wizard to create an invoice from sale

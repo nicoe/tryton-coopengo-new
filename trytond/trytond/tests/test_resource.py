@@ -3,11 +3,10 @@
 
 import json
 
+from trytond import tx
 from trytond.model.exceptions import AccessError
-from trytond.pool import Pool
 from trytond.tests.test_tryton import (
     TestCase, activate_module, with_transaction)
-from trytond.transaction import Transaction
 
 
 class ResourceTestCase(TestCase):
@@ -21,7 +20,7 @@ class ResourceTestCase(TestCase):
     @with_transaction()
     def test_resources_copied(self):
         "Test resources are copied"
-        pool = Pool()
+        pool = tx.pool
         Resource = pool.get('test.resource')
         Other = pool.get('test.resource.other')
         Note = pool.get('ir.note')
@@ -42,7 +41,7 @@ class ResourceTestCase(TestCase):
     @with_transaction()
     def test_resources_not_copied(self):
         "Test resources are not copied"
-        pool = Pool()
+        pool = tx.pool
         Resource = pool.get('test.resource')
         Other = pool.get('test.resource.other')
         Note = pool.get('ir.note')
@@ -62,7 +61,7 @@ class ResourceTestCase(TestCase):
     @with_transaction()
     def test_note_write(self):
         "Test note write behaviour"
-        pool = Pool()
+        pool = tx.pool
         Note = pool.get('ir.note')
         Resource = pool.get('test.resource')
         User = pool.get('res.user')
@@ -75,7 +74,7 @@ class ResourceTestCase(TestCase):
         note.save()
         write_date = note.write_date
 
-        with Transaction().set_user(user.id):
+        with tx.transaction.set_user(user.id):
             user_note = Note(note.id)
             user_note.unread = False
             user_note.save()
@@ -86,7 +85,7 @@ class ResourceTestCase(TestCase):
     @with_transaction()
     def test_resource_with_access(self):
         "Test create/write/read/delete on resource with access"
-        pool = Pool()
+        pool = tx.pool
         Note = pool.get('ir.note')
         Resource = pool.get('test.resource')
         ModelAccess = pool.get('ir.model.access')
@@ -99,7 +98,7 @@ class ResourceTestCase(TestCase):
                     }])
         record, = Resource.create([{}])
 
-        with Transaction().set_context(_check_access=True):
+        with tx.transaction.set_context(_check_access=True):
             note, = Note.create([{
                         'resource': record,
                         'message': "Foo",
@@ -111,7 +110,7 @@ class ResourceTestCase(TestCase):
     @with_transaction()
     def test_resource_without_access(self):
         "Test create/write/read/delete on resource without access"
-        pool = Pool()
+        pool = tx.pool
         Note = pool.get('ir.note')
         Resource = pool.get('test.resource')
         ModelAccess = pool.get('ir.model.access')
@@ -129,7 +128,7 @@ class ResourceTestCase(TestCase):
                     'message': "Message",
                     }])
 
-        with Transaction().set_context(_check_access=True):
+        with tx.transaction.set_context(_check_access=True):
             with self.assertRaises(AccessError):
                 Note.create([{
                             'resource': record,
@@ -146,7 +145,7 @@ class ResourceTestCase(TestCase):
     @with_transaction()
     def test_resource_with_rule(self):
         "Test create/write/read/delete on resource with rule"
-        pool = Pool()
+        pool = tx.pool
         Note = pool.get('ir.note')
         Resource = pool.get('test.resource')
         RuleGroup = pool.get('ir.rule.group')
@@ -163,7 +162,7 @@ class ResourceTestCase(TestCase):
                     }])
         record, = Resource.create([{}])
 
-        with Transaction().set_context(_check_access=True):
+        with tx.transaction.set_context(_check_access=True):
             note, = Note.create([{
                         'resource': record,
                         'message': "Foo",
@@ -175,7 +174,7 @@ class ResourceTestCase(TestCase):
     @with_transaction()
     def test_resource_without_rule(self):
         "Test create/write/read/delete on resource without rule"
-        pool = Pool()
+        pool = tx.pool
         Note = pool.get('ir.note')
         Resource = pool.get('test.resource')
         RuleGroup = pool.get('ir.rule.group')
@@ -197,7 +196,7 @@ class ResourceTestCase(TestCase):
                     'message': "Message",
                     }])
 
-        with Transaction().set_context(_check_access=True):
+        with tx.transaction.set_context(_check_access=True):
             with self.assertRaises(AccessError):
                 Note.create([{
                             'resource': record,
@@ -214,7 +213,7 @@ class ResourceTestCase(TestCase):
     @with_transaction(context={'_check_access': True})
     def test_resource_search_with_access(self):
         "Test searching on the resource when the user has access"
-        pool = Pool()
+        pool = tx.pool
         Note = pool.get('ir.note')
         Resource = pool.get('test.resource')
         ModelAccess = pool.get('ir.model.access')
@@ -236,7 +235,7 @@ class ResourceTestCase(TestCase):
                     'perm_read': True,
                     }])
 
-        with Transaction().set_user(user.id):
+        with tx.transaction.set_user(user.id):
             notes = Note.search([
                     ('message', '=', 'Foo'),
                     ('resource', '=', str(record1)),
@@ -261,7 +260,7 @@ class ResourceTestCase(TestCase):
     @with_transaction(context={'_check_access': True})
     def test_resource_search_without_access(self):
         "Test searching on the resource when the user doesn't have access"
-        pool = Pool()
+        pool = tx.pool
         Note = pool.get('ir.note')
         Resource = pool.get('test.resource')
         ModelAccess = pool.get('ir.model.access')
@@ -283,7 +282,7 @@ class ResourceTestCase(TestCase):
                     'perm_read': False,
                     }])
 
-        with Transaction().set_user(user.id):
+        with tx.transaction.set_user(user.id):
             with self.assertRaises(AccessError):
                 Note.search([
                         ('message', '=', 'Foo'),

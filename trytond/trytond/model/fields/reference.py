@@ -5,12 +5,11 @@ import warnings
 from sql import Cast, Expression, Literal, Null, Query
 from sql.functions import Position, Substring
 
-from trytond.pool import Pool
+from trytond import tx
 from trytond.pyson import PYSONEncoder
 from trytond.rpc import RPC
 from trytond.tools import cached_property
-from trytond.transaction import (
-    Transaction, inactive_records, without_check_access)
+from trytond.transaction import inactive_records, without_check_access
 
 from .field import (
     Field, context_validate, domain_method, domain_validate,
@@ -120,7 +119,7 @@ class Reference(SelectionMixin, Field):
         '''
         Replace removed reference id by None.
         '''
-        pool = Pool()
+        pool = tx.pool
         if values is None:
             values = {}
         res = {}
@@ -173,9 +172,9 @@ class Reference(SelectionMixin, Field):
                 value = int(value)
             else:
                 target, value = value
-            Target = Pool().get(target)
+            Target = tx.pool.get(target)
             ctx = instantiate_context(self, inst)
-            with Transaction().set_context(ctx):
+            with tx.transaction.set_context(ctx):
                 if isinstance(value, dict):
                     value = Target(**value)
                 else:
@@ -200,7 +199,7 @@ class Reference(SelectionMixin, Field):
     def _convert_domain(self, domain, tables, Model):
         if '.' not in domain[0]:
             return super()._convert_domain(domain, tables, Model)
-        pool = Pool()
+        pool = tx.pool
         name, operator, value, target = domain[:4]
         Target = pool.get(target)
         name, target_name = name.split('.', 1)

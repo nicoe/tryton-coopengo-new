@@ -3,8 +3,8 @@
 import logging
 
 import trytond.config as config
+from trytond import tx
 from trytond.backend.postgresql.table import TableHandler as PGTableHandler
-from trytond.transaction import Transaction
 from trytond_gis.const import GIS_SQL_TYPE_RE, WGS_84
 
 logger = logging.getLogger(__name__)
@@ -22,7 +22,7 @@ class TableHandler(PGTableHandler):
     def add_geometry_column(
             self, column_name, abstract_type, default_fun=None,
             fill_default=True):
-        cursor = Transaction().connection.cursor()
+        cursor = tx.transaction.connection.cursor()
 
         match = GIS_SQL_TYPE_RE.match(abstract_type)
         assert match is not None, \

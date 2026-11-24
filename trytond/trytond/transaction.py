@@ -56,6 +56,8 @@ def record_cache_size(transaction):
 
 
 def check_access(func=None, *, _access=True):
+    from trytond import tx
+
     if func:
         @wraps(func)
         def wrapper(*args, **kwargs):
@@ -63,7 +65,7 @@ def check_access(func=None, *, _access=True):
                 return func(*args, **kwargs)
         return wrapper
     else:
-        return Transaction().set_context(_check_access=_access)
+        return tx.transaction.set_context(_check_access=_access)
 
 
 def without_check_access(func=None):
@@ -71,6 +73,8 @@ def without_check_access(func=None):
 
 
 def active_records(func=None, *, _test=True):
+    from trytond import tx
+
     if func:
         @wraps(func)
         def wrapper(*args, **kwargs):
@@ -78,7 +82,7 @@ def active_records(func=None, *, _test=True):
                 return func(*args, **kwargs)
         return wrapper
     else:
-        return Transaction().set_context(active_test=_test)
+        return tx.transaction.set_context(active_test=_test)
 
 
 def inactive_records(func=None):
@@ -97,7 +101,8 @@ class _AttributeManager(object):
         return Transaction()
 
     def __exit__(self, type, value, traceback):
-        t = Transaction()
+        from trytond import tx
+        t = tx.transaction
         for name, value in self.kwargs.items():
             setattr(t, name, value)
 
@@ -309,8 +314,8 @@ class Transaction(object):
         return (self.current_savepoint, self.user, keys)
 
     def get_cache(self):
+        from trytond import tx
         from trytond.cache import LRUDict
-        from trytond.pool import Pool
         cache_model = config.getint('cache', 'model')
         cache = self.cache.setdefault(
             self._cache_key(),
@@ -318,7 +323,7 @@ class Transaction(object):
                 cache_model,
                 lambda name: LRUDict(
                     record_cache_size(self),
-                    Pool().get(name)._record),
+                    tx.pool.get(name)._record),
                 default_factory_with_key=True))
         # Keep last used cache references to allow to pre-fill them
         self._cache_deque.append(cache)
@@ -492,9 +497,9 @@ class Transaction(object):
             autocommit=autocommit, **extras)
 
     def _store_log_records(self):
-        from trytond.pool import Pool
+        from trytond import tx
         if self.log_records:
-            pool = Pool()
+            pool = tx.pool
             Log = pool.get('ir.model.log')
             with without_check_access():
                 Log.save(self.log_records)
@@ -505,9 +510,9 @@ class Transaction(object):
             self.log_records.clear()
 
     def _store_user_notifications(self):
-        from trytond.pool import Pool
+        from trytond import tx
         if self.user_notifications:
-            pool = Pool()
+            pool = tx.pool
             Notification = pool.get('res.notification')
             with without_check_access():
                 Notification.save(self.user_notifications)
@@ -518,9 +523,9 @@ class Transaction(object):
             self.user_notifications.clear()
 
     def _remove_warnings(self):
-        from trytond.pool import Pool
+        from trytond import tx
         if self.check_warnings:
-            pool = Pool()
+            pool = tx.pool
             Warning_ = pool.get('res.user.warning')
             with without_check_access():
                 warnings = Warning_.browse(
@@ -624,8 +629,8 @@ class Transaction(object):
     @property
     def language(self):
         def get_language():
-            from trytond.pool import Pool
-            Config = Pool().get('ir.configuration')
+            from trytond import tx
+            Config = tx.pool.get('ir.configuration')
             return Config.get_language()
         if self.context:
             return self.context.get('language') or get_language()

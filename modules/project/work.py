@@ -7,16 +7,15 @@ from collections import defaultdict
 from sql import Null
 from sql.functions import CharLength
 
+from trytond import tx
 from trytond.cache import Cache
 from trytond.i18n import gettext
 from trytond.model import (
     ChatMixin, DeactivableMixin, Index, ModelSingleton, ModelSQL, ModelView,
     Unique, ValueMixin, fields, sequence_ordered, sum_tree, tree)
 from trytond.modules.company.model import CompanyMultiValueMixin
-from trytond.pool import Pool
 from trytond.pyson import Bool, Eval, Id, If, PYSONEncoder, TimeDelta
 from trytond.tools import is_full_text, lstrip_wildcard
-from trytond.transaction import Transaction
 
 from .exceptions import WorkProgressValidationError
 
@@ -36,14 +35,14 @@ class Configuration(
 
     @classmethod
     def multivalue_model(cls, field):
-        pool = Pool()
+        pool = tx.pool
         if field == 'work_sequence':
             return pool.get('project.configuration.sequence')
         return super().multivalue_model(field)
 
     @classmethod
     def default_work_sequence(cls, **pattern):
-        pool = Pool()
+        pool = tx.pool
         ModelData = pool.get('ir.model.data')
         try:
             return ModelData.get_id('project', 'sequence_work')
@@ -86,7 +85,7 @@ class WorkStatus(DeactivableMixin, sequence_ordered(), ModelSQL, ModelView):
 
     @classmethod
     def get_types(cls):
-        pool = Pool()
+        pool = tx.pool
         Work = pool.get('project.work')
         return Work.fields_get(['type'])['type']['selection']
 
@@ -115,7 +114,7 @@ class WorkStatus(DeactivableMixin, sequence_ordered(), ModelSQL, ModelView):
 
     @classmethod
     def get_window_domains(cls, action):
-        pool = Pool()
+        pool = tx.pool
         Data = pool.get('ir.model.data')
         if action.id == Data.get_id('project', 'act_project_tree'):
             return cls._get_window_domains([x[0] for x in cls.get_types()])
@@ -274,7 +273,7 @@ class Work(
 
     @classmethod
     def default_company(cls):
-        return Transaction().context.get('company')
+        return tx.transaction.context.get('company')
 
     @classmethod
     def _get_origins(cls):
@@ -282,14 +281,14 @@ class Work(
 
     @classmethod
     def get_origins(cls):
-        IrModel = Pool().get('ir.model')
+        IrModel = tx.pool.get('ir.model')
         get_name = IrModel.get_name
         models = cls._get_origins()
         return [(None, '')] + [(m, get_name(m)) for m in models]
 
     @classmethod
     def default_status(cls):
-        pool = Pool()
+        pool = tx.pool
         WorkStatus = pool.get('project.work.status')
         return WorkStatus.get_default_status(cls.default_type())
 
@@ -305,7 +304,7 @@ class Work(
 
     @fields.depends('type', 'status')
     def on_change_type(self):
-        pool = Pool()
+        pool = tx.pool
         WorkState = pool.get('project.work.status')
         if (self.type
                 and (not self.status
@@ -333,7 +332,7 @@ class Work(
             work.check_work_progress()
 
     def check_work_progress(self):
-        pool = Pool()
+        pool = tx.pool
         progress = -1 if self.progress is None else self.progress
         if (self.status.progress is not None
                 and progress < self.status.progress):
@@ -385,7 +384,7 @@ class Work(
 
     @classmethod
     def set_timesheet_available(cls, projects, name, value):
-        pool = Pool()
+        pool = tx.pool
         Timesheet = pool.get('timesheet.work')
 
         to_create = []
@@ -414,7 +413,7 @@ class Work(
 
     @classmethod
     def set_timesheet_date(cls, projects, name, value):
-        pool = Pool()
+        pool = tx.pool
         Timesheet = pool.get('timesheet.work')
         timesheets = [w for p in projects for w in p.timesheet_works]
         if timesheets:
@@ -502,7 +501,7 @@ class Work(
 
     @classmethod
     def _number_sequence(cls, **pattern):
-        pool = Pool()
+        pool = tx.pool
         Configuration = pool.get('project.configuration')
         config = Configuration(1)
         return config.get_multivalue('work_sequence', **pattern)
@@ -518,7 +517,7 @@ class Work(
 
     @classmethod
     def copy(cls, project_works, default=None):
-        pool = Pool()
+        pool = tx.pool
         WorkStatus = pool.get('project.work.status')
         if default is None:
             default = {}
@@ -542,7 +541,7 @@ class Work(
 
     @classmethod
     def on_delete(cls, project_works):
-        pool = Pool()
+        pool = tx.pool
         TimesheetWork = pool.get('timesheet.work')
         callback = super().on_delete(project_works)
         timesheet_works = {

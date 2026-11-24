@@ -3,9 +3,9 @@
 import operator
 from decimal import Decimal
 
+from trytond import tx
 from trytond.i18n import gettext
-from trytond.pool import Pool, PoolMeta
-from trytond.transaction import Transaction
+from trytond.pool import PoolMeta
 
 from .exceptions import COGSWarning
 
@@ -17,7 +17,7 @@ class InvoiceLine(metaclass=PoolMeta):
         '''
         Return account move for anglo-saxon stock accounting
         '''
-        pool = Pool()
+        pool = tx.pool
         MoveLine = pool.get('account.move.line')
 
         assert type_.startswith('in_') or type_.startswith('out_'), \
@@ -54,7 +54,7 @@ class InvoiceLine(metaclass=PoolMeta):
         return result
 
     def get_move_lines(self):
-        pool = Pool()
+        pool = tx.pool
         Move = pool.get('stock.move')
         Period = pool.get('account.period')
         Warning = pool.get('res.user.warning')
@@ -108,7 +108,7 @@ class InvoiceLine(metaclass=PoolMeta):
             self.product, moves, abs(self.quantity), self.unit, type_)
         cost = self.invoice.company.currency.round(cost)
 
-        with Transaction().set_context(
+        with tx.transaction.set_context(
                 company=self.invoice.company.id, date=accounting_date):
             anglo_saxon_move_lines = self._get_anglo_saxon_move_lines(
                 cost, type_)

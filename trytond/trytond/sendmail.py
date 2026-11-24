@@ -9,6 +9,7 @@ from email.utils import formatdate, make_msgid
 from urllib.parse import parse_qs, unquote_plus
 
 import trytond.config as config
+from trytond import tx
 from trytond.transaction import Transaction
 from trytond.url import host
 from trytond.model.exceptions import ValidationError
@@ -34,7 +35,7 @@ def send_message_transactional(
     if not msg['Message-ID']:
         msg['Message-ID'] = make_msgid(domain=host())
     if transaction is None:
-        transaction = Transaction()
+        transaction = tx.transaction
     assert isinstance(transaction, Transaction), transaction
     if datamanager is None:
         datamanager = SMTPDataManager(strict=strict)

@@ -1,9 +1,9 @@
 # This file is part of Tryton.  The COPYRIGHT file at the top level of
 # this repository contains the full copyright notices and license terms.
 
+from trytond import tx
 from trytond.model.exceptions import (
     RequiredValidationError, SelectionValidationError)
-from trytond.pool import Pool
 from trytond.tests.test_tryton import (
     TestCase, activate_module, with_transaction)
 
@@ -18,11 +18,11 @@ class FieldMultiSelectionTestCase(TestCase):
 
     @property
     def Selection(self):
-        return Pool().get('test.multi_selection')
+        return tx.pool.get('test.multi_selection')
 
     @property
     def SelectionRequired(self):
-        return Pool().get('test.multi_selection_required')
+        return tx.pool.get('test.multi_selection_required')
 
     @with_transaction()
     def test_create(self):
@@ -359,8 +359,8 @@ class FieldMultiSelectionTextTestCase(FieldMultiSelectionTestCase):
 
     @property
     def Selection(self):
-        return Pool().get('test.multi_selection_text')
+        return tx.pool.get('test.multi_selection_text')
 
     @property
     def SelectionRequired(self):
-        return Pool().get('test.multi_selection_required_text')
+        return tx.pool.get('test.multi_selection_required_text')

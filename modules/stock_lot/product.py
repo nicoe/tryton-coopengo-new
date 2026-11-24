@@ -1,8 +1,9 @@
 # This file is part of Tryton.  The COPYRIGHT file at the top level of
 # this repository contains the full copyright notices and license terms.
 
+from trytond import tx
 from trytond.model import ModelSQL, ValueMixin, fields
-from trytond.pool import Pool, PoolMeta
+from trytond.pool import PoolMeta
 from trytond.pyson import Eval, Id
 
 
@@ -57,7 +58,7 @@ class Template(metaclass=PoolMeta):
 
     @classmethod
     def default_lot_sequence(cls, **pattern):
-        pool = Pool()
+        pool = tx.pool
         Configuration = pool.get('product.configuration')
         sequence = Configuration(1).get_multivalue(
             'default_lot_sequence', **pattern)
@@ -72,7 +73,7 @@ class Product(metaclass=PoolMeta):
         return any(l.type in (self.lot_required or []) for l in [from_, to])
 
     def create_lot(self):
-        pool = Pool()
+        pool = tx.pool
         Lot = pool.get('stock.lot')
         if self.lot_sequence:
             lot = Lot(product=self)

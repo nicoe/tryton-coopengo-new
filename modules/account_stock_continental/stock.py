@@ -2,10 +2,10 @@
 # this repository contains the full copyright notices and license terms.
 from decimal import Decimal
 
+from trytond import tx
 from trytond.model import ModelView, Workflow, fields
 from trytond.modules.account.exceptions import PeriodNotFoundError
-from trytond.pool import Pool, PoolMeta
-from trytond.transaction import Transaction
+from trytond.pool import PoolMeta
 
 
 class Move(metaclass=PoolMeta):
@@ -18,7 +18,7 @@ class Move(metaclass=PoolMeta):
         '''
         Return move lines for stock move
         '''
-        pool = Pool()
+        pool = tx.pool
         Uom = pool.get('product.uom')
         AccountMoveLine = pool.get('account.move.line')
         assert type_.startswith('in_') or type_.startswith('out_'), \
@@ -54,7 +54,7 @@ class Move(metaclass=PoolMeta):
         '''
         Return counterpart move line value for stock move
         '''
-        pool = Pool()
+        pool = tx.pool
         AccountMoveLine = pool.get('account.move.line')
         move_line = AccountMoveLine(
             account=self.product.account_stock_used,
@@ -99,7 +99,7 @@ class Move(metaclass=PoolMeta):
         '''
         Return account move for stock move
         '''
-        pool = Pool()
+        pool = tx.pool
         AccountMove = pool.get('account.move')
         Date = pool.get('ir.date')
         Period = pool.get('account.period')
@@ -108,7 +108,7 @@ class Move(metaclass=PoolMeta):
         if self.product.type != 'goods':
             return
 
-        with Transaction().set_context(company=self.company.id):
+        with tx.transaction.set_context(company=self.company.id):
             today = Date.today()
         for date in [self.effective_date, today]:
             try:
@@ -129,7 +129,7 @@ class Move(metaclass=PoolMeta):
         type_ = self._get_account_stock_move_type()
         if not type_:
             return
-        with Transaction().set_context(
+        with tx.transaction.set_context(
                 company=self.company.id, date=date):
             if type_ == 'supplier_customer':
                 account_move_lines = self._get_account_stock_move_lines(
@@ -169,7 +169,7 @@ class Move(metaclass=PoolMeta):
     @ModelView.button
     @Workflow.transition('done')
     def do(cls, moves):
-        pool = Pool()
+        pool = tx.pool
         AccountMove = pool.get('account.move')
         super().do(moves)
         account_moves = []
@@ -184,7 +184,7 @@ class Move(metaclass=PoolMeta):
     @ModelView.button
     @Workflow.transition('cancelled')
     def cancel(cls, moves):
-        pool = Pool()
+        pool = tx.pool
         AccountMove = pool.get('account.move')
         super().cancel(moves)
 

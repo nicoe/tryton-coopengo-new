@@ -1,9 +1,9 @@
 # This file is part of Tryton.  The COPYRIGHT file at the top level of
 # this repository contains the full copyright notices and license terms.
 
+from trytond import tx
 from trytond.model import fields
-from trytond.pool import Pool, PoolMeta
-from trytond.transaction import Transaction
+from trytond.pool import PoolMeta
 
 
 class TaxTemplate(metaclass=PoolMeta):
@@ -45,7 +45,7 @@ class InvoiceLine(metaclass=PoolMeta):
             invoice_type = (
                 self.invoice.type if self.invoice else self.invoice_type)
             if invoice_type == 'in':
-                with Transaction().set_context(
+                with tx.transaction.set_context(
                         _non_deductible=True, _deductible_rate=1):
                     tax_amount = sum(
                         t.amount for t in self._get_taxes().values())
@@ -55,7 +55,7 @@ class InvoiceLine(metaclass=PoolMeta):
     @property
     @fields.depends('invoice', '_parent_invoice.type', 'invoice_type')
     def taxable_lines(self):
-        context = Transaction().context
+        context = tx.transaction.context
         lines = super().taxable_lines
         if self.invoice and self.invoice.type:
             invoice_type = self.invoice.type
@@ -77,18 +77,18 @@ class InvoiceLine(metaclass=PoolMeta):
         return lines
 
     def _compute_taxes(self):
-        pool = Pool()
+        pool = tx.pool
         Currency = pool.get('currency.currency')
         TaxLine = pool.get('account.tax.line')
 
         tax_lines = super()._compute_taxes()
-        with Transaction().set_context(
+        with tx.transaction.set_context(
                 _non_deductible=True, _deductible_rate=1):
             taxes = self._get_taxes().values()
             for tax in taxes:
                 for type_, amount in [('base', 'base'), ('tax', 'amount')]:
                     amount = getattr(tax, amount)
-                    with Transaction().set_context(
+                    with tx.transaction.set_context(
                             date=self.invoice.currency_date):
                         amount = Currency.compute(
                             self.invoice.currency, amount,

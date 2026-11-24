@@ -1,9 +1,10 @@
 # This file is part of Tryton.  The COPYRIGHT file at the top level of
 # this repository contains the full copyright notices and license terms.
+from trytond import tx
 from trytond.i18n import gettext
 from trytond.model import ModelView, Workflow, fields
 from trytond.model.exceptions import AccessError
-from trytond.pool import Pool, PoolMeta
+from trytond.pool import PoolMeta
 from trytond.pyson import Bool, Eval
 
 
@@ -39,7 +40,7 @@ class Production(metaclass=PoolMeta):
     @ModelView.button
     @Workflow.transition('draft')
     def draft(cls, productions):
-        pool = Pool()
+        pool = tx.pool
         Work = pool.get('production.work')
         super().draft(productions)
         Work.delete([w for p in productions for w in p.works
@@ -49,7 +50,7 @@ class Production(metaclass=PoolMeta):
     @ModelView.button
     @Workflow.transition('cancelled')
     def cancel(cls, productions):
-        pool = Pool()
+        pool = tx.pool
         Work = pool.get('production.work')
         super().cancel(productions)
         Work.delete([w for p in productions for w in p.works
@@ -59,7 +60,7 @@ class Production(metaclass=PoolMeta):
     @ModelView.button
     @Workflow.transition('waiting')
     def wait(cls, productions):
-        pool = Pool()
+        pool = tx.pool
         Work = pool.get('production.work')
         WorkCenter = pool.get('production.work.center')
 
@@ -84,7 +85,7 @@ class Production(metaclass=PoolMeta):
     @ModelView.button
     @Workflow.transition('running')
     def run(cls, productions):
-        pool = Pool()
+        pool = tx.pool
         Work = pool.get('production.work')
 
         super().run(productions)
@@ -95,7 +96,7 @@ class Production(metaclass=PoolMeta):
     @ModelView.button
     @Workflow.transition('done')
     def do(cls, productions):
-        pool = Pool()
+        pool = tx.pool
         Work = pool.get('production.work')
         for production in productions:
             for work in production.works:

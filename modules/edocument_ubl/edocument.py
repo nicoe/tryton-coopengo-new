@@ -19,13 +19,13 @@ from genshi.template.astutil import ASTCodeGenerator, ASTTransformer
 from lxml import etree
 from stdnum import bic, iban
 
+from trytond import tx
 from trytond.i18n import gettext, ngettext
 from trytond.model import Model
 from trytond.modules.product import round_price
-from trytond.pool import Pool, PoolMeta
+from trytond.pool import PoolMeta
 from trytond.rpc import RPC
 from trytond.tools import cached_property, slugify, sortable_values
-from trytond.transaction import Transaction
 
 from .exceptions import InvoiceError
 from .party import ISO6523_TYPES
@@ -75,12 +75,12 @@ class Invoice(Model):
                 })
 
     def __init__(self, invoice):
-        pool = Pool()
+        pool = tx.pool
         Invoice = pool.get('account.invoice')
         super().__init__()
         if int(invoice) >= 0:
             invoice = Invoice(int(invoice))
-            with Transaction().set_context(language=invoice.party_lang):
+            with tx.transaction.set_context(language=invoice.party_lang):
                 self.invoice = invoice.__class__(int(invoice))
         else:
             self.invoice = invoice
@@ -141,7 +141,7 @@ class Invoice(Model):
 
     @property
     def additional_documents(self):
-        pool = Pool()
+        pool = tx.pool
         InvoiceReport = pool.get('account.invoice', type='report')
         oext, content, _, filename = InvoiceReport.execute(
             [self.invoice.id], {})
@@ -284,7 +284,7 @@ class Invoice(Model):
 
     @classmethod
     def parse(cls, document):
-        pool = Pool()
+        pool = tx.pool
         Attachment = pool.get('ir.attachment')
 
         tree = etree.parse(BytesIO(document))
@@ -310,7 +310,7 @@ class Invoice(Model):
 
     @classmethod
     def _parse_invoice_2(cls, root):
-        pool = Pool()
+        pool = tx.pool
         Invoice = pool.get('account.invoice')
         Currency = pool.get('currency.currency')
 
@@ -447,7 +447,7 @@ class Invoice(Model):
     @classmethod
     def _parse_invoice_2_line(
             cls, invoice_line, company, currency, supplier=None):
-        pool = Pool()
+        pool = tx.pool
         Line = pool.get('account.invoice.line')
         UoM = pool.get('product.uom')
         Tax = pool.get('account.tax')
@@ -582,7 +582,7 @@ class Invoice(Model):
     @classmethod
     def _parse_invoice_2_allowance_charge(
             cls, allowance_charge, company, currency, supplier=None):
-        pool = Pool()
+        pool = tx.pool
         AccountConfiguration = pool.get('account.configuration')
         Line = pool.get('account.invoice.line')
         Tax = pool.get('account.tax')
@@ -643,7 +643,7 @@ class Invoice(Model):
 
     @classmethod
     def _parse_credit_note_2(cls, root):
-        pool = Pool()
+        pool = tx.pool
         Invoice = pool.get('account.invoice')
         Currency = pool.get('currency.currency')
 
@@ -758,7 +758,7 @@ class Invoice(Model):
     @classmethod
     def _parse_credit_note_2_line(
             cls, credit_note_line, company, currency, supplier=None):
-        pool = Pool()
+        pool = tx.pool
         Line = pool.get('account.invoice.line')
         UoM = pool.get('product.uom')
         Tax = pool.get('account.tax')
@@ -893,7 +893,7 @@ class Invoice(Model):
     @classmethod
     def _parse_credit_note_2_allowance_charge(
             cls, allowance_charge, company, currency, supplier=None):
-        pool = Pool()
+        pool = tx.pool
         AccountConfiguration = pool.get('account.configuration')
         Line = pool.get('account.invoice.line')
         Tax = pool.get('account.tax')
@@ -951,7 +951,7 @@ class Invoice(Model):
 
     @classmethod
     def _parse_2_supplier(cls, supplier_party, create=False):
-        pool = Pool()
+        pool = tx.pool
         Party = pool.get('party.party')
         for account_id in filter(None, chain(
                     [supplier_party.find('./{*}CustomerAssignedAccountID')],
@@ -974,7 +974,7 @@ class Invoice(Model):
 
     @classmethod
     def _parse_2_party(cls, party_el):
-        pool = Pool()
+        pool = tx.pool
         Party = pool.get('party.party')
 
         for identifier in chain(
@@ -998,7 +998,7 @@ class Invoice(Model):
 
     @classmethod
     def _create_2_party(cls, party_el):
-        pool = Pool()
+        pool = tx.pool
         Party = pool.get('party.party')
         party = Party()
         party.name = (
@@ -1025,7 +1025,7 @@ class Invoice(Model):
 
     @classmethod
     def _create_2_party_identifier(cls, identifier):
-        pool = Pool()
+        pool = tx.pool
         Identifier = pool.get('party.identifier')
         if schemeId := identifier.get('schemeID'):
             type = ISO6523.get(schemeId)
@@ -1035,7 +1035,7 @@ class Invoice(Model):
 
     @classmethod
     def _parse_2_address(cls, address_el, party):
-        pool = Pool()
+        pool = tx.pool
         Address = pool.get('party.address')
 
         address = cls._create_2_address(address_el)
@@ -1053,7 +1053,7 @@ class Invoice(Model):
 
     @classmethod
     def _create_2_address(cls, address_el):
-        pool = Pool()
+        pool = tx.pool
         Address = pool.get('party.address')
         Country = pool.get('country.country')
 
@@ -1088,7 +1088,7 @@ class Invoice(Model):
 
     @classmethod
     def _parse_2_tax_identifier(cls, party_tax_schemes, party, create=False):
-        pool = Pool()
+        pool = tx.pool
         Identifier = pool.get('party.identifier')
 
         tax_identifier_types = party.tax_identifier_types()
@@ -1115,7 +1115,7 @@ class Invoice(Model):
 
     @classmethod
     def _parse_2_company(cls, customer_party):
-        pool = Pool()
+        pool = tx.pool
         Company = pool.get('company.company')
         try:
             CustomerCode = pool.get('party.party.customer_code')
@@ -1172,7 +1172,7 @@ class Invoice(Model):
 
     @classmethod
     def _parse_2_payment_means(cls, payment_means, payees):
-        pool = Pool()
+        pool = tx.pool
         PaymentMean = pool.get('account.invoice.payment.mean')
         means = []
         for payment_mean in payment_means:
@@ -1195,7 +1195,7 @@ class Invoice(Model):
 
     @classmethod
     def _parse_2_item(cls, item, supplier=None):
-        pool = Pool()
+        pool = tx.pool
         Product = pool.get('product.product')
 
         if (identifier := item.find('./{*}StandardItemIdentification/{*}ID')
@@ -1230,7 +1230,7 @@ class Invoice(Model):
 
     @classmethod
     def _parse_2_tax_category(cls, tax_category):
-        pool = Pool()
+        pool = tx.pool
         Tax = pool.get('account.tax')
         domain = [
             ('parent', '=', None),
@@ -1256,7 +1256,7 @@ class Invoice(Model):
 
     @classmethod
     def _parse_2_tax(cls, tax, company):
-        pool = Pool()
+        pool = tx.pool
         Tax = pool.get('account.tax')
         InvoiceTax = pool.get('account.invoice.tax')
 
@@ -1292,7 +1292,7 @@ class Invoice(Model):
 
     @classmethod
     def _parse_2_attachments(cls, root):
-        pool = Pool()
+        pool = tx.pool
         Attachment = pool.get('ir.attachment')
 
         for name in [
@@ -1336,7 +1336,7 @@ class Invoice_Bank(metaclass=PoolMeta):
 
     @classmethod
     def _parse_2_payment_mean(cls, payment_mean, payees):
-        pool = Pool()
+        pool = tx.pool
         Account = pool.get('bank.account')
         instrument = super()._parse_2_payment_mean(payment_mean, payees)
         if (financial_account := payment_mean.find(
@@ -1352,7 +1352,7 @@ class Invoice_Bank(metaclass=PoolMeta):
                         ], limit=1)
             except ValueError:
                 party = payees[-1]
-                if party.id in Transaction().create_records['party.party']:
+                if party.id in tx.transaction.create_records['party.party']:
                     account = cls._create_bank_account(
                         financial_account, party)
                     account.save()
@@ -1368,7 +1368,7 @@ class Invoice_Bank(metaclass=PoolMeta):
 
     @classmethod
     def _create_bank_account(cls, financial_account, party):
-        pool = Pool()
+        pool = tx.pool
         Bank = pool.get('bank')
         Account = pool.get('bank.account')
         Number = pool.get('bank.account.number')
@@ -1416,7 +1416,7 @@ class Invoice_Purchase(metaclass=PoolMeta):
 
     @classmethod
     def _parse_2_item(cls, item, supplier=None):
-        pool = Pool()
+        pool = tx.pool
         Product = pool.get('product.product')
 
         product = super()._parse_2_item(item, supplier=supplier)
@@ -1439,7 +1439,7 @@ class Invoice_Purchase(metaclass=PoolMeta):
     @classmethod
     def _parse_2_line_reference(
             cls, line_reference, line, company, supplier=None):
-        pool = Pool()
+        pool = tx.pool
         PurchaseLine = pool.get('purchase.line')
         UoM = pool.get('product.uom')
 

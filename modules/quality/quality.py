@@ -7,6 +7,7 @@ from random import Random
 
 from sql.functions import CharLength
 
+from trytond import tx
 from trytond.i18n import gettext, lazy_gettext
 from trytond.model import (
     ChatMixin, DeactivableMixin, DictSchemaMixin, Index, MatchMixin,
@@ -16,9 +17,7 @@ from trytond.model.exceptions import AccessError, ButtonActionException
 from trytond.modules.company.model import (
     CompanyMultiValueMixin, CompanyValueMixin, employee_field, reset_employee,
     set_employee)
-from trytond.pool import Pool
 from trytond.pyson import Eval, Id, If
-from trytond.transaction import Transaction
 from trytond.wizard import Button, StateTransition, StateView, Wizard
 
 from .exceptions import InspectionError, InspectionValidationError
@@ -49,7 +48,7 @@ class Configuration(
 
     @classmethod
     def multivalue_model(cls, field):
-        pool = Pool()
+        pool = tx.pool
         if field in {'inspection_sequence', 'alert_sequence'}:
             return pool.get('quality.configuration.sequence')
         return super().multivalue_model(field)
@@ -86,7 +85,7 @@ class ConfigurationSequence(CompanyValueMixin, ModelSQL):
 
     @classmethod
     def default_inspection_sequence(cls):
-        pool = Pool()
+        pool = tx.pool
         ModelData = pool.get('ir.model.data')
         try:
             return ModelData.get_id('quality', 'sequence_quality_inspection')
@@ -95,7 +94,7 @@ class ConfigurationSequence(CompanyValueMixin, ModelSQL):
 
     @classmethod
     def default_alert_sequence(cls):
-        pool = Pool()
+        pool = tx.pool
         ModelData = pool.get('ir.model.data')
         try:
             return ModelData.get_id('quality', 'sequence_quality_alert')
@@ -121,7 +120,7 @@ class ControlledMixin(ModelStorage):
 
     @dualmethod
     def quality_control_needed(cls, records, operation):
-        pool = Pool()
+        pool = tx.pool
         Control = pool.get('quality.control')
         return bool(Control.get_inspections(records, operation))
 
@@ -204,7 +203,7 @@ class Control(DeactivableMixin, MatchMixin, ModelSQL, ModelView):
     @classmethod
     def __register__(cls, module):
         table = cls.__table__()
-        transaction = Transaction()
+        transaction = tx.transaction
         database = transaction.database
         cursor = transaction.connection.cursor()
         update = transaction.connection.cursor()
@@ -243,7 +242,7 @@ class Control(DeactivableMixin, MatchMixin, ModelSQL, ModelView):
 
     @classmethod
     def get_inspections(cls, records, operation):
-        pool = Pool()
+        pool = tx.pool
         Inspection = pool.get('quality.inspection')
 
         records = [
@@ -265,7 +264,7 @@ class Control(DeactivableMixin, MatchMixin, ModelSQL, ModelView):
         return inspections
 
     def match(self, pattern, match_none=False):
-        pool = Pool()
+        pool = tx.pool
         Product = pool.get('product.product')
         pattern = pattern.copy()
 
@@ -452,7 +451,7 @@ class Inspection(Workflow, ModelSQL, ModelView, ChatMixin):
 
     @classmethod
     def default_company(cls):
-        return Transaction().context.get('company')
+        return tx.transaction.context.get('company')
 
     @classmethod
     def default_state(cls):
@@ -470,7 +469,7 @@ class Inspection(Workflow, ModelSQL, ModelView, ChatMixin):
 
     @classmethod
     def get_origins(cls):
-        pool = Pool()
+        pool = tx.pool
         IrModel = pool.get('ir.model')
         models = cls._get_origins()
         models = IrModel.search([
@@ -507,7 +506,7 @@ class Inspection(Workflow, ModelSQL, ModelView, ChatMixin):
         attributes = super().view_attributes() + [
             ('/tree', 'visual', If(Eval('state') == 'failed', 'danger', '')),
             ]
-        if Transaction().context.get('inspect'):
+        if tx.transaction.context.get('inspect'):
             attributes.extend([
                     ('//field[@name="control"]', 'readonly', 1),
                     ('//*[@name="origin"]', 'invisible', 1),
@@ -577,7 +576,7 @@ class Inspection(Workflow, ModelSQL, ModelView, ChatMixin):
     @reset_employee('passed_by')
     @set_employee('failed_by')
     def fail(cls, inspections):
-        pool = Pool()
+        pool = tx.pool
         Alert = pool.get('quality.alert')
         alerts = []
         for inspection in inspections:
@@ -586,7 +585,7 @@ class Inspection(Workflow, ModelSQL, ModelView, ChatMixin):
         Alert.save(alerts)
 
     def get_alert(self):
-        pool = Pool()
+        pool = tx.pool
         Alert = pool.get('quality.alert')
         return Alert(
             company=self.company,
@@ -594,7 +593,7 @@ class Inspection(Workflow, ModelSQL, ModelView, ChatMixin):
 
     @classmethod
     def preprocess_values(cls, mode, values):
-        pool = Pool()
+        pool = tx.pool
         Configuration = pool.get('quality.configuration')
         values = super().preprocess_values(mode, values)
         if mode == 'create' and not values.get('number'):
@@ -703,7 +702,7 @@ class Alert(Workflow, ModelSQL, ModelView, ChatMixin):
 
     @classmethod
     def default_company(cls):
-        return Transaction().context.get('company')
+        return tx.transaction.context.get('company')
 
     @classmethod
     def default_state(cls):
@@ -715,7 +714,7 @@ class Alert(Workflow, ModelSQL, ModelView, ChatMixin):
 
     @classmethod
     def get_origins(cls):
-        pool = Pool()
+        pool = tx.pool
         IrModel = pool.get('ir.model')
         models = cls._get_origins()
         models = IrModel.search([
@@ -754,7 +753,7 @@ class Alert(Workflow, ModelSQL, ModelView, ChatMixin):
 
     @classmethod
     def preprocess_values(cls, mode, values):
-        pool = Pool()
+        pool = tx.pool
         Configuration = pool.get('quality.configuration')
         values = super().preprocess_values(mode, values)
         if mode == 'create' and not values.get('number'):
@@ -778,7 +777,7 @@ class Alert(Workflow, ModelSQL, ModelView, ChatMixin):
 
 class InspectStateView(StateView):
     def get_view(self, wizard, state_name):
-        with Transaction().set_context(inspect=True):
+        with tx.transaction.set_context(inspect=True):
             return super().get_view(wizard, state_name)
 
     def get_defaults(self, wizard, state_name, fields):
@@ -800,12 +799,12 @@ class Inspect(Wizard):
     save = StateTransition()
 
     def transition_start(self):
-        pool = Pool()
+        pool = tx.pool
         Control = pool.get('quality.control')
         Inspection = pool.get('quality.inspection')
         Store = pool.get('quality.inspect.store')
 
-        context = Transaction().context
+        context = tx.transaction.context
         operation = self.operation(context.get('action_id'))
 
         inspections = Control.get_inspections(self.records, operation)
@@ -834,7 +833,7 @@ class Inspect(Wizard):
             }
 
     def operation(self, action_id):
-        pool = Pool()
+        pool = tx.pool
         ModelData = pool.get('ir.model.data')
         for xml_id, operation in self._operations.items():
             try:
@@ -861,7 +860,7 @@ class Inspect(Wizard):
         return values
 
     def transition_save(self):
-        pool = Pool()
+        pool = tx.pool
         Inspection = pool.get('quality.inspection')
         inspection = self.store.inspections[0]
         Inspection.write([inspection], self.inspection._save_values())

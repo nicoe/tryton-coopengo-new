@@ -1,9 +1,10 @@
 # This file is part of Tryton.  The COPYRIGHT file at the top level of
 # this repository contains the full copyright notices and license terms.
 
+from trytond import tx
 from trytond.i18n import gettext
 from trytond.model import ModelView, Workflow
-from trytond.pool import Pool, PoolMeta
+from trytond.pool import PoolMeta
 
 from .exceptions import ShippingBlocked
 
@@ -15,7 +16,7 @@ class ShipmentOut(metaclass=PoolMeta):
     @ModelView.button
     @Workflow.transition('packed')
     def pack(cls, shipments):
-        pool = Pool()
+        pool = tx.pool
         Sale = pool.get('sale.sale')
         SaleLine = pool.get('sale.line')
 

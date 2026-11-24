@@ -7,16 +7,15 @@ from string import Template
 from sql import Literal
 from sql.operators import Equal
 
+from trytond import tx
 from trytond.cache import Cache
 from trytond.i18n import gettext
 from trytond.model import (
     DeactivableMixin, Exclude, MatchMixin, ModelSQL, ModelView, fields,
     sequence_ordered)
 from trytond.model.exceptions import AccessError
-from trytond.pool import Pool
 from trytond.pyson import Eval, If
 from trytond.rpc import RPC
-from trytond.transaction import Transaction
 
 from .contact_mechanism import _ContactMechanismMixin
 from .exceptions import InvalidFormat
@@ -193,7 +192,7 @@ class Address(
         return domain
 
     def _autocomplete_search(self, domain, name):
-        pool = Pool()
+        pool = tx.pool
         PostalCode = pool.get('country.postal_code')
         if domain:
             records = PostalCode.search(domain, limit=self._autocomplete_limit)
@@ -222,17 +221,17 @@ class Address(
         return self._autocomplete_search(domain, 'city')
 
     def get_full_address(self, name):
-        pool = Pool()
+        pool = tx.pool
         AddressFormat = pool.get('party.address.format')
         full_address = Template(AddressFormat.get_format(self)).substitute(
             **self._get_address_substitutions())
         return self._strip(full_address)
 
     def _get_address_substitutions(self):
-        pool = Pool()
+        pool = tx.pool
         Country = pool.get('country.country')
 
-        context = Transaction().context
+        context = tx.transaction.context
         subdivision_code = ''
         if getattr(self, 'subdivision', None):
             subdivision_code = self.subdivision.code or ''
@@ -240,7 +239,7 @@ class Address(
                 subdivision_code = subdivision_code.split('-', 1)[1]
         country_name = ''
         if getattr(self, 'country', None):
-            with Transaction().set_context(language='en'):
+            with tx.transaction.set_context(language='en'):
                 country_name = Country(self.country.id).name
         substitutions = {
             'party_name': '',
@@ -279,7 +278,7 @@ class Address(
         'street_unstructured', 'country',
         methods=['_get_street_substitutions'])
     def on_change_with_street(self, name=None):
-        pool = Pool()
+        pool = tx.pool
         AddressFormat = pool.get('party.address.format')
 
         format_ = AddressFormat.get_street_format(self)
@@ -320,7 +319,7 @@ class Address(
 
     @property
     def numbers(self):
-        pool = Pool()
+        pool = tx.pool
         AddressFormat = pool.get('party.address.format')
 
         format_ = AddressFormat.get_street_format(self)
@@ -335,7 +334,7 @@ class Address(
         'floor_number', 'room_number', 'post_box', 'private_bag',
         'post_office')
     def _get_street_substitutions(self):
-        pool = Pool()
+        pool = tx.pool
         AddressFormat = pool.get('party.address.format')
 
         substitutions = {
@@ -440,14 +439,14 @@ class Address(
 
     @classmethod
     def get_subdivision_types(cls):
-        pool = Pool()
+        pool = tx.pool
         Subdivision = pool.get('country.subdivision')
         selection = Subdivision.fields_get(['type'])['type']['selection']
         return [(k, v) for k, v in selection if k is not None]
 
     @fields.depends('country')
     def on_change_with_subdivision_types(self, name=None):
-        pool = Pool()
+        pool = tx.pool
         Types = pool.get('party.address.subdivision_type')
         return Types.get_types(self.country)
 
@@ -546,7 +545,7 @@ ${COUNTRY}"""
 
     @classmethod
     def check_format(cls, formats, field_names=None):
-        pool = Pool()
+        pool = tx.pool
         Address = pool.get('party.address')
         if field_names and 'format_' not in field_names:
             return
@@ -562,7 +561,7 @@ ${COUNTRY}"""
 
     @classmethod
     def check_street_format(cls, formats, field_names=None):
-        pool = Pool()
+        pool = tx.pool
         Address = pool.get('party.address')
         if field_names and 'street_format' not in field_names:
             return
@@ -614,7 +613,7 @@ ${COUNTRY}"""
             pattern = pattern.copy()
         pattern.setdefault(
             'country_code', address.country.code if address.country else None)
-        pattern.setdefault('language_code', Transaction().language[:2])
+        pattern.setdefault('language_code', tx.transaction.language[:2])
 
         key = (field, *sorted(pattern.items()))
         format_ = cls._get_format_cache.get(key)
@@ -651,7 +650,7 @@ class SubdivisionType(DeactivableMixin, ModelSQL, ModelView):
 
     @classmethod
     def get_subdivision_types(cls):
-        pool = Pool()
+        pool = tx.pool
         Subdivision = pool.get('country.subdivision')
         selection = Subdivision.fields_get(['type'])['type']['selection']
         return [(k, v) for k, v in selection if k is not None]

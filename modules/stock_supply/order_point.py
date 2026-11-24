@@ -6,10 +6,9 @@ from sql import Null
 from sql.conditionals import Greatest, Least
 from sql.operators import Equal
 
+from trytond import tx
 from trytond.model import Exclude, ModelSQL, ModelView, Unique, fields
-from trytond.pool import Pool
 from trytond.pyson import Eval, If
-from trytond.transaction import Transaction
 
 
 class OrderPoint(ModelSQL, ModelView):
@@ -121,7 +120,7 @@ class OrderPoint(ModelSQL, ModelView):
     def __register__(cls, module):
         table = cls.__table__()
         table_h = cls.__table_handler__(module)
-        cursor = Transaction().connection.cursor()
+        cursor = tx.transaction.connection.cursor()
 
         super().__register__(module)
 
@@ -156,7 +155,7 @@ class OrderPoint(ModelSQL, ModelView):
 
     @classmethod
     def default_location(cls):
-        return Pool().get('stock.location').get_default_warehouse()
+        return tx.pool.get('stock.location').get_default_warehouse()
 
     @fields.depends('product', '_parent_product.default_uom')
     def on_change_product(self):
@@ -194,11 +193,11 @@ class OrderPoint(ModelSQL, ModelView):
 
     @staticmethod
     def default_company():
-        return Transaction().context.get('company')
+        return tx.transaction.context.get('company')
 
     @classmethod
     def supply_stock(cls):
-        pool = Pool()
+        pool = tx.pool
         StockSupply = pool.get('stock.supply', type='wizard')
         session_id, _, _ = StockSupply.create()
         StockSupply.execute(session_id, {}, 'create_')

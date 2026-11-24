@@ -3,8 +3,9 @@
 
 from decimal import Decimal
 
+from trytond import tx
 from trytond.model import fields
-from trytond.pool import Pool, PoolMeta
+from trytond.pool import PoolMeta
 from trytond.pyson import Eval
 
 
@@ -37,7 +38,7 @@ class Template(metaclass=PoolMeta):
 
     @fields.depends('default_uom', 'sale_uom')
     def on_change_with_sale_quantity_digits(self, name=None):
-        pool = Pool()
+        pool = tx.pool
         Uom = pool.get('product.uom')
         if self.default_uom:
             rounding = self.default_uom.rounding

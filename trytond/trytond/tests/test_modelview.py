@@ -6,10 +6,10 @@ from unittest.mock import patch
 
 from lxml import etree
 
+from trytond import tx
 from trytond.model.exceptions import (
     AccessButtonError, AccessError, ButtonActionException)
 from trytond.model.modelview import set_visible
-from trytond.pool import Pool
 from trytond.pyson import Eval, PYSONDecoder, PYSONEncoder
 from trytond.tests.test_tryton import (
     TestCase, activate_module, with_transaction)
@@ -182,7 +182,7 @@ class ModelView(TestCase):
     @with_transaction()
     def test_changed_values(self):
         "Test ModelView._changed_values"
-        pool = Pool()
+        pool = tx.pool
         Model = pool.get('test.modelview.changed_values')
         Target = pool.get('test.modelview.changed_values.target')
 
@@ -271,7 +271,7 @@ class ModelView(TestCase):
     @with_transaction()
     def test_changed_values_with_no_id(self):
         "Test changed values with no id"
-        pool = Pool()
+        pool = tx.pool
         Model = pool.get('test.modelview.changed_values')
         Target = pool.get('test.modelview.changed_values.target')
 
@@ -299,7 +299,7 @@ class ModelView(TestCase):
     @with_transaction()
     def test_changed_values_2many_function(self):
         "Test changed values for xxx2many function field"
-        pool = Pool()
+        pool = tx.pool
         Model = pool.get('test.modelview.changed_values')
 
         with patch.object(
@@ -315,7 +315,7 @@ class ModelView(TestCase):
     @with_transaction()
     def test_changed_values_stored(self):
         "Test stored changed values"
-        pool = Pool()
+        pool = tx.pool
         Model = pool.get('test.modelview.stored.changed_values')
         Target = pool.get('test.modelview.stored.changed_values.target')
 
@@ -339,7 +339,7 @@ class ModelView(TestCase):
     @with_transaction()
     def test_changed_values_removed(self):
         "Test removed"
-        pool = Pool()
+        pool = tx.pool
         Model = pool.get('test.modelview.changed_values')
         Target = pool.get('test.modelview.changed_values.target')
 
@@ -356,7 +356,7 @@ class ModelView(TestCase):
     @with_transaction()
     def test_changed_values_deleted(self):
         "Test deleted"
-        pool = Pool()
+        pool = tx.pool
         Model = pool.get('test.modelview.changed_values')
         Target = pool.get('test.modelview.changed_values.target')
 
@@ -373,7 +373,7 @@ class ModelView(TestCase):
     @with_transaction()
     def test_changed_values_rec_name(self):
         "Test rec_name of ModelStorage is added"
-        pool = Pool()
+        pool = tx.pool
         Model = pool.get('test.modelview.changed_values')
         Target = pool.get('test.modelview.changed_values.stored_target')
 
@@ -391,7 +391,7 @@ class ModelView(TestCase):
     @with_transaction()
     def test_changed_values_reverse_field(self):
         "Test _changed_values with reverse field set"
-        pool = Pool()
+        pool = tx.pool
         Model = pool.get('test.modelview.changed_values')
         Target = pool.get('test.modelview.changed_values.target')
 
@@ -411,7 +411,7 @@ class ModelView(TestCase):
     @with_transaction(context={'_check_access': True})
     def test_button_access(self):
         'Test Button Access'
-        pool = Pool()
+        pool = tx.pool
         TestModel = pool.get('test.modelview.button')
         Button = pool.get('ir.model.button')
         ModelAccess = pool.get('ir.model.access')
@@ -457,7 +457,7 @@ class ModelView(TestCase):
     @with_transaction(context={'_check_access': True})
     def test_button_access_state(self):
         "Test Button Access with states"
-        pool = Pool()
+        pool = tx.pool
         Model = pool.get('test.modelview.button')
 
         record = Model()
@@ -476,7 +476,7 @@ class ModelView(TestCase):
     @with_transaction(context={'_check_access': True})
     def test_button_no_rule(self):
         "Test no Button Rule"
-        pool = Pool()
+        pool = tx.pool
         TestModel = pool.get('test.modelview.button')
         ButtonClick = pool.get('ir.model.button.click')
 
@@ -493,7 +493,7 @@ class ModelView(TestCase):
     @with_transaction(context={'_check_access': True})
     def test_button_rule_not_passed(self):
         "Test not passed Button Rule"
-        pool = Pool()
+        pool = tx.pool
         TestModel = pool.get('test.modelview.button')
         Button = pool.get('ir.model.button')
         ButtonRule = pool.get('ir.model.button.rule')
@@ -519,7 +519,7 @@ class ModelView(TestCase):
     @with_transaction(context={'_check_access': True})
     def test_button_rule_passed(self):
         "Test passed Button Rule"
-        pool = Pool()
+        pool = tx.pool
         TestModel = pool.get('test.modelview.button')
         Button = pool.get('ir.model.button')
         ButtonRule = pool.get('ir.model.button.rule')
@@ -545,7 +545,7 @@ class ModelView(TestCase):
     @with_transaction()
     def test_button_rule_test_condition(self):
         "Test condition Button Rule"
-        pool = Pool()
+        pool = tx.pool
         TestModel = pool.get('test.modelview.button')
         Button = pool.get('ir.model.button')
         ButtonRule = pool.get('ir.model.button.rule')
@@ -568,7 +568,7 @@ class ModelView(TestCase):
     @with_transaction()
     def test_button_rule_test_group(self):
         "Test group Button Rule"
-        pool = Pool()
+        pool = tx.pool
         TestModel = pool.get('test.modelview.button')
         Button = pool.get('ir.model.button')
         ButtonRule = pool.get('ir.model.button.rule')
@@ -593,7 +593,7 @@ class ModelView(TestCase):
     @with_transaction()
     def test_button_rule_test_number_user(self):
         "Test number user Button Rule"
-        pool = Pool()
+        pool = tx.pool
         TestModel = pool.get('test.modelview.button')
         Button = pool.get('ir.model.button')
         ButtonRule = pool.get('ir.model.button.rule')
@@ -625,7 +625,7 @@ class ModelView(TestCase):
     @with_transaction()
     def test_button_action(self):
         "Test button action"
-        pool = Pool()
+        pool = tx.pool
         TestModel = pool.get('test.modelview.button_action')
 
         action_id = TestModel.test([])
@@ -635,7 +635,7 @@ class ModelView(TestCase):
     @with_transaction()
     def test_button_action_return(self):
         "Test button action update value"
-        pool = Pool()
+        pool = tx.pool
         TestModel = pool.get('test.modelview.button_action')
 
         action = TestModel.test_update([])
@@ -645,7 +645,7 @@ class ModelView(TestCase):
     @with_transaction()
     def test_button_change(self):
         "Test button change"
-        pool = Pool()
+        pool = tx.pool
         Model = pool.get('test.modelview.button_change')
 
         decoder = PYSONDecoder()
@@ -660,7 +660,7 @@ class ModelView(TestCase):
     @with_transaction()
     def test_link(self):
         "Test link in view"
-        pool = Pool()
+        pool = tx.pool
         TestModel = pool.get('test.modelview.link')
 
         arch = TestModel.fields_view_get()['arch']
@@ -674,7 +674,7 @@ class ModelView(TestCase):
     @with_transaction()
     def test_link_without_read_access(self):
         "Test link in view without read access"
-        pool = Pool()
+        pool = tx.pool
         TestModel = pool.get('test.modelview.link')
         ModelAccess = pool.get('ir.model.access')
 
@@ -695,7 +695,7 @@ class ModelView(TestCase):
     @with_transaction()
     def test_link_label_valid_view(self):
         "Test that replacing link by label results in a valid view"
-        pool = Pool()
+        pool = tx.pool
         TestModel = pool.get('test.modelview.link')
         ModelAccess = pool.get('ir.model.access')
         UIView = pool.get('ir.ui.view')
@@ -714,7 +714,7 @@ class ModelView(TestCase):
     @with_transaction()
     def test_link_without_action_access(self):
         "Test link in view without action access"
-        pool = Pool()
+        pool = tx.pool
         TestModel = pool.get('test.modelview.link')
         ActionWindow = pool.get('ir.action.act_window')
         Group = pool.get('res.group')
@@ -740,7 +740,7 @@ class ModelView(TestCase):
     @with_transaction()
     def test_rpc_setup(self):
         "Testing the computation of the RPC methods"
-        pool = Pool()
+        pool = tx.pool
         TestModel = pool.get('test.modelview.rpc')
 
         def check_rpc(rpc, attributes):
@@ -768,7 +768,7 @@ class ModelView(TestCase):
     @with_transaction()
     def test_remove_empty_page(self):
         "Testing the removal of empty pages"
-        pool = Pool()
+        pool = tx.pool
         EmptyPage = pool.get('test.modelview.empty_page')
 
         arch = EmptyPage.fields_view_get(view_type='form')['arch']
@@ -781,7 +781,7 @@ class ModelView(TestCase):
     @with_transaction(context={'_check_access': True})
     def test_remove_empty_page_access(self):
         "Testing the removal of empty pages by field access"
-        pool = Pool()
+        pool = tx.pool
         EmptyPage = pool.get('test.modelview.empty_page.access')
         FieldAccess = pool.get('ir.model.field.access')
 
@@ -802,7 +802,7 @@ class ModelView(TestCase):
     @with_transaction()
     def test_active_field(self):
         "Testing active field is set and added to view fields"
-        pool = Pool()
+        pool = tx.pool
         Deactivable = pool.get('test.deactivable.modelview')
         EmptyPage = pool.get('test.modelview.empty_page')
 
@@ -815,7 +815,7 @@ class ModelView(TestCase):
     @with_transaction(context={'_check_access': True})
     def test_circular_depends_removed(self):
         "Testing circular depends are removed when user has no access"
-        pool = Pool()
+        pool = tx.pool
         CircularDepends = pool.get('test.modelview.circular_depends')
         FieldAccess = pool.get('ir.model.field.access')
 
@@ -833,7 +833,7 @@ class ModelView(TestCase):
     @with_transaction()
     def test_depends_depends(self):
         "Test depends of depends are included"
-        pool = Pool()
+        pool = tx.pool
         DependsDepends = pool.get('test.modelview.depends_depends')
 
         fields = DependsDepends.fields_view_get(view_type='form')['fields']
@@ -843,7 +843,7 @@ class ModelView(TestCase):
     @with_transaction(context={'_check_access': True})
     def test_button_depends_access(self):
         "Testing buttons are not removed when dependant fields are accesible"
-        pool = Pool()
+        pool = tx.pool
         Button = pool.get('test.modelview.button_depends')
 
         arch = Button.fields_view_get(view_type='form')['arch']
@@ -856,7 +856,7 @@ class ModelView(TestCase):
     @with_transaction(context={'_check_access': True})
     def test_button_depends_no_access(self):
         "Testing buttons are removed when dependant fields are not accesible"
-        pool = Pool()
+        pool = tx.pool
         Button = pool.get('test.modelview.button_depends')
         FieldAccess = pool.get('ir.model.field.access')
 
@@ -877,7 +877,7 @@ class ModelView(TestCase):
     @with_transaction()
     def test_view_attributes(self):
         "Testing view attributes are applied on view"
-        pool = Pool()
+        pool = tx.pool
         ViewAttributes = pool.get('test.modelview.view_attributes')
 
         arch = ViewAttributes.fields_view_get(view_type='form')['arch']
@@ -890,7 +890,7 @@ class ModelView(TestCase):
     @with_transaction()
     def test_view_attributes_depends(self):
         "Testing view attributes depends are included on fields"
-        pool = Pool()
+        pool = tx.pool
         ViewAttributes = pool.get('test.modelview.view_attributes_depends')
 
         fields = ViewAttributes.fields_view_get(view_type='form')['fields']
@@ -900,7 +900,7 @@ class ModelView(TestCase):
     @with_transaction()
     def test_states_depends_display(self):
         "Test that fields used in readonly states are included"
-        pool = Pool()
+        pool = tx.pool
         Depends = pool.get('test.modelview.states_depends')
 
         readonly_fields = Depends.fields_view_get(view_type='tree')['fields']
@@ -911,7 +911,7 @@ class ModelView(TestCase):
     @with_transaction()
     def test_states_depends_edition(self):
         "Test that fields used in editable states are included"
-        pool = Pool()
+        pool = tx.pool
         Depends = pool.get('test.modelview.states_depends')
 
         writeable_fields = Depends.fields_view_get(view_type='form')['fields']
@@ -946,7 +946,7 @@ class ModelView(TestCase):
     @with_transaction()
     def test_autocomplete(self):
         "Test autocomplete"
-        pool = Pool()
+        pool = tx.pool
         Model = pool.get('test.modelview.autocomplete')
 
         self.assertEqual(Model.autocomplete('test'), [])
@@ -954,7 +954,7 @@ class ModelView(TestCase):
     @with_transaction()
     def test_autocomplete_storage(self):
         "Test autocomplete storage"
-        pool = Pool()
+        pool = tx.pool
         Model = pool.get('test.modelview.autocomplete.storage')
 
         foo, bar = Model.create([{'name': 'foo'}, {'name': 'bar'}])

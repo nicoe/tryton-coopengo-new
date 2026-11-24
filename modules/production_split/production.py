@@ -1,7 +1,8 @@
 # This file is part of Tryton.  The COPYRIGHT file at the top level of
 # this repository contains the full copyright notices and license terms.
+from trytond import tx
 from trytond.model import ModelView, fields
-from trytond.pool import Pool, PoolMeta
+from trytond.pool import PoolMeta
 from trytond.pyson import Eval
 from trytond.wizard import Button, StateTransition, StateView, Wizard
 
@@ -32,7 +33,7 @@ class Production(metaclass=PoolMeta):
         is less than quantity.
         Return the split productions
         """
-        pool = Pool()
+        pool = tx.pool
         Uom = pool.get('product.uom')
 
         productions = [self]

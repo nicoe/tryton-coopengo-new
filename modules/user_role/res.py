@@ -2,8 +2,9 @@
 # this repository contains the full copyright notices and license terms.
 import datetime as dt
 
+from trytond import tx
 from trytond.model import ModelSQL, ModelView, fields
-from trytond.pool import Pool, PoolMeta
+from trytond.pool import PoolMeta
 from trytond.pyson import Bool, Eval, If
 
 
@@ -15,7 +16,7 @@ class Role(ModelSQL, ModelView):
 
     @classmethod
     def on_modification(cls, mode, roles, field_names=None):
-        pool = Pool()
+        pool = tx.pool
         User = pool.get('res.user')
         super().on_modification(mode, roles, field_names=field_names)
         if mode == 'write':
@@ -24,7 +25,7 @@ class Role(ModelSQL, ModelView):
 
     @classmethod
     def on_delete(cls, roles):
-        pool = Pool()
+        pool = tx.pool
         User = pool.get('res.user')
         callback = super().on_delete(roles)
         if users := {u.user for r in roles for u in r.users}:

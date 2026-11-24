@@ -1,10 +1,9 @@
 # This file is part of Tryton.  The COPYRIGHT file at the top level of
 # this repository contains the full copyright notices and license terms.
 
+from trytond import tx
 from trytond.model.fields.field import Field, instantiate_context
 from trytond.model.fields.many2many import Many2Many
-from trytond.pool import Pool
-from trytond.transaction import Transaction
 
 
 class One2One(Many2Many):
@@ -30,7 +29,7 @@ class One2One(Many2Many):
         '''
         Set the values.
         '''
-        pool = Pool()
+        pool = tx.pool
         Relation = pool.get(self.relation_name)
         to_delete = []
         to_create = []
@@ -56,7 +55,7 @@ class One2One(Many2Many):
         Target = self.get_target()
         if isinstance(value, (dict, int)):
             ctx = instantiate_context(self, inst)
-            with Transaction().set_context(ctx):
+            with tx.transaction.set_context(ctx):
                 if isinstance(value, dict):
                     value = Target(**value)
                 elif isinstance(value, int):

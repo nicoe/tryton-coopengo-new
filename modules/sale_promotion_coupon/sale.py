@@ -8,14 +8,14 @@ from sql.aggregate import Count
 from sql.conditionals import Case, Coalesce
 from sql.operators import Equal
 
+from trytond import tx
 from trytond.i18n import gettext
 from trytond.model import (
     DeactivableMixin, Exclude, ModelSQL, ModelView, Workflow, fields)
-from trytond.pool import Pool, PoolMeta
+from trytond.pool import PoolMeta
 from trytond.pyson import Eval, If
 from trytond.sql.functions import DateRange
 from trytond.sql.operators import RangeOverlap
-from trytond.transaction import Transaction
 
 from .exceptions import PromotionCouponNumberDatesError
 
@@ -45,7 +45,7 @@ class Promotion(metaclass=PoolMeta):
 
     @classmethod
     def on_modification(cls, mode, promotions, field_names=None):
-        pool = Pool()
+        pool = tx.pool
         Number = pool.get('sale.promotion.coupon.number')
         super().on_modification(mode, promotions, field_names=field_names)
         if mode == 'write' and field_names & {'start_date', 'end_date'}:
@@ -91,12 +91,12 @@ class PromotionCoupon(ModelSQL, ModelView):
 
     @classmethod
     def __register__(cls, module):
-        pool = Pool()
+        pool = tx.pool
         Promotion = pool.get('sale.promotion.coupon')
         table = cls.__table__()
         promotion = Promotion.__table__()
         table_h = cls.__table_handler__(module)
-        cursor = Transaction().connection.cursor()
+        cursor = tx.transaction.connection.cursor()
 
         company_exist = table_h.column_exist('company')
 
@@ -115,7 +115,7 @@ class PromotionCoupon(ModelSQL, ModelView):
 
     @classmethod
     def default_company(cls):
-        return Transaction().context.get('company')
+        return tx.transaction.context.get('company')
 
     @classmethod
     def default_number_of_use(cls):
@@ -177,14 +177,14 @@ class PromotionCouponNumber(DeactivableMixin, ModelSQL, ModelView):
 
     @classmethod
     def __register__(cls, module):
-        pool = Pool()
+        pool = tx.pool
         Coupon = pool.get('sale.promotion.coupon')
         Promotion = pool.get('sale.promotion')
         table = cls.__table__()
         coupon = Coupon.__table__()
         promotion = Promotion.__table__()
         table_h = cls.__table_handler__(module)
-        cursor = Transaction().connection.cursor()
+        cursor = tx.transaction.connection.cursor()
 
         start_date_exists = table_h.column_exist('start_date')
         end_date_exists = table_h.column_exist('end_date')
@@ -225,11 +225,11 @@ class PromotionCouponNumber(DeactivableMixin, ModelSQL, ModelView):
 
     @classmethod
     def default_company(cls):
-        return Transaction().context.get('company')
+        return tx.transaction.context.get('company')
 
     @classmethod
     def default_start_date(cls):
-        return Pool().get('ir.date').today()
+        return tx.pool.get('ir.date').today()
 
     @fields.depends(
         'coupon', '_parent_coupon.promotion',
@@ -247,7 +247,7 @@ class PromotionCouponNumber(DeactivableMixin, ModelSQL, ModelView):
 
     @classmethod
     def _active_query(cls):
-        pool = Pool()
+        pool = tx.pool
         Date = pool.get('ir.date')
         Coupon = pool.get('sale.promotion.coupon')
         Sale = pool.get('sale.sale')
@@ -256,7 +256,7 @@ class PromotionCouponNumber(DeactivableMixin, ModelSQL, ModelView):
         coupon = Coupon.__table__()
         sale = Sale.__table__()
         sale_number = Sale_Number.__table__()
-        context = Transaction().context
+        context = tx.transaction.context
         party = context.get('party')
         if isinstance(party, int):
             party = [party]
@@ -294,7 +294,7 @@ class PromotionCouponNumber(DeactivableMixin, ModelSQL, ModelView):
 
     @classmethod
     def get_active(cls, numbers, name):
-        cursor = Transaction().connection.cursor()
+        cursor = tx.transaction.connection.cursor()
 
         query, table, active = cls._active_query()
         query.columns = [table.id, active]
@@ -320,7 +320,7 @@ class PromotionCouponNumber(DeactivableMixin, ModelSQL, ModelView):
 
     @classmethod
     def check_dates(cls, numbers):
-        pool = Pool()
+        pool = tx.pool
         Lang = pool.get('ir.lang')
         lang = Lang.get()
         for number in numbers:

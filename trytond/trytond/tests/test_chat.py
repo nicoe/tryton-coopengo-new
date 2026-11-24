@@ -5,8 +5,7 @@ from email.message import EmailMessage
 from email.utils import getaddresses
 from unittest.mock import patch
 
-from trytond.pool import Pool
-from trytond.transaction import Transaction
+from trytond import tx
 
 from .test_tryton import TestCase, activate_module, with_transaction
 
@@ -20,9 +19,9 @@ class NotificationTestCase(TestCase):
         activate_module('tests')
 
     def run_tasks(self):
-        pool = Pool()
+        pool = tx.pool
         Queue = pool.get('ir.queue')
-        transaction = Transaction()
+        transaction = tx.transaction
         while transaction.tasks:
             task = Queue(transaction.tasks.pop())
             task.run()
@@ -30,7 +29,7 @@ class NotificationTestCase(TestCase):
     @with_transaction()
     def test_chat_post(self):
         "Test posting on chat"
-        pool = Pool()
+        pool = tx.pool
         User = pool.get('res.user')
         Room = pool.get('test.chat.room')
         Notification = pool.get('res.notification')
@@ -55,7 +54,7 @@ class NotificationTestCase(TestCase):
                 ])
         self.assertEqual(message.audience, 'public')
         self.assertEqual(message.content, "Chat Message: Bar")
-        with Transaction().set_user(alice.id):
+        with tx.transaction.set_user(alice.id):
             self.assertEqual(Notification.get_count(), 1)
             notification, = Notification.get()
             self.assertEqual(notification, {
@@ -72,7 +71,7 @@ class NotificationTestCase(TestCase):
     @with_transaction()
     def test_chat_post_email(self):
         "Test posting on chat send email"
-        pool = Pool()
+        pool = tx.pool
         Room = pool.get('test.chat.room')
         Channel = pool.get('ir.chat.channel')
 
@@ -95,7 +94,7 @@ class NotificationTestCase(TestCase):
     @with_transaction()
     def test_chat_post_from_email(self):
         "Test posting on chat from an email"
-        pool = Pool()
+        pool = tx.pool
         User = pool.get('res.user')
         Room = pool.get('test.chat.room')
         Channel = pool.get('ir.chat.channel')

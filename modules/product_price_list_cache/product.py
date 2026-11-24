@@ -6,11 +6,11 @@ from functools import partial
 
 from sql import Null
 
+from trytond import tx
 from trytond.cache import Cache, freeze
 from trytond.model import ModelSQL, dualmethod, fields
-from trytond.pool import Pool, PoolMeta
+from trytond.pool import PoolMeta
 from trytond.protocols.jsonrpc import JSONDecoder, JSONEncoder
-from trytond.transaction import Transaction
 
 dumps = partial(
     json.dumps, cls=JSONEncoder, separators=(',', ':'), sort_keys=True,
@@ -31,12 +31,12 @@ class PriceList(metaclass=PoolMeta):
 
     @dualmethod
     def fill_cache(cls, price_lists=None, products=None):
-        pool = Pool()
+        pool = tx.pool
         Product = pool.get('product.product')
         Line = pool.get('product.price_list.line')
         Cache = pool.get('product.price_list.cache')
         line = Line.__table__()
-        cursor = Transaction().connection.cursor()
+        cursor = tx.transaction.connection.cursor()
 
         Cache.clear(price_lists=price_lists, products=products)
 
@@ -52,7 +52,7 @@ class PriceList(metaclass=PoolMeta):
 
         for price_list in price_lists:
             caches = []
-            with Transaction().set_context(Cache.context(price_list)):
+            with tx.transaction.set_context(Cache.context(price_list)):
                 for product in Product.browse(products):
                     uom = price_list.get_uom(product)
                     for pattern in Cache.patterns(price_list, product):
@@ -74,7 +74,7 @@ class PriceList(metaclass=PoolMeta):
             Cache.save(caches)
 
     def compute(self, product, quantity, uom, pattern=None):
-        pool = Pool()
+        pool = tx.pool
         Cache = pool.get('product.price_list.cache')
         cache = Cache.get(self, product, pattern=pattern)
         unit_price = None
@@ -142,7 +142,7 @@ class PriceListCache(ModelSQL):
             return cls(cache_id, uom=uom, raw_unit_prices=raw_unit_prices)
 
     def get_unit_price(self, quantity, uom):
-        pool = Pool()
+        pool = tx.pool
         UoM = pool.get('product.uom')
         quantity = UoM.compute_qty(uom, quantity, self.uom)
         quantity = abs(quantity)
@@ -156,7 +156,7 @@ class PriceListCache(ModelSQL):
     @classmethod
     def clear(cls, price_lists=None, products=None):
         cache = cls.__table__()
-        cursor = Transaction().connection.cursor()
+        cursor = tx.transaction.connection.cursor()
         cls._get_cache.clear()
 
         if price_lists is None and products is None:

@@ -1,7 +1,7 @@
 # This file is part of Tryton.  The COPYRIGHT file at the top level of
 # this repository contains the full copyright notices and license terms.
 
-from trytond.pool import Pool
+from trytond import tx
 from trytond.tests.test_tryton import (
     TestCase, activate_module, with_transaction)
 
@@ -17,7 +17,7 @@ class UnionMixinTestCase(TestCase):
     @with_transaction()
     def test_union(self):
         'Test union'
-        pool = Pool()
+        pool = tx.pool
         Union = pool.get('test.union')
 
         for i in range(1, 4):
@@ -43,7 +43,7 @@ class UnionMixinTestCase(TestCase):
     @with_transaction()
     def test_union_union(self):
         'Test union of union'
-        pool = Pool()
+        pool = tx.pool
         Union = pool.get('test.union.union')
 
         for i in range(1, 5):
@@ -65,7 +65,7 @@ class UnionMixinTestCase(TestCase):
     @with_transaction()
     def test_union_tree(self):
         'Test union tree'
-        pool = Pool()
+        pool = tx.pool
         Union = pool.get('test.union.tree')
         Model1 = pool.get('test.model.union.tree1')
         Model2 = pool.get('test.model.union.tree2')

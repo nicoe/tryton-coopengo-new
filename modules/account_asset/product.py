@@ -1,9 +1,11 @@
 # This file is part of Tryton.  The COPYRIGHT file at the top level of this
 # repository contains the full copyright notices and license terms.
+
+from trytond import tx
 from trytond.model import fields
 from trytond.modules.account_product.product import (
     account_used, template_property)
-from trytond.pool import Pool, PoolMeta
+from trytond.pool import PoolMeta
 from trytond.pyson import Eval
 
 
@@ -33,7 +35,7 @@ class Category(metaclass=PoolMeta):
 
     @classmethod
     def multivalue_model(cls, field):
-        pool = Pool()
+        pool = tx.pool
         if field in {'account_depreciation', 'account_asset'}:
             return pool.get('product.category.account')
         return super().multivalue_model(field)

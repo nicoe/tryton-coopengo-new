@@ -4,14 +4,13 @@ from functools import wraps
 
 from sql import Null
 
-from trytond import backend
+from trytond import backend, tx
 from trytond.i18n import gettext
 from trytond.model import ModelSQL, fields
 from trytond.modules.company.model import (
     CompanyMultiValueMixin, CompanyValueMixin)
-from trytond.pool import Pool, PoolMeta
+from trytond.pool import PoolMeta
 from trytond.pyson import Bool, Eval, Or
-from trytond.transaction import Transaction
 
 from .exceptions import AccountError, TaxError
 
@@ -24,7 +23,7 @@ def account_used(field_name, field_string=None):
             if not account:
                 account = self.get_account(field_name + '_used')
             # Allow empty values on on_change
-            if not account and not Transaction().readonly:
+            if not account and not tx.transaction.readonly:
                 Model = self.__class__
                 field = field_name
                 if field_string:
@@ -154,7 +153,7 @@ class Category(CompanyMultiValueMixin, metaclass=PoolMeta):
 
     @classmethod
     def multivalue_model(cls, field):
-        pool = Pool()
+        pool = tx.pool
         if field in {'account_expense', 'account_revenue'}:
             return pool.get('product.category.account')
         return super().multivalue_model(field)
@@ -165,7 +164,7 @@ class Category(CompanyMultiValueMixin, metaclass=PoolMeta):
 
     @classmethod
     def default_account_expense(cls, **pattern):
-        pool = Pool()
+        pool = tx.pool
         Configuration = pool.get('account.configuration')
         config = Configuration(1)
         account = config.get_multivalue(
@@ -174,7 +173,7 @@ class Category(CompanyMultiValueMixin, metaclass=PoolMeta):
 
     @classmethod
     def default_account_revenue(cls, **pattern):
-        pool = Pool()
+        pool = tx.pool
         Configuration = pool.get('account.configuration')
         config = Configuration(1)
         account = config.get_multivalue(
@@ -189,13 +188,13 @@ class Category(CompanyMultiValueMixin, metaclass=PoolMeta):
         if self.account_parent:
             return self.parent.get_account(name, **pattern)
         else:
-            transaction = Transaction()
+            transaction = tx.transaction
             with transaction.reset_context(), \
                     transaction.set_context(self._context):
                 return self.get_multivalue(name[:-5], **pattern)
 
     def get_taxes(self, name):
-        company = Transaction().context.get('company')
+        company = tx.transaction.context.get('company')
         if self.taxes_parent:
             return [x.id for x in getattr(self.parent, name)]
         else:
@@ -368,7 +367,7 @@ class Template(CompanyMultiValueMixin, metaclass=PoolMeta):
                 taxes = account.taxes
         if taxes is None:
             # Allow empty values on on_change
-            if Transaction().readonly:
+            if tx.transaction.readonly:
                 taxes = []
             else:
                 raise TaxError(
@@ -386,7 +385,7 @@ class Template(CompanyMultiValueMixin, metaclass=PoolMeta):
                 taxes = account.taxes
         if taxes is None:
             # Allow empty values on on_change
-            if Transaction().readonly:
+            if tx.transaction.readonly:
                 taxes = []
             else:
                 raise TaxError(
@@ -402,7 +401,7 @@ class Template(CompanyMultiValueMixin, metaclass=PoolMeta):
     @classmethod
     def copy(cls, templates, default=None):
         default = default.copy() if default else {}
-        if Transaction().check_access:
+        if tx.transaction.check_access:
             default.setdefault(
                 'account_category',
                 cls.default_get(
@@ -428,7 +427,7 @@ class TemplateAccountCategory(ModelSQL):
 
     @classmethod
     def table_query(cls):
-        pool = Pool()
+        pool = tx.pool
         Template = pool.get('product.template')
         template = Template.__table__()
         return template.select(

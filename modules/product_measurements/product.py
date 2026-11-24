@@ -3,8 +3,9 @@
 
 from decimal import Decimal
 
+from trytond import tx
 from trytond.model import fields
-from trytond.pool import Pool, PoolMeta
+from trytond.pool import PoolMeta
 from trytond.pyson import Bool, Eval, Id
 
 NON_MEASURABLE = ['service']
@@ -90,7 +91,7 @@ class Template(metaclass=PoolMeta):
         'height', 'height_uom',
         'width', 'width_uom')
     def on_change_with_volume(self):
-        pool = Pool()
+        pool = tx.pool
         ModelData = pool.get('ir.model.data')
         Uom = pool.get('product.uom')
 
@@ -129,7 +130,7 @@ class PriceList(metaclass=PoolMeta):
     __name__ = 'product.price_list'
 
     def get_context_formula(self, product, quantity, uom, pattern=None):
-        pool = Pool()
+        pool = tx.pool
         UoM = pool.get('product.uom')
         ModelData = pool.get('ir.model.data')
 
@@ -171,7 +172,7 @@ class PriceListLine(metaclass=PoolMeta):
             "-weight: the weight of 1 unit of product")
 
     def get_unit_price(self, **context):
-        pool = Pool()
+        pool = tx.pool
         UoM = pool.get('product.uom')
         ModelData = pool.get('ir.model.data')
 

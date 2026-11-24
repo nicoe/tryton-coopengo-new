@@ -4,8 +4,9 @@ from sql import Cast, Null
 from sql.conditionals import Case
 from sql.operators import Concat
 
+from trytond import tx
 from trytond.model import Check, fields
-from trytond.pool import Pool, PoolMeta
+from trytond.pool import PoolMeta
 from trytond.pyson import Eval, If
 
 
@@ -206,7 +207,7 @@ class LotTrace(metaclass=PoolMeta):
 
     @classmethod
     def get_documents(cls):
-        pool = Pool()
+        pool = tx.pool
         Model = pool.get('ir.model')
         return super().get_documents() + [
             ('production', Model.get_name('production'))]

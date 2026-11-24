@@ -2,9 +2,10 @@
 # this repository contains the full copyright notices and license terms.
 import datetime
 
+from trytond import tx
 from trytond.i18n import gettext
 from trytond.modules.stock_supply.exceptions import SupplyWarning
-from trytond.pool import Pool, PoolMeta
+from trytond.pool import PoolMeta
 from trytond.pyson import Eval, If
 from trytond.transaction import check_access
 from trytond.wizard import StateAction
@@ -41,7 +42,7 @@ class LocationLeadTime(metaclass=PoolMeta):
 
     @classmethod
     def _get_extra_lead_times(cls):
-        pool = Pool()
+        pool = tx.pool
         Configuration = pool.get('production.configuration')
         config = Configuration(1)
         supply_period = config.get_multivalue('supply_period')
@@ -60,7 +61,7 @@ class StockSupply(metaclass=PoolMeta):
         return super().types() + ['production']
 
     def transition_create_(self):
-        pool = Pool()
+        pool = tx.pool
         Date = pool.get('ir.date')
         Move = pool.get('stock.move')
         Warning = pool.get('res.user.warning')
@@ -91,7 +92,7 @@ class StockSupply(metaclass=PoolMeta):
             }
 
     def generate_production(self, clean):
-        pool = Pool()
+        pool = tx.pool
         Production = pool.get('production')
         return Production.generate_requests(
             clean=clean, **self._production_parameters)

@@ -14,10 +14,11 @@ from sql import Flavor
 
 import trytond.commandline as commandline
 import trytond.config as config
+from trytond import tx
 from trytond.exceptions import UserError, UserWarning
 from trytond.pool import Pool
 from trytond.status import processing
-from trytond.transaction import Transaction, TransactionError
+from trytond.transaction import TransactionError
 
 __all__ = ['work']
 logger = logging.getLogger(__name__)
@@ -34,7 +35,7 @@ class Queue(object):
         database_list = Pool.database_list()
         pool = Pool(self.database.name)
         if self.database.name not in database_list:
-            with Transaction().start(self.database.name, 0, readonly=True):
+            with tx.transaction.start(self.database.name, 0, readonly=True):
                 pool.init()
         Queue = pool.get('ir.queue')
         return Queue.pull(self.database, self.connection, name=name)
@@ -126,19 +127,19 @@ def initializer(options, worker=True):
     for database_name in options.database_names:
         pool = Pool(database_name)
         if database_name not in database_list:
-            with Transaction().start(database_name, 0, readonly=True):
+            with tx.transaction.start(database_name, 0, readonly=True):
                 pool.init()
         pools.append(pool)
     return pools
 
 
 def run_task(pool, task_id):
-    from trytond import backend
+    from trytond import backend, tx
     if not isinstance(pool, Pool):
         database_list = Pool.database_list()
         pool = Pool(pool)
         if pool.database_name not in database_list:
-            with Transaction().start(pool.database_name, 0, readonly=True):
+            with tx.transaction.start(pool.database_name, 0, readonly=True):
                 pool.init()
     Queue = pool.get('ir.queue')
     Error = pool.get('ir.error')
@@ -154,7 +155,7 @@ def run_task(pool, task_id):
         while True:
             if count:
                 time.sleep(0.02 * count)
-            with Transaction().start(
+            with tx.transaction.start(
                     pool.database_name, 0,
                     **transaction_extras) as transaction:
                 try:
@@ -188,7 +189,7 @@ def run_task(pool, task_id):
         if not config.getboolean('queue', 'worker', default=False):
             time.sleep(0.02 * retry)
         try:
-            with Transaction().start(pool.database_name, 0) as transaction:
+            with tx.transaction.start(pool.database_name, 0) as transaction:
                 if not transaction.database.has_channel():
                     logger.critical('%s failed', name, exc_info=True)
                     return

@@ -28,7 +28,7 @@ from lxml import etree
 from sql import Table
 from werkzeug.test import Client
 
-from trytond import backend, config
+from trytond import backend, config, tx
 from trytond.cache import Cache
 from trytond.exceptions import UserError, UserWarning
 from trytond.model import (
@@ -41,7 +41,7 @@ from trytond.pool import Pool, isregisteredby
 from trytond.protocols.wrappers import Response
 from trytond.pyson import PYSON, PYSONDecoder, PYSONEncoder
 from trytond.tools import file_open, find_dir, find_path, is_instance_method
-from trytond.transaction import Transaction, TransactionError
+from trytond.transaction import TransactionError
 from trytond.wizard import StateAction, StateView
 from trytond.wsgi import app
 from trytond.server_context import ServerContext, TEST_CONTEXT
@@ -102,8 +102,8 @@ def activate_module(modules, lang='en', cache_name=None):
     if not db_exist(DB_NAME) and restore_db_cache(name):
         return
     create_db(lang=lang)
-    with Transaction().start(DB_NAME, 1, close=True) as transaction:
-        pool = Pool()
+    with tx.transaction.start(DB_NAME, 1, close=True) as transaction:
+        pool = tx.pool
         Module = pool.get('ir.module')
 
         records = Module.search([
@@ -248,7 +248,7 @@ def _pg_restore(cache_file):
         cache_name = cache_file[len(DB_CACHE) + 1:]
         if not db_exist(cache_name):
             return False
-        with Transaction().start(
+        with tx.transaction.start(
                 None, 0, close=True, autocommit=True) as transaction:
             if db_exist(DB_NAME):
                 transaction.database.drop(transaction.connection, DB_NAME)
@@ -259,7 +259,7 @@ def _pg_restore(cache_file):
     def restore_from_file():
         if not os.path.exists(cache_file):
             return False
-        with Transaction().start(
+        with tx.transaction.start(
                 None, 0, close=True, autocommit=True) as transaction:
             transaction.database.create(transaction.connection, DB_NAME)
         cmd = ['pg_restore', '-d', DB_NAME, '-j', DB_CACHE_JOBS]
@@ -286,7 +286,7 @@ def _pg_dump(cache_file):
         backend.Database(DB_NAME).close()
         from psycopg.errors import DuplicateDatabase, UniqueViolation
         try:
-            with Transaction().start(
+            with tx.transaction.start(
                     None, 0, close=True, autocommit=True) as transaction:
                 transaction.database.create(
                     transaction.connection, cache_name, DB_NAME)
@@ -323,7 +323,7 @@ def with_transaction(user=1, context=None):
         def wrapper(*args, **kwargs):
             extras = {}
             while True:
-                with Transaction().start(
+                with tx.transaction.start(
                         DB_NAME, user, context=context,
                         **extras) as transaction:
                     try:
@@ -433,7 +433,7 @@ class ModuleTestCase(_DBTestCase):
 
     @with_transaction()
     def test_rec_name(self):
-        for mname, model in Pool().iterobject():
+        for mname, model in tx.pool.iterobject():
             if not isregisteredby(model, self.module):
                 continue
             rec_name = model._rec_name
@@ -457,7 +457,7 @@ class ModuleTestCase(_DBTestCase):
     @with_transaction()
     def test_model__access__(self):
         "Test existing model __access__"
-        pool = Pool()
+        pool = tx.pool
         for mname, Model in pool.iterobject():
             if not isregisteredby(Model, self.module):
                 continue
@@ -479,7 +479,7 @@ class ModuleTestCase(_DBTestCase):
     @with_transaction()
     def test_view(self):
         'Test validity of all views of the module'
-        pool = Pool()
+        pool = tx.pool
         View = pool.get('ir.ui.view')
         views = View.search([
                 ('module', '=', self.module),
@@ -589,7 +589,7 @@ class ModuleTestCase(_DBTestCase):
     @with_transaction()
     def test_icon(self):
         "Test icons of the module"
-        pool = Pool()
+        pool = tx.pool
         Icon = pool.get('ir.ui.icon')
         icons = Icon.search([('module', '=', self.module)])
         directory = find_dir(
@@ -607,7 +607,7 @@ class ModuleTestCase(_DBTestCase):
     @with_transaction()
     def test_rpc_callable(self):
         'Test that RPC methods are callable'
-        for _, model in Pool().iterobject():
+        for _, model in tx.pool.iterobject():
             for method_name in model.__rpc__:
                 with self.subTest(model=model, method=method_name):
                     self.assertTrue(
@@ -618,7 +618,7 @@ class ModuleTestCase(_DBTestCase):
     @with_transaction()
     def test_missing_depends(self):
         'Test for missing depends'
-        for mname, model in Pool().iterobject():
+        for mname, model in tx.pool.iterobject():
             if not isregisteredby(model, self.module):
                 continue
             for fname, field in model._fields.items():
@@ -682,7 +682,7 @@ class ModuleTestCase(_DBTestCase):
                 target = getattr(model, depend).get_target()
                 test_depend_exists(target, nested, qualname)
 
-        for mname, model in Pool().iterobject():
+        for mname, model in tx.pool.iterobject():
             if not isregisteredby(model, self.module):
                 continue
             for fname, field in model._fields.items():
@@ -756,7 +756,7 @@ class ModuleTestCase(_DBTestCase):
                     record = model()
                     getattr(record, attr)()
 
-        for mname, model in Pool().iterobject():
+        for mname, model in tx.pool.iterobject():
             if not isregisteredby(model, self.module):
                 continue
             for attr in dir(model):
@@ -766,7 +766,7 @@ class ModuleTestCase(_DBTestCase):
     @with_transaction()
     def test_field_relation_target(self):
         "Test field relation and target"
-        pool = Pool()
+        pool = tx.pool
 
         def test_relation_target(mname, model, fname, field):
             if isinstance(field, fields.One2Many):
@@ -814,7 +814,7 @@ class ModuleTestCase(_DBTestCase):
     @with_transaction()
     def test_field_relation_domain(self):
         "Test domain of relation fields"
-        pool = Pool()
+        pool = tx.pool
         for mname, model in pool.iterobject():
             if not isregisteredby(model, self.module):
                 continue
@@ -835,7 +835,7 @@ class ModuleTestCase(_DBTestCase):
     @with_transaction()
     def test_menu_action(self):
         'Test that menu actions are accessible to menu\'s group'
-        pool = Pool()
+        pool = tx.pool
         Menu = pool.get('ir.ui.menu')
         ModelData = pool.get('ir.model.data')
 
@@ -865,7 +865,7 @@ class ModuleTestCase(_DBTestCase):
     @with_transaction()
     def test_model_access(self):
         'Test missing default model access'
-        pool = Pool()
+        pool = tx.pool
         Access = pool.get('ir.model.access')
         no_groups = {a.model for a in Access.search([
                     ('group', '=', None),
@@ -894,7 +894,7 @@ class ModuleTestCase(_DBTestCase):
     @with_transaction()
     def test_workflow_transitions(self):
         'Test all workflow transitions exist'
-        for mname, model in Pool().iterobject():
+        for mname, model in tx.pool.iterobject():
             if not isregisteredby(model, self.module):
                 continue
             if not issubclass(model, Workflow):
@@ -920,7 +920,7 @@ class ModuleTestCase(_DBTestCase):
     @with_transaction()
     def test_wizards(self):
         'Test wizards are correctly defined'
-        for wizard_name, wizard in Pool().iterobject(type='wizard'):
+        for wizard_name, wizard in tx.pool.iterobject(type='wizard'):
             if not isregisteredby(wizard, self.module, type_='wizard'):
                 continue
             session_id, start_state, _ = wizard.create()
@@ -965,7 +965,7 @@ class ModuleTestCase(_DBTestCase):
         copy = unittest.mock.MagicMock(return_value=[])
         with unittest.mock.patch.object(
                 ModelStorage, 'copy', new=classmethod(copy)):
-            for mname, model in Pool().iterobject():
+            for mname, model in tx.pool.iterobject():
                 if not isregisteredby(model, self.module):
                     continue
                 if not issubclass(model, ModelStorage):
@@ -987,7 +987,7 @@ class ModuleTestCase(_DBTestCase):
     @with_transaction()
     def test_selection_fields(self):
         'Test selection values'
-        for mname, model in Pool().iterobject():
+        for mname, model in tx.pool.iterobject():
             if not isregisteredby(model, self.module):
                 continue
             for field_name, field in model._fields.items():
@@ -1016,7 +1016,7 @@ class ModuleTestCase(_DBTestCase):
     @with_transaction()
     def test_function_fields(self):
         "Test function fields methods"
-        for mname, model in Pool().iterobject():
+        for mname, model in tx.pool.iterobject():
             if not isregisteredby(model, self.module):
                 continue
             for field_name, field in model._fields.items():
@@ -1060,7 +1060,7 @@ class ModuleTestCase(_DBTestCase):
     @with_transaction()
     def test_ir_action_window(self):
         'Test action windows are correctly defined'
-        pool = Pool()
+        pool = tx.pool
         ModelData = pool.get('ir.model.data')
         ActionWindow = pool.get('ir.action.act_window')
 
@@ -1104,7 +1104,7 @@ class ModuleTestCase(_DBTestCase):
                 if action_window.context_domain:
                     domain = ['AND', domain,
                         decoder.decode(action_window.context_domain)]
-                with Transaction().set_context(context):
+                with tx.transaction.set_context(context):
                     Model.search(
                         domain, order=order, limit=action_window.limit)
                     if search_value:
@@ -1127,7 +1127,7 @@ class ModuleTestCase(_DBTestCase):
     @with_transaction()
     def test_modelsingleton_inherit_order(self):
         'Test ModelSingleton, ModelSQL, ModelStorage order in the MRO'
-        for mname, model in Pool().iterobject():
+        for mname, model in tx.pool.iterobject():
             if not isregisteredby(model, self.module):
                 continue
             if (not issubclass(model, ModelSingleton)
@@ -1161,9 +1161,9 @@ class ModuleTestCase(_DBTestCase):
     @with_transaction()
     def test_buttons_registered(self):
         'Test all buttons are registered in ir.model.button'
-        pool = Pool()
+        pool = tx.pool
         Button = pool.get('ir.model.button')
-        for mname, model in Pool().iterobject():
+        for mname, model in tx.pool.iterobject():
             if not isregisteredby(model, self.module):
                 continue
             if not issubclass(model, ModelView):
@@ -1183,7 +1183,7 @@ class ModuleTestCase(_DBTestCase):
     @with_transaction()
     def test_buttons_states(self):
         "Test the states of buttons"
-        pool = Pool()
+        pool = tx.pool
         keys = {'readonly', 'invisible', 'icon', 'pre_validate', 'depends'}
         for mname, model in pool.iterobject():
             if not isregisteredby(model, self.module):
@@ -1211,7 +1211,7 @@ class ModuleTestCase(_DBTestCase):
     @with_transaction()
     def test_button_methods(self):
         "Test button methods without records"
-        for mname, model in Pool().iterobject():
+        for mname, model in tx.pool.iterobject():
             if not isregisteredby(model, self.module):
                 continue
             if not issubclass(model, ModelView):
@@ -1249,7 +1249,7 @@ class ModuleTestCase(_DBTestCase):
     @with_transaction()
     def test_model_order(self):
         "Test that model _order is predictable"
-        pool = Pool()
+        pool = tx.pool
         for mname, model in pool.iterobject():
             if not isregisteredby(model, self.module):
                 continue
@@ -1279,7 +1279,7 @@ class RouteTestCase(_DBTestCase):
     @classmethod
     def setUpClass(cls):
         super().setUpClass()
-        with Transaction().start(DB_NAME, 1):
+        with tx.transaction.start(DB_NAME, 1):
             cls.setUpDatabase()
 
     @classmethod
@@ -1324,7 +1324,7 @@ def create_db(name=DB_NAME, lang='en'):
 
         pool = Pool(name)
         pool.init(update=['res', 'ir'], lang=[lang])
-        with Transaction().start(name, 0):
+        with tx.transaction.start(name, 0):
             User = pool.get('res.user')
             Lang = pool.get('ir.lang')
             language, = Lang.search([('code', '=', lang)])
@@ -1357,7 +1357,7 @@ class ExtensionTestCase(TestCase):
     @classmethod
     @with_transaction()
     def _activate_extension(cls):
-        connection = Transaction().connection
+        connection = tx.transaction.connection
         cursor = connection.cursor()
         cursor.execute('CREATE EXTENSION "%s"' % cls.extension)
         connection.commit()
@@ -1366,7 +1366,7 @@ class ExtensionTestCase(TestCase):
     @classmethod
     @with_transaction()
     def _deactivate_extension(cls):
-        connection = Transaction().connection
+        connection = tx.transaction.connection
         cursor = connection.cursor()
         cursor.execute('DROP EXTENSION "%s"' % cls.extension)
         connection.commit()
@@ -1378,7 +1378,7 @@ def drop_db(name=DB_NAME):
         database = backend.Database(name)
         database.close()
 
-        with Transaction().start(
+        with tx.transaction.start(
                 None, 0, close=True, autocommit=True) as transaction:
             database.drop(transaction.connection, name)
             Pool.stop(name)

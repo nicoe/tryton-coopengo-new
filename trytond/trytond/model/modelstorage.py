@@ -19,11 +19,11 @@ from itertools import chain, groupby, islice
 from operator import itemgetter
 
 import trytond.config as config
+from trytond import tx
 from trytond.cache import Cache, LRUDictTransaction, freeze, unfreeze
 from trytond.const import OPERATORS
 from trytond.exceptions import UserError
 from trytond.i18n import gettext, lazy_gettext
-from trytond.pool import Pool
 from trytond.pyson import PYSON, PYSONDecoder, PYSONEncoder
 from trytond.rpc import RPC
 from trytond.tools import (
@@ -31,7 +31,7 @@ from trytond.tools import (
 from trytond.tools.domain_inversion import domain_inversion, eval_domain
 from trytond.tools.domain_inversion import parse as domain_parse
 from trytond.transaction import (
-    Transaction, inactive_records, record_cache_size, without_check_access)
+    inactive_records, record_cache_size, without_check_access)
 
 from . import fields
 from .descriptors import dualmethod
@@ -42,7 +42,7 @@ __all__ = ['ModelStorage', 'EvalEnvironment']
 
 def local_cache(Model, transaction=None):
     if transaction is None:
-        transaction = Transaction()
+        transaction = tx.transaction
     return LRUDictTransaction(record_cache_size(transaction), Model._record)
 
 
@@ -227,7 +227,7 @@ class ModelStorage(Model):
     @staticmethod
     def default_create_uid():
         "Default value for uid field."
-        return int(Transaction().user)
+        return int(tx.transaction.user)
 
     @staticmethod
     def default_create_date():
@@ -238,11 +238,11 @@ class ModelStorage(Model):
     def log(cls, records, event, target=None, user=None, **extra):
         if not cls._log:
             return
-        pool = Pool()
+        pool = tx.pool
         Log = pool.get('ir.model.log')
         for transaction, sub_records in groupby(
                 records, lambda r: r._transaction):
-            with Transaction().set_current_transaction(transaction):
+            with tx.transaction.set_current_transaction(transaction):
                 if user is None:
                     user = transaction.user
                 for record in records:
@@ -254,11 +254,11 @@ class ModelStorage(Model):
     @dualmethod
     def notify_user(
             cls, records, icon, label, description=None, user=None, **extra):
-        pool = Pool()
+        pool = tx.pool
         Notification = pool.get('res.notification')
         for transaction, sub_records in groupby(
                 records, lambda r: r._transaction):
-            with Transaction().set_current_transaction(transaction):
+            with tx.transaction.set_current_transaction(transaction):
                 if user is None:
                     user = transaction.user
                 transaction.user_notifications.append(Notification(
@@ -277,10 +277,10 @@ class ModelStorage(Model):
 
     @classmethod
     def _before_create(cls, vlist):
-        pool = Pool()
+        pool = tx.pool
         ModelAccess = pool.get('ir.model.access')
         ModelFieldAccess = pool.get('ir.model.field.access')
-        transaction = Transaction()
+        transaction = tx.transaction
 
         ModelAccess.check(cls.__name__, 'create')
 
@@ -308,8 +308,8 @@ class ModelStorage(Model):
 
     @classmethod
     def _after_create(cls, ids):
-        Trigger = Pool().get('ir.trigger')
-        transaction = Transaction()
+        Trigger = tx.pool.get('ir.trigger')
+        transaction = tx.transaction
         check_access = transaction.user and transaction.check_access
 
         with without_check_access():
@@ -331,7 +331,7 @@ class ModelStorage(Model):
 
     @classmethod
     def _before_read(cls, ids, fields_names):
-        pool = Pool()
+        pool = tx.pool
         ModelAccess = pool.get('ir.model.access')
         ModelFieldAccess = pool.get('ir.model.field.access')
         ModelAccess.check(cls.__name__, 'read')
@@ -358,7 +358,7 @@ class ModelStorage(Model):
 
     @classmethod
     def _must_log(cls):
-        transaction = Transaction()
+        transaction = tx.transaction
         check_access = transaction.check_access
         log = transaction.context.get('_log', False)
         return check_access or log
@@ -370,11 +370,11 @@ class ModelStorage(Model):
 
     @classmethod
     def _before_write(cls, *args):
-        pool = Pool()
+        pool = tx.pool
         ModelAccess = pool.get('ir.model.access')
         ModelFieldAccess = pool.get('ir.model.field.access')
         Trigger = pool.get('ir.trigger')
-        transaction = Transaction()
+        transaction = tx.transaction
         check_access = transaction.user and transaction.check_access
         must_log = cls._must_log()
 
@@ -439,7 +439,7 @@ class ModelStorage(Model):
     @classmethod
     @without_check_access
     def _after_write(cls, ids, field_names, on_write, trigger_eligibles):
-        transaction = Transaction()
+        transaction = tx.transaction
 
         for sub_ids in grouped_slice(ids, record_cache_size(transaction)):
             records = cls.browse(sub_ids)
@@ -463,11 +463,11 @@ class ModelStorage(Model):
 
     @classmethod
     def _before_delete(cls, records):
-        pool = Pool()
+        pool = tx.pool
         ModelAccess = pool.get('ir.model.access')
         ModelData = pool.get('ir.model.data')
         Trigger = pool.get('ir.trigger')
-        transaction = Transaction()
+        transaction = tx.transaction
         check_access = transaction.user and transaction.check_access
         _must_log = cls._must_log()
 
@@ -536,7 +536,7 @@ class ModelStorage(Model):
     @without_check_access
     def _after_delete(cls, ids, on_delete):
         from trytond.ir.resource import ResourceMixin
-        pool = Pool()
+        pool = tx.pool
         Translation = pool.get('ir.translation')
         if any(getattr(f, 'translate', False) and not hasattr(f, 'set')
                 for f in cls._fields.values()):
@@ -566,7 +566,7 @@ class ModelStorage(Model):
         '''
         Duplicate the records and return a list of new records.
         '''
-        pool = Pool()
+        pool = tx.pool
         Lang = pool.get('ir.lang')
         if default is None:
             default = {}
@@ -690,7 +690,7 @@ class ModelStorage(Model):
                 for lang in langs:
                     # Prevent fuzzing translations when copying as the terms
                     # should be the same.
-                    with Transaction().set_context(language=lang.code,
+                    with tx.transaction.set_context(language=lang.code,
                             fuzzy_translation=False):
                         default_values = cls.default_get(
                             fields_names, with_rec_name=False)
@@ -712,8 +712,8 @@ class ModelStorage(Model):
         '''
         Return a list of records that match the domain.
         '''
-        pool = Pool()
-        transaction = Transaction()
+        pool = tx.pool
+        transaction = tx.transaction
         ModelAccess = pool.get('ir.model.access')
         ModelFieldAccess = pool.get('ir.model.field.access')
 
@@ -839,7 +839,7 @@ class ModelStorage(Model):
         return count
 
     def resources(self):
-        pool = Pool()
+        pool = tx.pool
         Attachment = pool.get('ir.attachment')
         Note = pool.get('ir.note')
 
@@ -879,7 +879,7 @@ class ModelStorage(Model):
 
     @classmethod
     def get_xml_id(cls, records, name):
-        pool = Pool()
+        pool = tx.pool
         ModelData = pool.get('ir.model.data')
 
         ids = dict.fromkeys(map(int, records))
@@ -906,7 +906,7 @@ class ModelStorage(Model):
         '''
         Return a list of instance for the ids
         '''
-        transaction = Transaction()
+        transaction = tx.transaction
         ids = list(map(int, ids))
         _local_cache = local_cache(cls, transaction)
         transaction_cache = transaction.get_cache()
@@ -916,7 +916,7 @@ class ModelStorage(Model):
                 _transaction=transaction) for x in ids]
 
     def __export_row(self, fields_names):
-        pool = Pool()
+        pool = tx.pool
         ModelAccess = pool.get('ir.model.access')
         ModelFieldAccess = pool.get('ir.model.field.access')
         Rule = pool.get('ir.rule')
@@ -1023,7 +1023,7 @@ class ModelStorage(Model):
 
     @classmethod
     def _convert_field_names(cls, fields_names):
-        pool = Pool()
+        pool = tx.pool
         ModelField = pool.get('ir.model.field')
         Lang = pool.get('ir.lang')
         result = []
@@ -1081,7 +1081,7 @@ class ModelStorage(Model):
         Create records for all values in data.
         The field names of values must be defined in fields_names.
         '''
-        pool = Pool()
+        pool = tx.pool
 
         row_index = data.index
 
@@ -1394,7 +1394,7 @@ class ModelStorage(Model):
         def translate(records, translations):
             for language in languages:
                 translated = [t.get(language, {}) for t in translations]
-                with Transaction().set_context(language=language):
+                with tx.transaction.set_context(language=language):
                     cls.write(*chain(*filter(itemgetter(1),
                                 zip(([r] for r in records), translated))))
         count = 0
@@ -1411,9 +1411,9 @@ class ModelStorage(Model):
 
     @classmethod
     def __check_xml_record(cls, records, values):
-        ModelData = Pool().get('ir.model.data')
+        ModelData = tx.pool.get('ir.model.data')
         # Allow root user to update/delete
-        if (Transaction().user == 0
+        if (tx.transaction.user == 0
                 or not ModelData.has_model(cls.__name__)):
             return
         ModelData.can_modify(records, values)
@@ -1442,7 +1442,7 @@ class ModelStorage(Model):
 
     @classmethod
     def _validate(cls, records, field_names=None):
-        pool = Pool()
+        pool = tx.pool
 
         def is_pyson(test):
             if isinstance(test, PYSON):
@@ -1541,7 +1541,7 @@ class ModelStorage(Model):
                                 continue
                         else:
                             sub_domain = domain
-                        with Transaction().set_context(unfreeze(context)):
+                        with tx.transaction.set_context(unfreeze(context)):
                             validate_relation_domain(
                                 field, list(sub_records), Relation, sub_domain)
 
@@ -1807,10 +1807,10 @@ class ModelStorage(Model):
                         pyson_format = PYSONDecoder().encode(field.format)
                         for record in records:
                             env = EvalEnvironment(record, cls)
-                            env.update(Transaction().context)
+                            env.update(tx.transaction.context)
                             env['current_date'] = datetime.datetime.today()
                             env['time'] = time
-                            env['context'] = Transaction().context
+                            env['context'] = tx.transaction.context
                             env['active_id'] = record.id
                             format = PYSONDecoder(env).decode(pyson_format)
                             format_test(record, format, field_name)
@@ -1826,7 +1826,7 @@ class ModelStorage(Model):
 
     @classmethod
     def _clean_defaults(cls, defaults):
-        pool = Pool()
+        pool = tx.pool
         vals = {}
         for field in defaults.keys():
             if '.' in field:  # skip all related fields
@@ -1860,7 +1860,7 @@ class ModelStorage(Model):
         _transaction_cache = kwargs.pop('_transaction_cache', None)
         transaction = kwargs.pop('_transaction', None)
         if transaction is None:
-            transaction = Transaction()
+            transaction = tx.transaction
         self._transaction = transaction
         self._user = transaction.user
         self._context = transaction.context
@@ -1934,7 +1934,7 @@ class ModelStorage(Model):
         except KeyError:
             skip_eager = False
 
-        pool = Pool()
+        pool = tx.pool
 
         # build the list of fields we will fetch
         ffields = {
@@ -2091,7 +2091,7 @@ class ModelStorage(Model):
         model2ids = {}
         model2cache = {}
         # Read the data
-        with Transaction().set_current_transaction(transaction), \
+        with tx.transaction.set_current_transaction(transaction), \
                 self._transaction.set_user(self._user), \
                 self._transaction.reset_context(), \
                 self._transaction.set_context(self._context), \
@@ -2267,7 +2267,7 @@ class ModelStorage(Model):
                 elif save_values[record]:
                     to_write.append(record)
             try:
-                with Transaction().set_current_transaction(transaction), \
+                with tx.transaction.set_current_transaction(transaction), \
                         transaction.set_user(user), \
                         transaction.reset_context(), \
                         transaction.set_context(context), \
@@ -2310,7 +2310,7 @@ class EvalEnvironment(dict):
         if item.startswith('_parent_'):
             field = item[8:]
             model_name = self._model._fields[field].model_name
-            ParentModel = Pool().get(model_name)
+            ParentModel = tx.pool.get(model_name)
             return EvalEnvironment(getattr(self._record, field), ParentModel)
         if item in self._model._fields:
             value = getattr(self._record, item)
@@ -2343,7 +2343,7 @@ class EvalEnvironment(dict):
 
 
 def _record_eval_pyson(record, source, encoded=False):
-    transaction = Transaction()
+    transaction = tx.transaction
     if not encoded:
         pyson = _pyson_encoder.encode(source)
     else:

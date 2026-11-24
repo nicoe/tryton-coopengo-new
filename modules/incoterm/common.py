@@ -1,9 +1,9 @@
 # This file is part of Tryton.  The COPYRIGHT file at the top level of
 # this repository contains the full copyright notices and license terms.
 
+from trytond import tx
 from trytond.i18n import lazy_gettext
 from trytond.model import Model, fields
-from trytond.pool import Pool
 from trytond.pyson import Eval, If
 
 __all__ = ['IncotermMixin', 'IncotermAvailableMixin']
@@ -82,7 +82,7 @@ class IncotermAvailableMixin(IncotermMixin):
 
     @fields.depends('company', 'party', methods=['_get_incoterm_pattern'])
     def on_change_with_available_incoterms(self, name=None):
-        pool = Pool()
+        pool = tx.pool
         Incoterm = pool.get('incoterm.incoterm')
         pattern = self._get_incoterm_pattern()
         incoterms = Incoterm.get_incoterms(self.company, pattern)

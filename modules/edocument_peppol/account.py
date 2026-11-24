@@ -1,9 +1,10 @@
 # This file is part of Tryton.  The COPYRIGHT file at the top level of
 # this repository contains the full copyright notices and license terms.
 
+from trytond import tx
 from trytond.i18n import gettext
 from trytond.model import fields
-from trytond.pool import Pool, PoolMeta
+from trytond.pool import PoolMeta
 from trytond.pyson import Eval
 
 from .exceptions import InvoicePeppolError, InvoicePeppolRequired
@@ -45,7 +46,7 @@ class Invoice(metaclass=PoolMeta):
 
     @classmethod
     def _post(cls, invoices):
-        pool = Pool()
+        pool = tx.pool
         Peppol = pool.get('edocument.peppol')
         Warning = pool.get('res.user.warning')
         posted_invoices = {

@@ -1,7 +1,7 @@
 # This file is part of Tryton.  The COPYRIGHT file at the top level of
 # this repository contains the full copyright notices and license terms.
 
-from trytond.pool import Pool
+from trytond import tx
 from trytond.tests.test_tryton import (
     TestCase, activate_module, with_transaction)
 
@@ -17,7 +17,7 @@ class MultiValueTestCase(TestCase):
     @with_transaction()
     def test_get_multivalue(self):
         "Test get_multivalue"
-        pool = Pool()
+        pool = tx.pool
         ModelMultiValue = pool.get('test.model_multivalue')
         ModelValue = pool.get('test.model_multivalue.value')
 
@@ -35,7 +35,7 @@ class MultiValueTestCase(TestCase):
     @with_transaction()
     def test_get_multivalue_extra_pattern(self):
         "Test get_multivalue with extra pattern"
-        pool = Pool()
+        pool = tx.pool
         ModelMultiValue = pool.get('test.model_multivalue')
         ModelValue = pool.get('test.model_multivalue.value')
 
@@ -52,7 +52,7 @@ class MultiValueTestCase(TestCase):
     @with_transaction()
     def test_get_multivalue_default(self):
         "Test get_multivalue default value"
-        pool = Pool()
+        pool = tx.pool
         ModelMultiValue = pool.get('test.model_multivalue')
 
         record = ModelMultiValue()
@@ -63,7 +63,7 @@ class MultiValueTestCase(TestCase):
     @with_transaction()
     def test_get_multivalue_match_none(self):
         "Test get_multivalue does not match None"
-        pool = Pool()
+        pool = tx.pool
         ModelMultiValue = pool.get('test.model_multivalue')
         ModelValue = pool.get('test.model_multivalue.value')
 
@@ -79,7 +79,7 @@ class MultiValueTestCase(TestCase):
     @with_transaction()
     def test_get_multivalue_many2one(self):
         "Test get_multivalue for Many2One"
-        pool = Pool()
+        pool = tx.pool
         ModelMultiValue = pool.get('test.model_multivalue')
         Target = pool.get('test.model_multivalue.target')
 
@@ -93,7 +93,7 @@ class MultiValueTestCase(TestCase):
     @with_transaction()
     def test_get_multivalue_multiselection(self):
         "Test get_multivalue for MultiSelection"
-        pool = Pool()
+        pool = tx.pool
         ModelMultiValue = pool.get('test.model_multivalue')
 
         record = ModelMultiValue(value_multiselection=("foo", "bar"))
@@ -105,7 +105,7 @@ class MultiValueTestCase(TestCase):
     @with_transaction()
     def test_get_multivalue_reference(self):
         "Test get_multivalue for Reference"
-        pool = Pool()
+        pool = tx.pool
         ModelMultiValue = pool.get('test.model_multivalue')
         Target = pool.get('test.model_multivalue.target')
 
@@ -119,7 +119,7 @@ class MultiValueTestCase(TestCase):
     @with_transaction()
     def test_set_multivalue(self):
         "Test set_multivalue"
-        pool = Pool()
+        pool = tx.pool
         ModelMultiValue = pool.get('test.model_multivalue')
         ModelValue = pool.get('test.model_multivalue.value')
 
@@ -134,7 +134,7 @@ class MultiValueTestCase(TestCase):
     @with_transaction()
     def test_set_multivalue_extra_pattern(self):
         "Test set_multivalue extra pattern"
-        pool = Pool()
+        pool = tx.pool
         ModelMultiValue = pool.get('test.model_multivalue')
         ModelValue = pool.get('test.model_multivalue.value')
 
@@ -150,7 +150,7 @@ class MultiValueTestCase(TestCase):
     @with_transaction()
     def test_set_multivalue_match_none(self):
         "Test set_multivalue matches None"
-        pool = Pool()
+        pool = tx.pool
         ModelMultiValue = pool.get('test.model_multivalue')
         ModelValue = pool.get('test.model_multivalue.value')
 
@@ -163,7 +163,7 @@ class MultiValueTestCase(TestCase):
     @with_transaction()
     def test_set_multivalue_other_default(self):
         "Test set_multivalue with other default"
-        pool = Pool()
+        pool = tx.pool
         ModelMultiValue = pool.get('test.model_multivalue')
         ModelValue = pool.get('test.model_multivalue.value')
 
@@ -177,7 +177,7 @@ class MultiValueTestCase(TestCase):
     @with_transaction()
     def test_set_multivalue_many2one(self):
         "Test set_multivalue for Many2One"
-        pool = Pool()
+        pool = tx.pool
         ModelMultiValue = pool.get('test.model_multivalue')
         ModelValue = pool.get('test.model_multivalue.value')
         Target = pool.get('test.model_multivalue.target')
@@ -195,7 +195,7 @@ class MultiValueTestCase(TestCase):
     @with_transaction()
     def test_set_multivalue_multiselection(self):
         "Test set_multivalue for MultiSelection"
-        pool = Pool()
+        pool = tx.pool
         ModelMultiValue = pool.get('test.model_multivalue')
         ModelValue = pool.get('test.model_multivalue.value')
 
@@ -210,7 +210,7 @@ class MultiValueTestCase(TestCase):
     @with_transaction()
     def test_set_multivalue_reference(self):
         "Test set_multivalue for Reference"
-        pool = Pool()
+        pool = tx.pool
         ModelMultiValue = pool.get('test.model_multivalue')
         ModelValue = pool.get('test.model_multivalue.value')
         Target = pool.get('test.model_multivalue.target')
@@ -228,7 +228,7 @@ class MultiValueTestCase(TestCase):
     @with_transaction()
     def test_multivalue_setter(self):
         "Test multivalue setter"
-        pool = Pool()
+        pool = tx.pool
         ModelMultiValue = pool.get('test.model_multivalue')
 
         record, = ModelMultiValue.create([{
@@ -240,7 +240,7 @@ class MultiValueTestCase(TestCase):
     @with_transaction()
     def test_multivalue_getter(self):
         "Test multivalue getter"
-        pool = Pool()
+        pool = tx.pool
         ModelMultiValue = pool.get('test.model_multivalue')
 
         record = ModelMultiValue(value="getter")
@@ -252,7 +252,7 @@ class MultiValueTestCase(TestCase):
     @with_transaction()
     def test_multivalue_getter_reference(self):
         "Test multivalue getter for Reference"
-        pool = Pool()
+        pool = tx.pool
         ModelMultiValue = pool.get('test.model_multivalue')
         Target = pool.get('test.model_multivalue.target')
 

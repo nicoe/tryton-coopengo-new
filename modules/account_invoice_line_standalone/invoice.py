@@ -1,7 +1,7 @@
 # This file is part of Tryton.  The COPYRIGHT file at the top level of
 # this repository contains the full copyright notices and license terms.
+from trytond import tx
 from trytond.pool import PoolMeta
-from trytond.transaction import Transaction
 
 
 class Invoice(metaclass=PoolMeta):
@@ -28,7 +28,7 @@ class InvoiceLine(metaclass=PoolMeta):
 
     @classmethod
     def parse_view(cls, tree, type, *args, **kwargs):
-        if type == 'form' and Transaction().context.get('standalone'):
+        if type == 'form' and tx.transaction.context.get('standalone'):
             tree_root = tree.getroottree().getroot()
             if tree_root.get('cursor') == 'product':
                 tree_root.set('cursor', 'party')

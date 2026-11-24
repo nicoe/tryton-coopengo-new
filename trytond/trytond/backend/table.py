@@ -3,7 +3,7 @@
 import hashlib
 from weakref import WeakKeyDictionary
 
-from trytond.transaction import Transaction
+from trytond import tx
 
 
 class TableHandlerInterface(object):
@@ -15,7 +15,7 @@ class TableHandlerInterface(object):
     __handlers = WeakKeyDictionary()
 
     def __new__(cls, model, *, history=False):
-        transaction = Transaction()
+        transaction = tx.transaction
         handlers = cls.__handlers.setdefault(transaction, {})
         key = (model.__name__, history)
         if key not in handlers:

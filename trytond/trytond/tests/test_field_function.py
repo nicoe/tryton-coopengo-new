@@ -3,10 +3,9 @@
 
 from unittest.mock import patch
 
-from trytond.pool import Pool
+from trytond import tx
 from trytond.tests.test_tryton import (
     TestCase, activate_module, with_transaction)
-from trytond.transaction import Transaction
 
 
 class FieldFunctionTestCase(TestCase):
@@ -19,7 +18,7 @@ class FieldFunctionTestCase(TestCase):
 
     @with_transaction()
     def test_definition(self):
-        pool = Pool()
+        pool = tx.pool
         Model = pool.get('test.function.definition')
 
         definition = Model.function.definition(Model, 'en')
@@ -43,7 +42,7 @@ class FieldFunctionTestCase(TestCase):
     @with_transaction()
     def test_accessor(self):
         "Test accessing field on unsaved instance"
-        pool = Pool()
+        pool = tx.pool
         Model = pool.get('test.function.accessor')
         Target = pool.get('test.function.accessor.target')
 
@@ -57,7 +56,7 @@ class FieldFunctionTestCase(TestCase):
     @with_transaction()
     def test_getter(self):
         "Test getter"
-        pool = Pool()
+        pool = tx.pool
         Model = pool.get('test.function.getter')
 
         record = Model()
@@ -71,13 +70,13 @@ class FieldFunctionTestCase(TestCase):
     @with_transaction()
     def test_getter_context(self):
         "Test getter context"
-        pool = Pool()
+        pool = tx.pool
         Model = pool.get('test.function.getter_context')
 
         record = Model()
         record.save()
 
-        with Transaction().set_context(language='en', test='foo'):
+        with tx.transaction.set_context(language='en', test='foo'):
             record = Model(record.id)
 
         self.assertEqual(record.function_with_context, 'en - foo')
@@ -86,10 +85,10 @@ class FieldFunctionTestCase(TestCase):
     @with_transaction()
     def test_getter_cached_readonly_transaction(self):
         "Test getter cached in read only transaction"
-        pool = Pool()
+        pool = tx.pool
         Model = pool.get('test.function.getter_context')
 
-        with Transaction().new_transaction(readonly=True), \
+        with tx.transaction.new_transaction(readonly=True), \
                 patch.object(Model, 'getter') as getter:
             record, = Model.search([], limit=1)
             record.function_with_context
@@ -97,7 +96,7 @@ class FieldFunctionTestCase(TestCase):
             self.assertEqual(getter.call_count, 2)
 
             getter.reset_mock()
-            with Transaction().set_context(test='foo'):
+            with tx.transaction.set_context(test='foo'):
                 record = Model(record.id)
             record.function_with_context
             record.function_without_context
@@ -105,7 +104,7 @@ class FieldFunctionTestCase(TestCase):
 
             getter.reset_mock()
             # Change transaction key context
-            with Transaction().set_context(language='en'):
+            with tx.transaction.set_context(language='en'):
                 record = Model(record.id)
             record.function_with_context
             record.function_without_context
@@ -114,7 +113,7 @@ class FieldFunctionTestCase(TestCase):
     @with_transaction()
     def test_getter_local_cache(self):
         "Test getter use local cache"
-        pool = Pool()
+        pool = tx.pool
         Model = pool.get('test.function.getter_local_cache')
 
         record = Model()
@@ -129,7 +128,7 @@ class FieldFunctionTestCase(TestCase):
     @with_transaction()
     def test_no_getter(self):
         "Test no getter"
-        pool = Pool()
+        pool = tx.pool
         Model = pool.get('test.function.no_getter')
 
         record = Model(value=42)
@@ -140,7 +139,7 @@ class FieldFunctionTestCase(TestCase):
     @with_transaction()
     def test_no_getter_no_column(self):
         "Test no column without getter"
-        pool = Pool()
+        pool = tx.pool
         Model = pool.get('test.function.no_getter')
 
         table_handler = Model.__table_handler__()
@@ -150,7 +149,7 @@ class FieldFunctionTestCase(TestCase):
     @with_transaction()
     def test_no_getter_search(self):
         "Test search without getter"
-        pool = Pool()
+        pool = tx.pool
         Model = pool.get('test.function.no_getter')
 
         record = Model(value=42)
@@ -163,7 +162,7 @@ class FieldFunctionTestCase(TestCase):
     @with_transaction()
     def test_no_getter_order(self):
         "Test order without getter"
-        pool = Pool()
+        pool = tx.pool
         Model = pool.get('test.function.no_getter')
 
         Model.create([{'value': i} for i in range(10)])
@@ -180,7 +179,7 @@ class FieldFunctionTestCase(TestCase):
     @with_transaction()
     def test_no_getter_relation(self):
         "Test no getter with relation"
-        pool = Pool()
+        pool = tx.pool
         Model = pool.get('test.function.no_getter.relation')
         Target = pool.get('test.function.no_getter.target')
 
@@ -195,7 +194,7 @@ class FieldFunctionTestCase(TestCase):
     @with_transaction()
     def test_no_getter_search_relation(self):
         "Test search on relation without getter"
-        pool = Pool()
+        pool = tx.pool
         Model = pool.get('test.function.no_getter.relation')
         Target = pool.get('test.function.no_getter.target')
 
@@ -211,7 +210,7 @@ class FieldFunctionTestCase(TestCase):
     @with_transaction()
     def test_no_getter_search_relation_dotted(self):
         "Test search on dotted relation without getter"
-        pool = Pool()
+        pool = tx.pool
         Model = pool.get('test.function.no_getter.relation')
         Target = pool.get('test.function.no_getter.target')
 
@@ -227,7 +226,7 @@ class FieldFunctionTestCase(TestCase):
     @with_transaction()
     def test_no_getter_order_relation(self):
         "Test order on relation without getter"
-        pool = Pool()
+        pool = tx.pool
         Model = pool.get('test.function.no_getter.relation')
         Target = pool.get('test.function.no_getter.target')
 
@@ -248,7 +247,7 @@ class FieldFunctionTestCase(TestCase):
     @with_transaction()
     def test_no_getter_order_relation_dotted(self):
         "Test order on dotted relation without getter"
-        pool = Pool()
+        pool = tx.pool
         Model = pool.get('test.function.no_getter.relation')
         Target = pool.get('test.function.no_getter.target')
 
@@ -269,7 +268,7 @@ class FieldFunctionTestCase(TestCase):
     @with_transaction()
     def test_multiple_getter_key(self):
         "Test calls with multiple getters are filtered according to key"
-        pool = Pool()
+        pool = tx.pool
         Model = pool.get('test.function.multiple_getter_key')
 
         record = Model()

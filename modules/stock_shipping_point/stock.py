@@ -1,10 +1,11 @@
 # This file is part of Tryton.  The COPYRIGHT file at the top level of
 # this repository contains the full copyright notices and license terms.
 
+from trytond import tx
 from trytond.model import (
     DeactivableMixin, MatchMixin, ModelSQL, ModelView, Workflow, fields,
     sequence_ordered)
-from trytond.pool import Pool, PoolMeta
+from trytond.pool import PoolMeta
 from trytond.pyson import Eval, Id, If
 
 
@@ -30,7 +31,7 @@ class ShippingPoint(DeactivableMixin, ModelSQL, ModelView):
 
     @classmethod
     def default_warehouse(cls):
-        Location = Pool().get('stock.location')
+        Location = tx.pool.get('stock.location')
         return Location.get_default_warehouse()
 
 
@@ -62,7 +63,7 @@ class ShippingPointSelection(
 
     @classmethod
     def default_warehouse(cls):
-        Location = Pool().get('stock.location')
+        Location = tx.pool.get('stock.location')
         return Location.get_default_warehouse()
 
     @classmethod
@@ -116,7 +117,7 @@ class ShippingPointSelection_ProductClassification(metaclass=PoolMeta):
 
     @classmethod
     def get_product_classifications(cls):
-        pool = Pool()
+        pool = tx.pool
         Template = pool.get('product.template')
         return Template.get_classification()
 
@@ -198,7 +199,7 @@ class ShippingPointSelection_ShipmentMeasurements(metaclass=PoolMeta):
 
     @classmethod
     def get_shipping_point(cls, shipment, pattern=None):
-        pool = Pool()
+        pool = tx.pool
         UoM = pool.get('product.uom')
         ModelData = pool.get('ir.model.data')
 
@@ -213,7 +214,7 @@ class ShippingPointSelection_ShipmentMeasurements(metaclass=PoolMeta):
         return super().get_shipping_point(shipment, pattern=pattern)
 
     def match(self, pattern, match_none=False):
-        pool = Pool()
+        pool = tx.pool
         UoM = pool.get('product.uom')
         ModelData = pool.get('ir.model.data')
 
@@ -277,7 +278,7 @@ class ShippingPointAssignMixin(ShippingPointMixin):
     @ModelView.button
     @Workflow.transition('waiting')
     def wait(cls, shipments, moves=None):
-        pool = Pool()
+        pool = tx.pool
         Selection = pool.get('stock.shipping.point.selection')
 
         super().wait(shipments, moves=moves)

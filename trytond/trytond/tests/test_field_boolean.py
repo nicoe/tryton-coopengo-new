@@ -3,7 +3,7 @@
 
 from sql import Literal
 
-from trytond.pool import Pool
+from trytond import tx
 from trytond.tests.test_tryton import (
     TestCase, activate_module, with_transaction)
 
@@ -19,7 +19,7 @@ class FieldBooleanTestCase(TestCase):
     @with_transaction()
     def test_create(self):
         "Test create boolean"
-        Boolean = Pool().get('test.boolean')
+        Boolean = tx.pool.get('test.boolean')
 
         boolean_true, boolean_false, boolean_none = Boolean.create([{
                     'boolean': True,
@@ -36,7 +36,7 @@ class FieldBooleanTestCase(TestCase):
     @with_transaction()
     def test_create_without_default(self):
         "Test create boolean without default"
-        Boolean = Pool().get('test.boolean')
+        Boolean = tx.pool.get('test.boolean')
 
         boolean, = Boolean.create([{}])
 
@@ -45,7 +45,7 @@ class FieldBooleanTestCase(TestCase):
     @with_transaction()
     def test_create_with_default(self):
         "Test create boolean with default"
-        Boolean = Pool().get('test.boolean_default')
+        Boolean = tx.pool.get('test.boolean_default')
 
         boolean, = Boolean.create([{}])
 
@@ -54,7 +54,7 @@ class FieldBooleanTestCase(TestCase):
     @with_transaction()
     def test_create_with_sql_value(self):
         "Test create boolean with SQL value"
-        Boolean = Pool().get('test.boolean')
+        Boolean = tx.pool.get('test.boolean')
 
         boolean, = Boolean.create([{'boolean': Literal(True)}])
 
@@ -63,7 +63,7 @@ class FieldBooleanTestCase(TestCase):
     @with_transaction()
     def test_set_sql_value(self):
         "Test cannot set SQL value"
-        Boolean = Pool().get('test.boolean')
+        Boolean = tx.pool.get('test.boolean')
 
         boolean = Boolean()
 
@@ -73,7 +73,7 @@ class FieldBooleanTestCase(TestCase):
     @with_transaction()
     def test_search_equals_true(self):
         "Test search boolean equals True"
-        Boolean = Pool().get('test.boolean')
+        Boolean = tx.pool.get('test.boolean')
         boolean1, boolean2 = Boolean.create([{
                     'boolean': True,
                     }, {
@@ -89,7 +89,7 @@ class FieldBooleanTestCase(TestCase):
     @with_transaction()
     def test_search_equals_false(self):
         "Test search boolean equals False"
-        Boolean = Pool().get('test.boolean')
+        Boolean = tx.pool.get('test.boolean')
         boolean1, boolean2 = Boolean.create([{
                     'boolean': True,
                     }, {
@@ -105,7 +105,7 @@ class FieldBooleanTestCase(TestCase):
     @with_transaction()
     def test_search_non_equals(self):
         "Test search boolean non equals"
-        Boolean = Pool().get('test.boolean')
+        Boolean = tx.pool.get('test.boolean')
         boolean, = Boolean.create([{
                     'boolean': True,
                     }])
@@ -118,7 +118,7 @@ class FieldBooleanTestCase(TestCase):
     @with_transaction()
     def test_search_in_true(self):
         "Test search boolean in [True]"
-        Boolean = Pool().get('test.boolean')
+        Boolean = tx.pool.get('test.boolean')
         boolean, = Boolean.create([{
                     'boolean': True,
                     }])
@@ -132,7 +132,7 @@ class FieldBooleanTestCase(TestCase):
     @with_transaction()
     def test_search_in_false(self):
         "Test search boolean in [False]"
-        Boolean = Pool().get('test.boolean')
+        Boolean = tx.pool.get('test.boolean')
         boolean, = Boolean.create([{
                     'boolean': True,
                     }])
@@ -146,7 +146,7 @@ class FieldBooleanTestCase(TestCase):
     @with_transaction()
     def test_search_not_in_true(self):
         "Test search boolean not in [True]"
-        Boolean = Pool().get('test.boolean')
+        Boolean = tx.pool.get('test.boolean')
         boolean, = Boolean.create([{
                     'boolean': True,
                     }])
@@ -160,7 +160,7 @@ class FieldBooleanTestCase(TestCase):
     @with_transaction()
     def test_search_not_in_false(self):
         "Test search boolean not in [False]"
-        Boolean = Pool().get('test.boolean')
+        Boolean = tx.pool.get('test.boolean')
         boolean, = Boolean.create([{
                     'boolean': True,
                     }])
@@ -174,7 +174,7 @@ class FieldBooleanTestCase(TestCase):
     @with_transaction()
     def test_search_in_true_false(self):
         "Test search boolean in [True, False]"
-        Boolean = Pool().get('test.boolean')
+        Boolean = tx.pool.get('test.boolean')
         boolean1, boolean2 = Boolean.create([{
                     'boolean': True,
                     }, {
@@ -190,7 +190,7 @@ class FieldBooleanTestCase(TestCase):
     @with_transaction()
     def test_search_not_in_true_false(self):
         "Test search boolean not in [True, False]"
-        Boolean = Pool().get('test.boolean')
+        Boolean = tx.pool.get('test.boolean')
         boolean1, boolean2 = Boolean.create([{
                     'boolean': True,
                     }, {
@@ -206,7 +206,7 @@ class FieldBooleanTestCase(TestCase):
     @with_transaction()
     def test_search_equals_false_with_none(self):
         "Test search boolean equals False with None"
-        Boolean = Pool().get('test.boolean')
+        Boolean = tx.pool.get('test.boolean')
         boolean, = Boolean.create([{
                     'boolean': None,
                     }])
@@ -219,7 +219,7 @@ class FieldBooleanTestCase(TestCase):
     @with_transaction()
     def test_search_non_equals_false_with_none(self):
         "Test search boolean non equals False with None"
-        Boolean = Pool().get('test.boolean')
+        Boolean = tx.pool.get('test.boolean')
         boolean, = Boolean.create([{
                     'boolean': None,
                     }])
@@ -232,7 +232,7 @@ class FieldBooleanTestCase(TestCase):
     @with_transaction()
     def test_search_equals_true_with_none(self):
         "Test search boolean equals True with None"
-        Boolean = Pool().get('test.boolean')
+        Boolean = tx.pool.get('test.boolean')
         boolean, = Boolean.create([{
                     'boolean': None,
                     }])
@@ -245,7 +245,7 @@ class FieldBooleanTestCase(TestCase):
     @with_transaction()
     def test_search_non_equals_true_with_none(self):
         "Test search boolean non equals True with None"
-        Boolean = Pool().get('test.boolean')
+        Boolean = tx.pool.get('test.boolean')
         boolean, = Boolean.create([{
                     'boolean': None,
                     }])
@@ -258,7 +258,7 @@ class FieldBooleanTestCase(TestCase):
     @with_transaction()
     def test_write_false(self):
         "Test write boolean False"
-        Boolean = Pool().get('test.boolean')
+        Boolean = tx.pool.get('test.boolean')
         boolean, = Boolean.create([{
                     'boolean': True,
                     }])
@@ -272,7 +272,7 @@ class FieldBooleanTestCase(TestCase):
     @with_transaction()
     def test_write_true(self):
         "Test write boolean True"
-        Boolean = Pool().get('test.boolean')
+        Boolean = tx.pool.get('test.boolean')
         boolean, = Boolean.create([{
                     'boolean': False,
                     }])

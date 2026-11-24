@@ -15,7 +15,7 @@ from sql import Conflict, Table
 from sql.aggregate import Max
 from sql.functions import CurrentTimestamp, Function
 
-from trytond import backend, config
+from trytond import backend, config, tx
 from trytond.pool import Pool
 from trytond.tools import grouped_slice, resolve
 from trytond.tools.multiprocessing import local
@@ -129,7 +129,7 @@ class BaseCache(object):
 
     def _key(self, key):
         if self.context:
-            context = Transaction().context.copy()
+            context = tx.transaction.context.copy()
             for k in (self.__class__.context_ignored_keys
                     | self.context_ignored_keys):
                 context.pop(k, None)
@@ -189,7 +189,7 @@ class MemoryCache(BaseCache):
         self._timestamp = {}
 
     def _get_cache(self):
-        transaction = Transaction()
+        transaction = tx.transaction
         dbname = transaction.database.name
         lower = self._transaction_lower.get(dbname, self._default_lower)
         if (transaction.current_savepoint
@@ -254,7 +254,7 @@ class MemoryCache(BaseCache):
         return value
 
     def clear(self):
-        transaction = Transaction()
+        transaction = tx.transaction
         sp_resets = self._reset.setdefault(transaction, defaultdict(set))
         sp_resets[transaction.current_savepoint].add(self._name)
         self._transaction_cache.pop(transaction, None)
@@ -464,7 +464,8 @@ class MemoryCache(BaseCache):
                 notifications = database.get_notifications(conn)
                 while notifications:
                     pool = Pool(dbname)
-                    callbacks = pool._hooks.get(dbname, {}).get('callbacks', {})
+                    callbacks = pool._hooks.get(dbname, {}).get(
+                        'callbacks', {})
                     notification = notifications.pop()
                     payload = notification.payload
                     if payload and payload.startswith(REFRESH_POOL_MSG):
@@ -572,7 +573,7 @@ class LRUDictTransaction(LRUDict):
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
-        self.transaction = Transaction()
+        self.transaction = tx.transaction
         self.counter = self.transaction.counter
 
     def clear(self):

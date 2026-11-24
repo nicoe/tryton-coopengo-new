@@ -2,9 +2,9 @@
 # this repository contains the full copyright notices and license terms.
 import datetime as dt
 
+from trytond import tx
 from trytond.model import fields
-from trytond.pool import Pool, PoolMeta
-from trytond.transaction import Transaction
+from trytond.pool import PoolMeta
 
 
 class Sale(metaclass=PoolMeta):
@@ -12,7 +12,7 @@ class Sale(metaclass=PoolMeta):
 
     @classmethod
     def _process_supply(cls, sales, product_quantities):
-        pool = Pool()
+        pool = tx.pool
         Production = pool.get('production')
 
         productions = []
@@ -68,12 +68,12 @@ class Line(metaclass=PoolMeta):
 
     def get_production(self, product_quantities, bom_pattern=None):
         "Return production for the sale line"
-        pool = Pool()
+        pool = tx.pool
         Production = pool.get('production')
         Date = pool.get('ir.date')
         Uom = pool.get('product.uom')
 
-        with Transaction().set_context(company=self.sale.company.id):
+        with tx.transaction.set_context(company=self.sale.company.id):
             today = Date.today()
 
         if (not self.supply_on_sale

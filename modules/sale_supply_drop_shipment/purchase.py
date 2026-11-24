@@ -1,14 +1,14 @@
 # This file is part of Tryton.  The COPYRIGHT file at the top level of
 # this repository contains the full copyright notices and license terms.
+from trytond import tx
 from trytond.i18n import gettext
 from trytond.model import ModelSQL, ValueMixin, fields
 from trytond.model.exceptions import RequiredValidationError
 from trytond.modules.product import round_price
 from trytond.modules.purchase.purchase import (
     get_shipments_returns, search_shipments_returns)
-from trytond.pool import Pool, PoolMeta
+from trytond.pool import PoolMeta
 from trytond.pyson import Eval
-from trytond.transaction import Transaction
 
 purchase_drop_location = fields.Many2One(
     'stock.location', "Purchase Drop Location", domain=[('type', '=', 'drop')])
@@ -50,7 +50,7 @@ class ConfigurationPurchaseDropLocation(ModelSQL, ValueMixin):
 
     @classmethod
     def default_purchase_drop_location(cls):
-        pool = Pool()
+        pool = tx.pool
         ModelData = pool.get('ir.model.data')
         try:
             return ModelData.get_id(
@@ -91,7 +91,7 @@ class Purchase(metaclass=PoolMeta):
 
     @staticmethod
     def default_drop_location():
-        pool = Pool()
+        pool = tx.pool
         PurchaseConfig = pool.get('purchase.configuration')
 
         config = PurchaseConfig(1)
@@ -125,7 +125,7 @@ class Purchase(metaclass=PoolMeta):
 
     @classmethod
     def _process_fulfillment(cls, purchases):
-        pool = Pool()
+        pool = tx.pool
         DropShipment = pool.get('stock.shipment.drop')
 
         drop_shipments = []
@@ -141,7 +141,7 @@ class Purchase(metaclass=PoolMeta):
         super()._process_fulfillment(purchases)
 
     def create_drop_shipment(self):
-        pool = Pool()
+        pool = tx.pool
         DropShipment = pool.get('stock.shipment.drop')
 
         return DropShipment(
@@ -163,7 +163,7 @@ class Line(metaclass=PoolMeta):
         return result
 
     def get_move(self, move_type):
-        pool = Pool()
+        pool = tx.pool
         Currency = pool.get('currency.currency')
         move = super().get_move(move_type)
         if move and self.purchase.customer:
@@ -211,10 +211,10 @@ class HandleShipmentException(metaclass=PoolMeta):
     __name__ = 'purchase.handle.shipment.exception'
 
     def transition_handle(self):
-        pool = Pool()
+        pool = tx.pool
         Sale = pool.get('sale.sale')
         Move = pool.get('stock.move')
-        transaction = Transaction()
+        transaction = tx.transaction
         context = transaction.context
 
         super().transition_handle()

@@ -3,7 +3,7 @@
 from dateutil.parser import parse
 from lxml import etree
 
-from trytond.transaction import Transaction
+from trytond import tx
 
 __all__ = ['SEPAHandler', 'CAMT054']
 
@@ -52,7 +52,7 @@ class CAMT054(SEPAHandler):
             self.Payment.save(failed)
             self.Payment.fail(failed)
         if succeeded:
-            with Transaction().set_context(date_value=date_value):
+            with tx.transaction.set_context(date_value=date_value):
                 self.Payment.succeed(succeeded)
 
     def get_payment_kind(self, element):

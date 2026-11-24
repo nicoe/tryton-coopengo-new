@@ -1,8 +1,9 @@
 # This file is part of Tryton.  The COPYRIGHT file at the top level of
 # this repository contains the full copyright notices and license terms.
 
+from trytond import tx
 from trytond.model import fields
-from trytond.pool import Pool, PoolMeta
+from trytond.pool import PoolMeta
 from trytond.pyson import Eval
 
 
@@ -22,7 +23,7 @@ class Shop(metaclass=PoolMeta):
 
     @fields.depends('company', methods=['_get_incoterm_pattern'])
     def on_change_with_available_incoterms(self, name=None):
-        pool = Pool()
+        pool = tx.pool
         Incoterm = pool.get('incoterm.incoterm')
         pattern = self._get_incoterm_pattern()
         return Incoterm.get_incoterms(self.company, pattern)

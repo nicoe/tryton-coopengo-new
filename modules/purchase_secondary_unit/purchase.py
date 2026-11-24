@@ -1,9 +1,10 @@
 # This file is part of Tryton.  The COPYRIGHT file at the top level of
 # this repository contains the full copyright notices and license terms.
+from trytond import tx
 from trytond.model import fields
 from trytond.modules.currency.fields import Monetary
 from trytond.modules.product import price_digits, round_price
-from trytond.pool import Pool, PoolMeta
+from trytond.pool import PoolMeta
 from trytond.pyson import Eval, If
 
 
@@ -72,7 +73,7 @@ class Line(metaclass=PoolMeta):
     @fields.depends('quantity', 'unit', 'secondary_unit',
         'secondary_uom_factor', 'secondary_uom_rate')
     def on_change_with_secondary_quantity(self, name=None):
-        pool = Pool()
+        pool = tx.pool
         Uom = pool.get('product.uom')
         if (self.quantity and self.unit and self.secondary_unit
                 and (self.secondary_uom_factor or self.secondary_uom_rate)):
@@ -87,7 +88,7 @@ class Line(metaclass=PoolMeta):
         'secondary_uom_factor', 'secondary_uom_rate',
         methods=['on_change_quantity', 'on_change_with_amount'])
     def on_change_secondary_quantity(self):
-        pool = Pool()
+        pool = tx.pool
         Uom = pool.get('product.uom')
         if (self.secondary_quantity and self.secondary_unit and self.unit
                 and (self.secondary_uom_factor or self.secondary_uom_rate)):
@@ -101,7 +102,7 @@ class Line(metaclass=PoolMeta):
     @fields.depends('unit_price', 'unit', 'secondary_unit',
         'secondary_uom_factor', 'secondary_uom_rate')
     def on_change_with_secondary_unit_price(self, name=None):
-        pool = Pool()
+        pool = tx.pool
         Uom = pool.get('product.uom')
         if (self.unit_price is not None and self.unit and self.secondary_unit
                 and (self.secondary_uom_factor or self.secondary_uom_rate)):
@@ -116,7 +117,7 @@ class Line(metaclass=PoolMeta):
         'secondary_uom_factor', 'secondary_uom_rate',
         methods=['on_change_with_amount'])
     def on_change_secondary_unit_price(self, name=None):
-        pool = Pool()
+        pool = tx.pool
         Uom = pool.get('product.uom')
         if (self.secondary_unit_price is not None
                 and self.secondary_unit and self.unit
@@ -169,7 +170,7 @@ class Line(metaclass=PoolMeta):
         self.secondary_quantity = self.on_change_with_secondary_quantity()
 
     def get_invoice_line(self):
-        pool = Pool()
+        pool = tx.pool
         InvoiceLine = pool.get('account.invoice.line')
         lines = super().get_invoice_line()
         if hasattr(InvoiceLine, 'secondary_unit'):
@@ -221,7 +222,7 @@ class RequisitionLine(metaclass=PoolMeta):
 
     @property
     def request_quantity(self):
-        pool = Pool()
+        pool = tx.pool
         Uom = pool.get('product.uom')
         quantity = super().request_quantity
         product = self.product
@@ -241,7 +242,7 @@ class RequisitionLine(metaclass=PoolMeta):
 
     @property
     def request_unit_price(self):
-        pool = Pool()
+        pool = tx.pool
         Uom = pool.get('product.uom')
         unit_price = super().request_unit_price
         product = self.product
@@ -279,7 +280,7 @@ class BlanketAgreementLine(metaclass=PoolMeta):
                 self.unit.category == purchase_line.secondary_unit.category))
 
     def remainig_quantity_for_purchase(self, line, round=True):
-        pool = Pool()
+        pool = tx.pool
         Uom = pool.get('product.uom')
         remaining_quantity = super().remainig_quantity_for_purchase(
             line, round=round)
@@ -318,7 +319,7 @@ class LineBlanketAgreement(metaclass=PoolMeta):
         '_parent_blanket_agreement_line.unit_price', 'unit', 'secondary_unit',
         'secondary_uom_rate', 'secondary_uom_factor')
     def compute_unit_price(self):
-        pool = Pool()
+        pool = tx.pool
         Uom = pool.get('product.uom')
         unit_price = super().compute_unit_price()
         line = self.blanket_agreement_line
@@ -342,7 +343,7 @@ class LineBlanketAgreement(metaclass=PoolMeta):
         'secondary_quantity', 'secondary_unit',
         methods=['on_change_secondary_quantity'])
     def on_change_blanket_agreement_line(self):
-        pool = Pool()
+        pool = tx.pool
         Uom = pool.get('product.uom')
         super().on_change_blanket_agreement_line()
         if self.blanket_agreement_line:
@@ -359,7 +360,7 @@ class LineBlanketAgreement(metaclass=PoolMeta):
                         self.on_change_secondary_quantity()
 
     def quantity_for_blanket_agreement(self, line, round=True):
-        pool = Pool()
+        pool = tx.pool
         Uom = pool.get('product.uom')
         quantity = super().quantity_for_blanket_agreement(line, round=round)
         if (self.secondary_unit

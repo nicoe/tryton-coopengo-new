@@ -5,6 +5,7 @@ import datetime as dt
 from decimal import Decimal
 from itertools import chain
 
+from trytond import tx
 from trytond.i18n import gettext
 from trytond.model import (
     MatchMixin, ModelSQL, ModelView, fields, sequence_ordered)
@@ -14,9 +15,8 @@ from trytond.modules.account_product.product import (
 from trytond.modules.currency.fields import Monetary
 from trytond.modules.product import (
     copy_product_filtered, copy_template_filtered, price_digits, round_price)
-from trytond.pool import Pool, PoolMeta
+from trytond.pool import PoolMeta
 from trytond.pyson import Eval, Id, If, TimeDelta
-from trytond.transaction import Transaction
 
 
 class Category(metaclass=PoolMeta):
@@ -61,7 +61,7 @@ class Category(metaclass=PoolMeta):
 
     @classmethod
     def multivalue_model(cls, field):
-        pool = Pool()
+        pool = tx.pool
         if field == 'account_rental':
             return pool.get('product.category.account')
         return super().multivalue_model(field)
@@ -146,7 +146,7 @@ class Template(copy_template_filtered('rental_prices'), metaclass=PoolMeta):
                 taxes = account.taxes
         if taxes is None:
             # Allow empty values on on_change
-            if Transaction().readonly:
+            if tx.transaction.readonly:
                 taxes = []
             else:
                 raise TaxError(
@@ -182,7 +182,7 @@ class Product(copy_product_filtered('rental_prices'), metaclass=PoolMeta):
 
     @classmethod
     def get_rental_price_uom(cls, products, name):
-        context = Transaction().context
+        context = tx.transaction.context
         quantity = context.get('quantity') or 0
         duration = context.get('duration') or dt.timedelta()
         return cls.get_rental_price(
@@ -196,13 +196,13 @@ class Product(copy_product_filtered('rental_prices'), metaclass=PoolMeta):
             uom: the unit of measure or the sale uom of the product
             currency: the currency id for the returned price
         """
-        pool = Pool()
+        pool = tx.pool
         Currency = pool.get('currency.currency')
         Date = pool.get('ir.date')
         UoM = pool.get('product.uom')
         User = pool.get('res.user')
 
-        transaction = Transaction()
+        transaction = tx.transaction
         context = transaction.context
         today = Date.today()
         prices = {}
@@ -289,7 +289,7 @@ class RentalPrice(sequence_ordered(), ModelSQL, ModelView, MatchMixin):
 
     @classmethod
     def default_company(cls):
-        return Transaction().context.get('company')
+        return tx.transaction.context.get('company')
 
     @fields.depends('product', '_parent_product.template')
     def on_change_product(self):
@@ -307,7 +307,7 @@ class RentalPrice(sequence_ordered(), ModelSQL, ModelView, MatchMixin):
         return super().match(pattern, match_none=match_none)
 
     def get_unit_price(self, unit):
-        pool = Pool()
+        pool = tx.pool
         UoM = pool.get('product.uom')
         Data = pool.get('ir.model.data')
         hour = UoM(Data.get_id('product', 'uom_hour'))

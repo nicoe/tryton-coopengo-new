@@ -5,13 +5,13 @@ import datetime
 from sql import As, Join, Null, Select, Table, Union
 from sql.conditionals import Greatest
 
+from trytond import tx
 from trytond.i18n import gettext
 from trytond.model import ModelSQL, ModelView, ValueMixin, Workflow, fields
 from trytond.model.exceptions import AccessError
 from trytond.modules.stock.exceptions import PeriodCloseError
-from trytond.pool import Pool, PoolMeta
+from trytond.pool import PoolMeta
 from trytond.pyson import Eval
-from trytond.transaction import Transaction
 
 from .exceptions import LotExpiredError, LotExpiredWarning
 
@@ -32,7 +32,7 @@ class Configuration(metaclass=PoolMeta):
 
     @classmethod
     def multivalue_model(cls, field):
-        pool = Pool()
+        pool = tx.pool
         if field == 'shelf_life_delay':
             return pool.get('stock.location.lot.shelf_life')
         return super().multivalue_model(field)
@@ -81,7 +81,7 @@ class LotSledMixin:
 
     @fields.depends('product')
     def on_change_product(self):
-        pool = Pool()
+        pool = tx.pool
         Date = pool.get('ir.date')
         try:
             super().on_change_product()
@@ -113,8 +113,8 @@ class Lot(LotSledMixin, metaclass=PoolMeta):
 
     @classmethod
     def check_sled_period_closed(cls, lots):
-        Period = Pool().get('stock.period')
-        Move = Pool().get('stock.move')
+        Period = tx.pool.get('stock.period')
+        Move = tx.pool.get('stock.move')
         periods = Period.search([
                 ('state', '=', 'closed'),
                 ], order=[('date', 'DESC')], limit=1)
@@ -171,7 +171,7 @@ class Move(metaclass=PoolMeta):
 
     @classmethod
     def check_expiration_dates_locations(cls):
-        pool = Pool()
+        pool = tx.pool
         Location = pool.get('stock.location')
         # Prevent pack expired products
         warehouses = Location.search([
@@ -189,7 +189,7 @@ class Move(metaclass=PoolMeta):
 
     @classmethod
     def check_expiration_dates(cls, moves):
-        pool = Pool()
+        pool = tx.pool
         Group = pool.get('res.group')
         User = pool.get('res.user')
         ModelData = pool.get('ir.model.data')
@@ -201,7 +201,7 @@ class Move(metaclass=PoolMeta):
         def in_group():
             group = Group(ModelData.get_id('stock_lot_sled',
                     'group_stock_force_expiration'))
-            transition = Transaction()
+            transition = tx.transaction
             user_id = transition.user
             if user_id == 0:
                 user_id = transition.context.get('user', user_id)
@@ -235,7 +235,7 @@ class Move(metaclass=PoolMeta):
     @classmethod
     def compute_quantities_query(cls, location_ids, with_childs=False,
             grouping=('product',), grouping_filter=None):
-        pool = Pool()
+        pool = tx.pool
         Date = pool.get('ir.date')
         Lot = pool.get('stock.lot')
         Config = pool.get('stock.configuration')
@@ -244,7 +244,7 @@ class Move(metaclass=PoolMeta):
             location_ids, with_childs=with_childs, grouping=grouping,
             grouping_filter=grouping_filter)
 
-        context = Transaction().context
+        context = tx.transaction.context
         today = Date.today()
 
         stock_date_end = context.get('stock_date_end') or datetime.date.max
@@ -328,7 +328,7 @@ class Move(metaclass=PoolMeta):
 
             stock_date_start = context.get('stock_date_start')
             if stock_date_start:
-                with Transaction().set_context(
+                with tx.transaction.set_context(
                         stock_date_start=None,
                         skip_lot_sled=True):
                     query_expired = cls.compute_quantities_query(
@@ -363,12 +363,12 @@ class Period(metaclass=PoolMeta):
     @classmethod
     @ModelView.button
     def close(cls, periods):
-        pool = Pool()
+        pool = tx.pool
         Move = pool.get('stock.move')
         Lot = pool.get('stock.lot')
         Date = pool.get('ir.date')
         Lang = pool.get('ir.lang')
-        cursor = Transaction().connection.cursor()
+        cursor = tx.transaction.connection.cursor()
         move = Move.__table__()
         lot = Lot.__table__()
 

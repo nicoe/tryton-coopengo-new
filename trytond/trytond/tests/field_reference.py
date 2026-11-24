@@ -1,10 +1,10 @@
 # This file is part of Tryton.  The COPYRIGHT file at the top level of
 # this repository contains the full copyright notices and license terms.
 
+from trytond import tx
 from trytond.model import ModelSQL, fields
 from trytond.pool import Pool
 from trytond.pyson import Eval
-from trytond.transaction import Transaction
 
 
 class Reference(ModelSQL):
@@ -41,7 +41,7 @@ class ReferenceContextTarget(ModelSQL):
     context = fields.Function(fields.Char("context"), 'get_context')
 
     def get_context(self, name):
-        context = Transaction().context
+        context = tx.transaction.context
         return context.get('test')
 
 

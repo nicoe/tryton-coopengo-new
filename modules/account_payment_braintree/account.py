@@ -15,6 +15,7 @@ except ImportError:
         pass
 
 import trytond.config as config
+from trytond import tx
 from trytond.cache import Cache
 from trytond.i18n import gettext
 from trytond.model import (
@@ -24,11 +25,10 @@ from trytond.modules.account_payment.exceptions import (
 from trytond.modules.company.model import (
     employee_field, reset_employee, set_employee)
 from trytond.modules.currency.fields import Monetary
-from trytond.pool import Pool, PoolMeta
+from trytond.pool import PoolMeta
 from trytond.pyson import Bool, Eval
 from trytond.report import Report
 from trytond.tools import sql_pairing
-from trytond.transaction import Transaction
 from trytond.url import http_host
 from trytond.wizard import Button, StateTransition, StateView, Wizard
 
@@ -125,8 +125,8 @@ class CheckoutMixin:
 
     @property
     def braintree_checkout_url(self):
-        pool = Pool()
-        database = Transaction().database.name
+        pool = tx.pool
+        database = tx.transaction.database.name
         ModelData = pool.get('ir.model.data')
         URL = pool.get('ir.action.url')
         action = URL(ModelData.get_id(
@@ -347,7 +347,7 @@ class Payment(CheckoutMixin, BraintreeCustomerMethodMixin, metaclass=PoolMeta):
                         ('braintree_customer', '!=', None),
                         ],
                     ('braintree_transaction_id', '=', None),
-                    ('company', '=', Transaction().context.get('company')),
+                    ('company', '=', tx.transaction.context.get('company')),
                     ])
 
         for payment in payments:
@@ -390,7 +390,7 @@ class Payment(CheckoutMixin, BraintreeCustomerMethodMixin, metaclass=PoolMeta):
                     payment.braintree_error_message = result.message
                     payment.save()
                     cls.fail([payment])
-            Transaction().commit()
+            tx.transaction.commit()
 
     def _braintree_transaction_parameters(self):
         params = {
@@ -430,7 +430,7 @@ class Payment(CheckoutMixin, BraintreeCustomerMethodMixin, metaclass=PoolMeta):
                     ('braintree_transaction_id', '!=', None),
                     ('braintree_payment_settled', '=', False),
                     ('braintree_settle_payment', '=', True),
-                    ('company', '=', Transaction().context.get('company')),
+                    ('company', '=', tx.transaction.context.get('company')),
                     ])
 
         for payment in payments:
@@ -473,7 +473,7 @@ class Payment(CheckoutMixin, BraintreeCustomerMethodMixin, metaclass=PoolMeta):
                     payment.braintree_error_message = result.message
                     payment.save()
                     cls.fail([payment])
-            Transaction().commit()
+            tx.transaction.commit()
 
     def _braintree_settlement_parameters(self):
         return {}
@@ -491,7 +491,7 @@ class Payment(CheckoutMixin, BraintreeCustomerMethodMixin, metaclass=PoolMeta):
                     ('state', '=', 'processing'),
                     ('journal.process_method', '=', 'braintree'),
                     ('braintree_transaction_id', '!=', None),
-                    ('company', '=', Transaction().context.get('company')),
+                    ('company', '=', tx.transaction.context.get('company')),
                     ])
 
         for payment in payments:
@@ -734,7 +734,7 @@ class PaymentBraintreeRefund(Workflow, ModelSQL, ModelView):
                     refund.braintree_error_message = result.message
                     refund.save()
                     cls.fail([refund])
-            Transaction().commit()
+            tx.transaction.commit()
 
     def _refund_parameters(self):
         return {
@@ -749,7 +749,7 @@ class PaymentBraintreeRefund(Workflow, ModelSQL, ModelView):
                     ('state', '=', 'processing'),
                     ('braintree_transaction_id', '!=', None),
                     ('payment.company',
-                        '=', Transaction().context.get('company')),
+                        '=', tx.transaction.context.get('company')),
                     ])
 
         for refund in refunds:
@@ -834,7 +834,7 @@ class PaymentBraintreeAccount(ModelSQL, ModelView):
             return
         url_part = {
             'identifier': self.webhook_identifier,
-            'database_name': Transaction().database.name,
+            'database_name': tx.transaction.database.name,
             }
         return http_host() + (
             urllib.parse.quote(
@@ -887,7 +887,7 @@ class PaymentBraintreeAccount(ModelSQL, ModelView):
         return None
 
     def webhook_dispute(self, dispute):
-        pool = Pool()
+        pool = tx.pool
         Payment = pool.get('account.payment')
 
         payments = Payment.search([
@@ -907,7 +907,7 @@ class PaymentBraintreeAccount(ModelSQL, ModelView):
         return bool(payments)
 
     def webhook_transaction(self, transaction):
-        pool = Pool()
+        pool = tx.pool
         Payment = pool.get('account.payment')
 
         payments = Payment.search([
@@ -922,7 +922,7 @@ class PaymentBraintreeAccount(ModelSQL, ModelView):
 
     @classmethod
     def check_modification(cls, mode, accounts, values=None, external=False):
-        pool = Pool()
+        pool = tx.pool
         Warning = pool.get('res.user.warning')
 
         super().check_modification(
@@ -1089,7 +1089,7 @@ class PaymentBraintreeCustomer(
             customer.braintree_nonce = None
             customer.save()
             cls._payment_methods_cache.clear()
-            Transaction().commit()
+            tx.transaction.commit()
 
     def _customer_parameters(self):
         params = {
@@ -1148,7 +1148,7 @@ class PaymentBraintreeCustomer(
             if result.is_success:
                 customer.braintree_customer_id = None
             customer.save()
-            Transaction().commit()
+            tx.transaction.commit()
 
     def find(self):
         if not self.braintree_customer_id:
@@ -1217,7 +1217,7 @@ class PaymentBraintreeCustomerIdentical(ModelSQL):
 
     @classmethod
     def table_query(cls):
-        pool = Pool()
+        pool = tx.pool
         Customer = pool.get('account.payment.braintree.customer')
         source = Customer.__table__()
         target = Customer.__table__()

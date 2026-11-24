@@ -1,6 +1,7 @@
 # This file is part of Tryton.  The COPYRIGHT file at the top level of
 # this repository contains the full copyright notices and license terms.
-from trytond.pool import Pool, PoolMeta
+from trytond import tx
+from trytond.pool import PoolMeta
 from trytond.tools import escape_wildcard
 
 
@@ -9,7 +10,7 @@ class Email(metaclass=PoolMeta):
 
     @classmethod
     def _match(cls, name, email):
-        pool = Pool()
+        pool = tx.pool
         User = pool.get('web.user')
         yield from super()._match(name, email)
         domain = ['OR']
@@ -34,7 +35,7 @@ class EmailTemplate(metaclass=PoolMeta):
 
     @classmethod
     def _get_address(cls, record):
-        pool = Pool()
+        pool = tx.pool
         User = pool.get('web.user')
         address = super()._get_address(record)
         if isinstance(record, User):
@@ -46,7 +47,7 @@ class EmailTemplate(metaclass=PoolMeta):
 
     @classmethod
     def _get_language(cls, record):
-        pool = Pool()
+        pool = tx.pool
         User = pool.get('web.user')
         language = super()._get_language(record)
         if isinstance(record, User):

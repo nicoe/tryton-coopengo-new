@@ -14,18 +14,18 @@ from genshi.template import TemplateError as GenshiTemplateError
 from sql.aggregate import Count
 
 import trytond.config as config
+from trytond import tx
 from trytond.i18n import gettext
 from trytond.ir.session import token_hex
 from trytond.model import (
     DeactivableMixin, Index, ModelSQL, ModelView, Unique, Workflow, fields)
-from trytond.pool import Pool
 from trytond.pyson import Eval
 from trytond.report import Report, get_email, html_to_text, mjml_to_html
 from trytond.sendmail import SMTPDataManager, send_message_transactional
 from trytond.tools.email_ import (
     EmailNotValidError, format_address, normalize_email, set_from_header,
     validate_email)
-from trytond.transaction import Transaction, inactive_records
+from trytond.transaction import inactive_records
 from trytond.url import http_base
 from trytond.wizard import Button, StateTransition, StateView, Wizard
 
@@ -78,7 +78,7 @@ class Email(DeactivableMixin, ModelSQL, ModelView):
 
     @classmethod
     def get_web_user(cls, records, names):
-        pool = Pool()
+        pool = tx.pool
         WebUser = pool.get('web.user')
         result = {}
         web_user = 'web_user' in names
@@ -133,7 +133,7 @@ class Email(DeactivableMixin, ModelSQL, ModelView):
                         str(e)) from e
 
     def get_email_subscribe(self, report_name='marketing.email.subscribe'):
-        pool = Pool()
+        pool = tx.pool
         ActionReport = pool.get('ir.action.report')
         report, = ActionReport.search([
             ('report_name', '=', report_name),
@@ -159,7 +159,7 @@ class Email(DeactivableMixin, ModelSQL, ModelView):
     def subscribe(cls, tokens):
         # Make it slow to prevent brute force attacks
         delay = config.getint('marketing', 'subscribe_delay', default=1)
-        Transaction().atexit(time.sleep, delay)
+        tx.transaction.atexit(time.sleep, delay)
         with inactive_records():
             records = cls.search([
                     ('email_token', 'in', tokens),
@@ -168,7 +168,7 @@ class Email(DeactivableMixin, ModelSQL, ModelView):
         return bool(records)
 
     def get_email_unsubscribe(self, report_name='marketing.email.unsubscribe'):
-        pool = Pool()
+        pool = tx.pool
         ActionReport = pool.get('ir.action.report')
         report, = ActionReport.search([
                 ('report_name', '=', report_name),
@@ -194,7 +194,7 @@ class Email(DeactivableMixin, ModelSQL, ModelView):
     def unsubscribe(cls, tokens):
         # Make it slow to prevent brute force attacks
         delay = config.getint('marketing', 'subscribe_delay', default=1)
-        Transaction().atexit(time.sleep, delay)
+        tx.transaction.atexit(time.sleep, delay)
         records = cls.search([
                 ('email_token', 'in', tokens),
                 ])
@@ -233,8 +233,8 @@ class EmailList(DeactivableMixin, ModelSQL, ModelView):
 
     @staticmethod
     def default_language():
-        Lang = Pool().get('ir.lang')
-        code = Transaction().context.get(
+        Lang = tx.pool.get('ir.lang')
+        code = tx.transaction.context.get(
             'language', config.get('database', 'language'))
         try:
             lang, = Lang.search([
@@ -247,10 +247,10 @@ class EmailList(DeactivableMixin, ModelSQL, ModelView):
 
     @classmethod
     def get_subscribed(cls, lists, name):
-        pool = Pool()
+        pool = tx.pool
         Email = pool.get('marketing.email')
         email = Email.__table__()
-        cursor = Transaction().connection.cursor()
+        cursor = tx.transaction.connection.cursor()
 
         subscribed = defaultdict(int)
         query = email.select(
@@ -265,12 +265,12 @@ class EmailList(DeactivableMixin, ModelSQL, ModelView):
         return subscribed
 
     def request_subscribe(self, email, from_=None):
-        pool = Pool()
+        pool = tx.pool
         Email = pool.get('marketing.email')
 
         # Randomize processing time to prevent guessing whether the email
         # address is already subscribed to the list or not.
-        Transaction().atexit(time.sleep, random.random())
+        tx.transaction.atexit(time.sleep, random.random())
 
         email = email.lower()
         with inactive_records():
@@ -293,12 +293,12 @@ class EmailList(DeactivableMixin, ModelSQL, ModelView):
             send_message_transactional(msg)
 
     def request_unsubscribe(self, email, from_=None):
-        pool = Pool()
+        pool = tx.pool
         Email = pool.get('marketing.email')
 
         # Randomize processing time to prevent guessing whether the email
         # address was subscribed to the list or not.
-        Transaction().atexit(time.sleep, random.random())
+        tx.transaction.atexit(time.sleep, random.random())
 
         email = email.lower()
         with inactive_records():
@@ -425,7 +425,7 @@ class Message(Workflow, ModelSQL, ModelView):
 
     @classmethod
     def process(cls, messages=None, emails=None, smtpd_datamanager=None):
-        pool = Pool()
+        pool = tx.pool
         WebShortener = pool.get('web.shortened_url')
         spy_pixel = config.getboolean(
             'marketing', 'email_spy_pixel', default=False)
@@ -525,17 +525,17 @@ class SendTest(Wizard):
     send = StateTransition()
 
     def default_start(self, fields):
-        pool = Pool()
+        pool = tx.pool
         Message = pool.get('marketing.email.message')
 
-        message = Message(Transaction().context.get('active_id'))
+        message = Message(tx.transaction.context.get('active_id'))
         return {
             'list_': message.list_.id,
             'message': message.id,
             }
 
     def transition_send(self):
-        pool = Pool()
+        pool = tx.pool
         Message = pool.get('marketing.email.message')
         Message.process([self.start.message], [self.start.email])
         return 'end'

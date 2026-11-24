@@ -2,8 +2,9 @@
 # this repository contains the full copyright notices and license terms.
 from sql.operators import Equal
 
+from trytond import tx
 from trytond.model import Exclude, ModelSQL, ModelView, Workflow, fields
-from trytond.pool import Pool, PoolMeta
+from trytond.pool import PoolMeta
 from trytond.pyson import Bool, Eval, If
 from trytond.sql.functions import DateRange
 from trytond.sql.operators import RangeOverlap
@@ -49,7 +50,7 @@ class Subscription(metaclass=PoolMeta):
     @ModelView.button
     @Workflow.transition('cancelled')
     def cancel(cls, subscriptions):
-        pool = Pool()
+        pool = tx.pool
         SubscriptionLine = pool.get('sale.subscription.line')
 
         sub_lines = [l for s in subscriptions for l in s.lines if l.asset_lot]
@@ -61,7 +62,7 @@ class Subscription(metaclass=PoolMeta):
     @ModelView.button
     @Workflow.transition('running')
     def run(cls, subscriptions):
-        pool = Pool()
+        pool = tx.pool
         Line = pool.get('sale.subscription.line')
         super().run(subscriptions)
         lines = [l for s in subscriptions for l in s.lines]

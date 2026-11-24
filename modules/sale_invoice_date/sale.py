@@ -2,9 +2,10 @@
 # this repository contains the full copyright notices and license terms.
 from dateutil.relativedelta import relativedelta
 
+from trytond import tx
 from trytond.model import (
     DeactivableMixin, ModelSQL, ModelView, fields, sequence_ordered)
-from trytond.pool import Pool, PoolMeta
+from trytond.pool import PoolMeta
 
 
 class InvoiceTerm(DeactivableMixin, ModelSQL, ModelView):
@@ -17,7 +18,7 @@ class InvoiceTerm(DeactivableMixin, ModelSQL, ModelView):
         'sale.invoice.term.relative_delta', 'term', "Deltas")
 
     def get_date(self, date=None):
-        pool = Pool()
+        pool = tx.pool
         Date = pool.get('ir.date')
         if date is None:
             date = Date.today()
@@ -79,7 +80,7 @@ class Configuration(metaclass=PoolMeta):
 
     @classmethod
     def multivalue_model(cls, field):
-        pool = Pool()
+        pool = tx.pool
         if field == 'sale_invoice_term':
             return pool.get('sale.configuration.sale_method')
         return super().multivalue_model(field)
@@ -100,7 +101,7 @@ class Sale(metaclass=PoolMeta):
 
     @classmethod
     def default_invoice_term(cls, **pattern):
-        pool = Pool()
+        pool = tx.pool
         Configuration = pool.get('sale.configuration')
         config = Configuration(1)
         invoice_term = config.get_multivalue('sale_invoice_term', **pattern)

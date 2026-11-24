@@ -5,12 +5,12 @@ from decimal import Decimal
 
 from sql import Null
 
+from trytond import tx
 from trytond.i18n import gettext
 from trytond.model import Index, ModelView, Workflow, fields
 from trytond.modules.account.exceptions import FiscalYearNotFoundError
-from trytond.pool import Pool, PoolMeta
+from trytond.pool import PoolMeta
 from trytond.pyson import Eval
-from trytond.transaction import Transaction
 
 from .exceptions import CounterPartyNotFound, CountryNotFound
 
@@ -164,7 +164,7 @@ class Move(metaclass=PoolMeta):
 
     @classmethod
     def _reopen_intrastat(cls, moves):
-        pool = Pool()
+        pool = tx.pool
         IntrastatDeclaration = pool.get(
             'account.stock.eu.intrastat.declaration')
         declarations = {
@@ -226,7 +226,7 @@ class Move(metaclass=PoolMeta):
     @ModelView.button
     @Workflow.transition('cancelled')
     def cancel(cls, moves):
-        pool = Pool()
+        pool = tx.pool
         IntrastatDeclaration = pool.get(
             'account.stock.eu.intrastat.declaration')
         super().cancel(moves)
@@ -240,7 +240,7 @@ class Move(metaclass=PoolMeta):
     @ModelView.button
     @Workflow.transition('done')
     def do(cls, moves):
-        pool = Pool()
+        pool = tx.pool
         Warning = pool.get('res.user.warning')
         unknown_country = []
         for move in moves:
@@ -265,7 +265,7 @@ class Move(metaclass=PoolMeta):
         super().do(moves)
 
     def _set_intrastat(self):
-        pool = Pool()
+        pool = tx.pool
         IntrastatTransaction = pool.get(
             'account.stock.eu.intrastat.transaction')
         IntrastatDeclaration = pool.get(
@@ -355,7 +355,7 @@ class Move(metaclass=PoolMeta):
             }
 
     def _intrastat_transaction_code(self):
-        pool = Pool()
+        pool = tx.pool
         ShipmentIn = pool.get('stock.shipment.in')
         ShipmentInReturn = pool.get('stock.shipment.in.return')
         ShipmentOut = pool.get('stock.shipment.out')
@@ -415,11 +415,11 @@ class Move(metaclass=PoolMeta):
         'state', 'unit_price', 'currency', 'quantity', 'effective_date',
         'planned_date', 'company')
     def on_change_with_intrastat_value(self):
-        pool = Pool()
+        pool = tx.pool
         Currency = pool.get('currency.currency')
         if self.state == 'done' and self.unit_price is not None:
             ndigits = self.__class__.intrastat_value.digits[1]
-            with Transaction().set_context(
+            with tx.transaction.set_context(
                     date=self.effective_date or self.planned_date):
                 return round(Currency.compute(
                         self.currency,
@@ -428,7 +428,7 @@ class Move(metaclass=PoolMeta):
                         round=False), ndigits)
 
     def _intrastat_quantity(self, unit):
-        pool = Pool()
+        pool = tx.pool
         UoM = pool.get('product.uom')
         if self.unit.category == unit.category:
             return UoM.compute_qty(self.unit, self.quantity, unit, round=False)
@@ -445,7 +445,7 @@ class Move(metaclass=PoolMeta):
                 unit, round=False)
 
     def _intrastat_counterparty(self):
-        pool = Pool()
+        pool = tx.pool
         ShipmentIn = pool.get('stock.shipment.in')
         ShipmentInReturn = pool.get('stock.shipment.in.return')
         ShipmentOut = pool.get('stock.shipment.out')
@@ -532,7 +532,7 @@ class Move_Incoterm(metaclass=PoolMeta):
 
     @fields.depends('company', 'effective_date', 'planned_date')
     def on_change_with_intrastat_extended(self, name=None):
-        pool = Pool()
+        pool = tx.pool
         FiscalYear = pool.get('account.fiscalyear')
         if self.company:
             try:

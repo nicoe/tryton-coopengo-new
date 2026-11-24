@@ -10,11 +10,9 @@ from sql.conditionals import Case, Coalesce, Greatest, Least, NullIf
 from sql.functions import Function, NthValue, Round
 from sql.operators import Concat
 
-from trytond import backend
+from trytond import backend, tx
 from trytond.model import ModelSQL, ModelView, fields
-from trytond.pool import Pool
 from trytond.pyson import Eval
-from trytond.transaction import Transaction
 
 
 class _SQLite_JulianDay(Function):
@@ -33,13 +31,13 @@ class _InventoryContextMixin(ModelView):
 
     @classmethod
     def default_company(cls):
-        return Transaction().context.get('company')
+        return tx.transaction.context.get('company')
 
     @classmethod
     def default_location(cls):
-        pool = Pool()
+        pool = tx.pool
         Location = pool.get('stock.location')
-        return Transaction().context.get(
+        return tx.transaction.context.get(
             'location', Location.get_default_warehouse())
 
 
@@ -87,14 +85,14 @@ class _InventoryMixin:
 
     @classmethod
     def table_query(cls):
-        pool = Pool()
+        pool = tx.pool
         Location = pool.get('stock.location')
         Move = pool.get('stock.move')
         Period = pool.get('stock.period')
         PeriodCache = pool.get('stock.period.cache')
         Product = pool.get('product.product')
 
-        transaction = Transaction()
+        transaction = tx.transaction
         context = transaction.context
         move = Move.__table__()
         from_location = Location.__table__()
@@ -302,7 +300,7 @@ class _InventoryMixin:
 
     @classmethod
     def _state_clause(cls, move, date):
-        pool = Pool()
+        pool = tx.pool
         Date = pool.get('ir.date')
         today = Date.today()
         forcast = date > today
@@ -342,11 +340,11 @@ class InventoryContext(_InventoryContextMixin):
 
     @classmethod
     def default_date(cls):
-        return Pool().get('ir.date').today()
+        return tx.pool.get('ir.date').today()
 
     @classmethod
     def default_product_type(cls):
-        return Transaction().context.get('product_type') or 'product.template'
+        return tx.transaction.context.get('product_type') or 'product.template'
 
 
 class Inventory(_InventoryMixin, ModelSQL, ModelView):
@@ -368,18 +366,18 @@ class _InventoryRangeContextMixin(_InventoryContextMixin):
 
     @classmethod
     def default_from_date(cls):
-        pool = Pool()
+        pool = tx.pool
         Date = pool.get('ir.date')
-        context = Transaction().context
+        context = tx.transaction.context
         if 'from_date' in context:
             return context['from_date']
         return Date.today() - relativedelta(day=1, months=6)
 
     @classmethod
     def default_to_date(cls):
-        pool = Pool()
+        pool = tx.pool
         Date = pool.get('ir.date')
-        context = Transaction().context
+        context = tx.transaction.context
         if 'to_date' in context:
             return context['to_date']
         return Date.today() + relativedelta(day=1, months=6)
@@ -410,7 +408,7 @@ class InventoryMove(_InventoryMixin, ModelSQL, ModelView):
 
     @classmethod
     def _quantities_columns(cls, move, product):
-        from_date = Transaction().context.get('from_date') or dt.date.min
+        from_date = tx.transaction.context.get('from_date') or dt.date.min
         move_date = Coalesce(move.effective_date, move.planned_date)
         yield from super()._quantities_columns(move, product)
         yield Case(
@@ -427,7 +425,7 @@ class InventoryMove(_InventoryMixin, ModelSQL, ModelView):
 
     @classmethod
     def _quantities_group_by(cls, move, product):
-        from_date = Transaction().context.get('from_date') or dt.date.min
+        from_date = tx.transaction.context.get('from_date') or dt.date.min
         move_date = Coalesce(move.effective_date, move.planned_date)
         yield from super()._quantities_group_by(move, product)
         yield Case(
@@ -446,19 +444,19 @@ class InventoryMove(_InventoryMixin, ModelSQL, ModelView):
 
     @classmethod
     def get_origin(cls):
-        pool = Pool()
+        pool = tx.pool
         Move = pool.get('stock.move')
         return Move.get_origin()
 
     @classmethod
     def _get_document_models(cls):
-        pool = Pool()
+        pool = tx.pool
         Move = pool.get('stock.move')
         return [m for m, _ in Move.get_shipment() if m]
 
     @classmethod
     def get_documents(cls):
-        pool = Pool()
+        pool = tx.pool
         Model = pool.get('ir.model')
         get_name = Model.get_name
         models = cls._get_document_models()
@@ -496,7 +494,7 @@ class InventoryDaily(_InventoryMixin, ModelSQL, ModelView):
 
     @classmethod
     def _columns(cls, quantities):
-        transaction = Transaction()
+        transaction = tx.transaction
         context = transaction.context
         to_date = context.get('to_date') or dt.date.max
 
@@ -516,7 +514,7 @@ class InventoryTurnoverContext(_InventoryRangeContextMixin):
 
     @classmethod
     def default_product_type(cls):
-        return Transaction().context.get('product_type') or 'product.template'
+        return tx.transaction.context.get('product_type') or 'product.template'
 
 
 class InventoryTurnover(ModelSQL, ModelView):
@@ -563,10 +561,10 @@ class InventoryTurnover(ModelSQL, ModelView):
 
     @classmethod
     def table_query(cls):
-        pool = Pool()
+        pool = tx.pool
         Inventory = pool.get('stock.reporting.inventory.daily')
 
-        transaction = Transaction()
+        transaction = tx.transaction
         context = transaction.context
         inventory = Inventory.__table__()
 

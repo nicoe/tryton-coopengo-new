@@ -2,10 +2,10 @@
 # this repository contains the full copyright notices and license terms.
 
 
+from trytond import tx
 from trytond.model import ModelView, Workflow, fields
-from trytond.pool import Pool, PoolMeta
+from trytond.pool import PoolMeta
 from trytond.pyson import Eval
-from trytond.transaction import Transaction
 
 
 class Sale(metaclass=PoolMeta):
@@ -40,7 +40,7 @@ class Sale(metaclass=PoolMeta):
         if self.quoted_by:
             pattern['employee'] = self.quoted_by.id
         else:
-            pattern['employee'] = Transaction().context.get('employee')
+            pattern['employee'] = tx.transaction.context.get('employee')
         return pattern
 
     @classmethod
@@ -56,7 +56,7 @@ class Sale(metaclass=PoolMeta):
 
     @classmethod
     def set_agent(cls, sales):
-        pool = Pool()
+        pool = tx.pool
         AgentSelection = pool.get('commission.agent.selection')
 
         for sale in sales:

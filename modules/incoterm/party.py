@@ -4,10 +4,10 @@
 from sql import Literal
 from sql.conditionals import Coalesce
 
+from trytond import tx
 from trytond.model import ModelSQL, ModelView, fields, sequence_ordered
-from trytond.pool import Pool, PoolMeta
+from trytond.pool import PoolMeta
 from trytond.pyson import Eval
-from trytond.transaction import Transaction
 
 
 class Party(metaclass=PoolMeta):
@@ -38,9 +38,9 @@ class Address(metaclass=PoolMeta):
 
     @classmethod
     def _is_incoterm_related_query(cls, type=None, party=None):
-        pool = Pool()
+        pool = tx.pool
         Incoterm = pool.get('party.incoterm')
-        context = Transaction().context
+        context = tx.transaction.context
         if party is None:
             party = context.get('related_party')
         if type is None:
@@ -62,7 +62,7 @@ class Address(metaclass=PoolMeta):
         is_related = {a.id: False for a in addresses}
         query = cls._is_incoterm_related_query()
         if query:
-            cursor = Transaction().connection.cursor()
+            cursor = tx.transaction.connection.cursor()
             cursor.execute(*query)
             is_related.update(cursor)
         return is_related
@@ -119,4 +119,4 @@ class Incoterm(sequence_ordered(), ModelView, ModelSQL):
 
     @classmethod
     def default_company(cls):
-        return Transaction().context.get('company')
+        return tx.transaction.context.get('company')

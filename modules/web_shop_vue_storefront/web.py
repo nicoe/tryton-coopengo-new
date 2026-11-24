@@ -6,10 +6,11 @@ import elasticsearch
 from elasticsearch import VERSION as ES_VERSION
 from elasticsearch import Elasticsearch
 
+from trytond import tx
 from trytond.exceptions import RateLimitException
 from trytond.i18n import gettext, lazy_gettext
 from trytond.model import ModelSQL, Unique, fields
-from trytond.pool import Pool, PoolMeta
+from trytond.pool import PoolMeta
 from trytond.pyson import Eval
 
 from .exceptions import BadRequest, LoginException, NotFound
@@ -59,7 +60,7 @@ def with_user(required=False):
     def decorator(func):
         @wraps(func)
         def wrapper(*args, **kwargs):
-            pool = Pool()
+            pool = tx.pool
             User = pool.get('web.user')
             token = kwargs.pop('token', None)
             if token:
@@ -123,7 +124,7 @@ class Shop(metaclass=PoolMeta):
 
     @classmethod
     def vsf_update(cls, shops=None):
-        pool = Pool()
+        pool = tx.pool
         Product = pool.get('product.product')
         ProductTemplate = pool.get('product.template')
         Category = pool.get('product.category')
@@ -241,7 +242,7 @@ class Shop(metaclass=PoolMeta):
         cls.save(shops)
 
     def POST_vsf_user_create(self, data):
-        pool = Pool()
+        pool = tx.pool
         User = pool.get('web.user')
         Party = pool.get('party.party')
         firstname = data['customer']['firstname']
@@ -261,7 +262,7 @@ class Shop(metaclass=PoolMeta):
             }
 
     def POST_vsf_user_login(self, data):
-        pool = Pool()
+        pool = tx.pool
         User = pool.get('web.user')
         try:
             user = User.authenticate(data['username'], data['password'])
@@ -275,7 +276,7 @@ class Shop(metaclass=PoolMeta):
                     'web_shop_vue_storefront.msg_login_wrong'))
 
     def POST_vsf_user_reset_password(self, data):
-        pool = Pool()
+        pool = tx.pool
         User = pool.get('web.user')
         users = User.search([
                 ('email', '=', data['email']),
@@ -284,7 +285,7 @@ class Shop(metaclass=PoolMeta):
 
     @with_user(required=True)
     def POST_vsf_user_change_password(self, data, user):
-        pool = Pool()
+        pool = tx.pool
         User = pool.get('web.user')
         try:
             user = User.authenticate(user.email, data['currentPassword'])
@@ -301,7 +302,7 @@ class Shop(metaclass=PoolMeta):
     @with_user(required=True)
     def GET_vsf_user_order_history(
             self, data, user, pageSize='20', currentPage='1'):
-        pool = Pool()
+        pool = tx.pool
         Sale = pool.get('sale.sale')
         try:
             pageSize = int(pageSize)
@@ -340,7 +341,7 @@ class Shop(metaclass=PoolMeta):
             raise NotFound()
 
     def GET_vsf_stock_list(self, data, skus):
-        pool = Pool()
+        pool = tx.pool
         Product = pool.get('product.product')
         Template = pool.get('product.template')
         skus = skus.split(',')
@@ -363,14 +364,14 @@ class Shop(metaclass=PoolMeta):
 
     @with_user()
     def GET_vsf_cart_pull(self, data, cartId, user=None):
-        pool = Pool()
+        pool = tx.pool
         Sale = pool.get('sale.sale')
         sale = Sale.search_vsf(cartId, self, user)
         return [line.get_vsf() for line in sale.lines if line.product]
 
     @with_user()
     def POST_vsf_cart_update(self, data, cartId, user=None):
-        pool = Pool()
+        pool = tx.pool
         Sale = pool.get('sale.sale')
         SaleLine = pool.get('sale.line')
         sale = Sale.search_vsf(cartId, self, user)
@@ -386,7 +387,7 @@ class Shop(metaclass=PoolMeta):
 
     @with_user()
     def POST_vsf_cart_delete(self, data, cartId, user=None):
-        pool = Pool()
+        pool = tx.pool
         Sale = pool.get('sale.sale')
         SaleLine = pool.get('sale.line')
         sale = Sale.search_vsf(cartId, self, user)
@@ -398,7 +399,7 @@ class Shop(metaclass=PoolMeta):
 
     @with_user()
     def GET_vsf_cart_totals(self, data, cartId, user=None):
-        pool = Pool()
+        pool = tx.pool
         Sale = pool.get('sale.sale')
         sale = Sale.search_vsf(cartId, self, user)
         return sale.get_vsf()
@@ -413,21 +414,21 @@ class Shop(metaclass=PoolMeta):
 
     @with_user()
     def POST_vsf_cart_shipping_information(self, data, cartId, user=None):
-        pool = Pool()
+        pool = tx.pool
         Sale = pool.get('sale.sale')
         sale = Sale.search_vsf(cartId, self, user)
         return sale.get_vsf()
 
     @with_user(required=True)
     def POST_vsf_order_create(self, data, cartId, user):
-        pool = Pool()
+        pool = tx.pool
         Sale = pool.get('sale.sale')
         sale = Sale.search_vsf(cartId, self, user)
         self.vsf_order_create(data, sale, user)
         return 'OK'
 
     def vsf_order_create(self, data, sale, user):
-        pool = Pool()
+        pool = tx.pool
         Sale = pool.get('sale.sale')
         SaleLine = pool.get('sale.line')
         sale.set_vsf(data, user)
@@ -454,7 +455,7 @@ class ShopCoupon(metaclass=PoolMeta):
 
     @with_user()
     def POST_vsf_cart_apply_coupon(self, data, cartId, coupon, user=None):
-        pool = Pool()
+        pool = tx.pool
         Sale = pool.get('sale.sale')
         sale = Sale.search_vsf(cartId, self, user)
         PromotionCouponNumber = pool.get('sale.promotion.coupon.number')
@@ -470,7 +471,7 @@ class ShopCoupon(metaclass=PoolMeta):
 
     @with_user()
     def POST_vsf_cart_delete_coupon(self, data, cartId, user=None):
-        pool = Pool()
+        pool = tx.pool
         Sale = pool.get('sale.sale')
         sale = Sale.search_vsf(cartId, self, user)
         sale.coupons = []
@@ -479,7 +480,7 @@ class ShopCoupon(metaclass=PoolMeta):
 
     @with_user()
     def POST_vsf_cart_coupon(self, data, cartId, user=None):
-        pool = Pool()
+        pool = tx.pool
         Sale = pool.get('sale.sale')
         sale = Sale.search_vsf(cartId, self, user)
         if sale.coupons:
@@ -493,7 +494,7 @@ class ShopShipmentCost(metaclass=PoolMeta):
 
     @with_user()
     def POST_vsf_cart_shipping_methods(self, data, cartId, user=None):
-        pool = Pool()
+        pool = tx.pool
         Sale = pool.get('sale.sale')
         methods = super().POST_vsf_cart_shipping_methods(
             data, cartId, user=user)
@@ -508,7 +509,7 @@ class ShopShipmentCost(metaclass=PoolMeta):
 
     @with_user()
     def POST_vsf_cart_shipping_information(self, data, cartId, user=None):
-        pool = Pool()
+        pool = tx.pool
         Sale = pool.get('sale.sale')
         sale = Sale.search_vsf(cartId, self, user)
         sale.set_vsf(data, user)
@@ -533,7 +534,7 @@ class ShopVSFIdentifier(ModelSQL):
 
     @classmethod
     def get_records(cls):
-        pool = Pool()
+        pool = tx.pool
         Model = pool.get('ir.model')
         get_name = Model.get_name
         models = (klass.__name__ for _, klass in pool.iterobject()
@@ -550,7 +551,7 @@ class ShopVSFIdentifierMixin:
 
     @classmethod
     def set_vsf_identifier(cls, records):
-        pool = Pool()
+        pool = tx.pool
         Identifier = pool.get('web.shop.vsf_identifier')
         vsf_identifiers = []
         for record in records:
@@ -595,7 +596,7 @@ class User(metaclass=PoolMeta):
         return data
 
     def set_vsf(self, data):
-        pool = Pool()
+        pool = tx.pool
         Party = pool.get('party.party')
         Address = pool.get('party.address')
         self.email = data['email']
@@ -629,7 +630,7 @@ class User(metaclass=PoolMeta):
         self.shipment_address = default_shipping
 
     def set_vsf_address(self, address_data, party):
-        pool = Pool()
+        pool = tx.pool
         Party = pool.get('party.party')
         Address = pool.get('party.address')
         Identifier = pool.get('party.identifier')

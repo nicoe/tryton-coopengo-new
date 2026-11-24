@@ -11,13 +11,13 @@ from lxml import etree
 from pypdf import PdfReader, PdfWriter
 from zeep.exceptions import Fault
 
+from trytond import tx
 from trytond.i18n import gettext
 from trytond.model import fields
 from trytond.model.exceptions import AccessError
 from trytond.modules.stock_package_shipping.exceptions import (
     PackingValidationError)
-from trytond.pool import Pool, PoolMeta
-from trytond.transaction import Transaction
+from trytond.pool import PoolMeta
 from trytond.wizard import StateAction, StateTransition, Wizard
 
 from .configuration import SHIPMENT_SERVICE, get_client
@@ -49,7 +49,7 @@ class Package(metaclass=PoolMeta):
             if party and party.lang:
                 lang_code = party.lang.code
             else:
-                lang_code = Transaction().language
+                lang_code = tx.transaction.language
             if address and address.country:
                 code = '_'.join(
                     (lang_code.split('_')[0], address.country.code))
@@ -88,7 +88,7 @@ class CreateShipping(metaclass=PoolMeta):
         return next_state
 
     def do_dpd(self, action):
-        ctx = Transaction().context
+        ctx = tx.transaction.context
         return action, {
             'model': ctx['active_model'],
             'id': ctx['active_id'],
@@ -102,7 +102,7 @@ class CreateDPDShipping(Wizard):
     start = StateTransition()
 
     def transition_start(self):
-        pool = Pool()
+        pool = tx.pool
         Package = pool.get('stock.package')
 
         shipment = self.record
@@ -189,7 +189,7 @@ class CreateDPDShipping(Wizard):
             }
 
     def get_credential(self, shipment):
-        pool = Pool()
+        pool = tx.pool
         DPDCredential = pool.get('carrier.credential.dpd')
 
         credential_pattern = self.get_credential_pattern(shipment)
@@ -241,7 +241,7 @@ class CreateDPDShipping(Wizard):
         return shipping_party
 
     def get_parcel(self, shipment, package):
-        pool = Pool()
+        pool = tx.pool
         UoM = pool.get('product.uom')
         ModelData = pool.get('ir.model.data')
 
@@ -274,7 +274,7 @@ class CreateDPDShipping(Wizard):
         return parcel
 
     def get_shipment_data(self, credential, shipment, packages):
-        pool = Pool()
+        pool = tx.pool
         UoM = pool.get('product.uom')
         ModelData = pool.get('ir.model.data')
 
@@ -316,7 +316,7 @@ class CreateDPDShipping(Wizard):
         if party and party.lang:
             lang_code = party.lang.code
         else:
-            lang_code = Transaction().language
+            lang_code = tx.transaction.language
         lang_code = lang_code.upper()
         channel2type = {
             'sms': {'mobile'},
@@ -351,11 +351,11 @@ class CreateDPDShipping_Customs(metaclass=PoolMeta):
     __name__ = 'stock.shipment.create_shipping.dpd'
 
     def get_product_and_service(self, shipment):
-        pool = Pool()
+        pool = tx.pool
         Date = pool.get('ir.date')
         Currency = pool.get('currency.currency')
 
-        with Transaction().set_context(company=shipment.company.id):
+        with tx.transaction.set_context(company=shipment.company.id):
             today = Date.today()
 
         product_and_service = super().get_product_and_service(shipment)

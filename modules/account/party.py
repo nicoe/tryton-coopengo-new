@@ -7,18 +7,17 @@ from sql import Literal, Null
 from sql.aggregate import Sum
 from sql.conditionals import Coalesce
 
-from trytond import backend
+from trytond import backend, tx
 from trytond.i18n import gettext
 from trytond.model import ModelSQL, fields
 from trytond.modules.company.model import (
     CompanyMultiValueMixin, CompanyValueMixin)
 from trytond.modules.currency.fields import Monetary
 from trytond.modules.party.exceptions import EraseError
-from trytond.pool import Pool, PoolMeta
+from trytond.pool import PoolMeta
 from trytond.pyson import Eval, If
 from trytond.tools import sqlite_apply_types
 from trytond.tools import timezone as tz
-from trytond.transaction import Transaction
 
 from .exceptions import AccountMissing
 
@@ -87,14 +86,14 @@ class Party(CompanyMultiValueMixin, metaclass=PoolMeta):
 
     @classmethod
     def multivalue_model(cls, field):
-        pool = Pool()
+        pool = tx.pool
         if field in account_names:
             return pool.get('party.party.account')
         return super().multivalue_model(field)
 
     @classmethod
     def _default_tax_rule(cls, type_, **pattern):
-        pool = Pool()
+        pool = tx.pool
         Configuration = pool.get('account.configuration')
         config = Configuration(1)
         assert type_ in {'customer', 'supplier'}
@@ -111,23 +110,23 @@ class Party(CompanyMultiValueMixin, metaclass=PoolMeta):
         return cls._default_tax_rule('supplier', **pattern)
 
     def get_currency(self, name):
-        pool = Pool()
+        pool = tx.pool
         Company = pool.get('company.company')
-        company_id = Transaction().context.get('company')
+        company_id = tx.transaction.context.get('company')
         if company_id is not None and company_id >= 0:
             company = Company(company_id)
             return company.currency
 
     @classmethod
     def _receivable_payable_query(cls, names, company, parties=None):
-        pool = Pool()
+        pool = tx.pool
         Account = pool.get('account.account')
         AccountType = pool.get('account.account.type')
         Date = pool.get('ir.date')
         Move = pool.get('account.move')
         MoveLine = pool.get('account.move.line')
 
-        transaction = Transaction()
+        transaction = tx.transaction
         context = transaction.context
         account = Account.__table__()
         account_type = AccountType.__table__()
@@ -187,10 +186,10 @@ class Party(CompanyMultiValueMixin, metaclass=PoolMeta):
 
     @classmethod
     def get_receivable_payable(cls, parties, names):
-        pool = Pool()
+        pool = tx.pool
         User = pool.get('res.user')
 
-        transaction = Transaction()
+        transaction = tx.transaction
         cursor = transaction.connection.cursor()
         amounts = {name: defaultdict(Decimal) for name in names}
 
@@ -211,11 +210,11 @@ class Party(CompanyMultiValueMixin, metaclass=PoolMeta):
 
     @classmethod
     def search_receivable_payable(cls, name, clause):
-        pool = Pool()
+        pool = tx.pool
         User = pool.get('res.user')
         MoveLine = pool.get('account.move.line')
 
-        transaction = Transaction()
+        transaction = tx.transaction
         user = User(transaction.user)
         if not user.company:
             return [('id', '=', -1)]
@@ -241,15 +240,15 @@ class Party(CompanyMultiValueMixin, metaclass=PoolMeta):
 
     @property
     def account_payable_used(self):
-        pool = Pool()
+        pool = tx.pool
         Configuration = pool.get('account.configuration')
         account = self.account_payable
         if not account:
-            with Transaction().set_context(self._context):
+            with tx.transaction.set_context(self._context):
                 config = Configuration(1)
                 account = config.get_multivalue('default_account_payable')
         # Allow empty values on on_change
-        if not account and not Transaction().readonly:
+        if not account and not tx.transaction.readonly:
             raise AccountMissing(
                 gettext('account.msg_party_missing_payable_account',
                     party=self.rec_name))
@@ -258,15 +257,15 @@ class Party(CompanyMultiValueMixin, metaclass=PoolMeta):
 
     @property
     def account_receivable_used(self):
-        pool = Pool()
+        pool = tx.pool
         Configuration = pool.get('account.configuration')
         account = self.account_receivable
         if not account:
-            with Transaction().set_context(self._context):
+            with tx.transaction.set_context(self._context):
                 config = Configuration(1)
                 account = config.get_multivalue('default_account_receivable')
         # Allow empty values on on_change
-        if not account and not Transaction().readonly:
+        if not account and not tx.transaction.readonly:
             raise AccountMissing(
                 gettext('account.msg_party_missing_receivable_account',
                     party=self.rec_name))
@@ -285,7 +284,7 @@ class Party(CompanyMultiValueMixin, metaclass=PoolMeta):
     @classmethod
     def copy(cls, parties, default=None):
         default = default.copy() if default else {}
-        if Transaction().check_access:
+        if tx.transaction.check_access:
             fields = [
                 'accounts',
                 'account_payable', 'account_receivable',

@@ -1,10 +1,10 @@
 # This file is part of Tryton.  The COPYRIGHT file at the top level of
 # this repository contains the full copyright notices and license terms.
 
+from trytond import tx
 from trytond.model import ModelView, fields
-from trytond.pool import Pool, PoolMeta
+from trytond.pool import PoolMeta
 from trytond.pyson import Eval
-from trytond.transaction import Transaction
 from trytond.wizard import Button, StateAction, StateView, Wizard
 
 
@@ -51,19 +51,19 @@ class InvoiceCorrect(Wizard):
     correct = StateAction('account_invoice.act_invoice_form')
 
     def default_start(self, fields):
-        context = Transaction().context
+        context = tx.transaction.context
         return {
             'invoice': context['active_id'],
             'lines': [],
             }
 
     def do_correct(self, action):
-        pool = Pool()
+        pool = tx.pool
         Invoice = self.model
         Line = pool.get('account.invoice.line')
 
         invoice = self.record
-        with Transaction().set_context(_account_invoice_correction=True):
+        with tx.transaction.set_context(_account_invoice_correction=True):
             correction, = Invoice.copy([invoice], default={
                     'lines': [],
                     })

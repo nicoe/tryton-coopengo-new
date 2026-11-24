@@ -1,9 +1,10 @@
 # This file is part of Tryton.  The COPYRIGHT file at the top level of
 # this repository contains the full copyright notices and license terms.
 
+from trytond import tx
 from trytond.model import fields
 from trytond.modules.account.exceptions import FiscalYearNotFoundError
-from trytond.pool import Pool, PoolMeta
+from trytond.pool import PoolMeta
 
 
 class Sale_Incoterm(metaclass=PoolMeta):
@@ -12,7 +13,7 @@ class Sale_Incoterm(metaclass=PoolMeta):
     @property
     @fields.depends('company')
     def _incoterm_required(self):
-        pool = Pool()
+        pool = tx.pool
         FiscalYear = pool.get('account.fiscalyear')
 
         required = super()._incoterm_required

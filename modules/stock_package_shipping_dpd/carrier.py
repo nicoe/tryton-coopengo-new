@@ -5,10 +5,11 @@ import locale
 
 from zeep.exceptions import Fault
 
+from trytond import tx
 from trytond.i18n import gettext
 from trytond.model import (
     MatchMixin, ModelSQL, ModelView, fields, sequence_ordered)
-from trytond.pool import Pool, PoolMeta
+from trytond.pool import PoolMeta
 from trytond.pyson import Eval
 
 from .configuration import LOGIN_SERVICE, get_client
@@ -54,7 +55,7 @@ class CredentialDPD(sequence_ordered(), ModelSQL, ModelView, MatchMixin):
     @classmethod
     def check_modification(
             cls, mode, credentials, values=None, external=False):
-        pool = Pool()
+        pool = tx.pool
         Warning = pool.get('res.user.warning')
         super().check_modification(
             mode, credentials, values=values, external=external)

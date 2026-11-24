@@ -3,11 +3,10 @@
 # this repository contains the full copyright notices and license terms.
 import datetime
 
+from trytond import tx
 from trytond.ir.sequence import LastTimestampError
-from trytond.pool import Pool
 from trytond.tests.test_tryton import (
     TestCase, activate_module, with_transaction)
-from trytond.transaction import Transaction
 
 
 class SequenceTestCase(TestCase):
@@ -20,13 +19,13 @@ class SequenceTestCase(TestCase):
 
     @staticmethod
     def get_model():
-        pool = Pool()
+        pool = tx.pool
         return pool.get('ir.sequence')
 
     @with_transaction()
     def test_incremental(self):
         'Test incremental'
-        pool = Pool()
+        pool = tx.pool
         Sequence = self.get_model()
         SequenceType = pool.get('ir.sequence.type')
 
@@ -63,7 +62,7 @@ class SequenceTestCase(TestCase):
     @with_transaction()
     def test_decimal_timestamp(self):
         'Test Decimal Timestamp'
-        pool = Pool()
+        pool = tx.pool
         Sequence = self.get_model()
         SequenceType = pool.get('ir.sequence.type')
 
@@ -93,7 +92,7 @@ class SequenceTestCase(TestCase):
     @with_transaction()
     def test_hexadecimal_timestamp(self):
         'Test Hexadecimal Timestamp'
-        pool = Pool()
+        pool = tx.pool
         Sequence = self.get_model()
         SequenceType = pool.get('ir.sequence.type')
 
@@ -124,7 +123,7 @@ class SequenceTestCase(TestCase):
     @with_transaction()
     def test_prefix_suffix(self):
         'Test prefix/suffix'
-        pool = Pool()
+        pool = tx.pool
         Sequence = self.get_model()
         SequenceType = pool.get('ir.sequence.type')
 
@@ -146,7 +145,7 @@ class SequenceTestCase(TestCase):
                 'prefix': '${year}-${month}-${day}/',
                 'suffix': '/${day}.${month}.${year}',
                 })
-        with Transaction().set_context(date=datetime.date(2010, 8, 15)):
+        with tx.transaction.set_context(date=datetime.date(2010, 8, 15)):
             self.assertEqual(
                 Sequence(sequence).preview, '2010-08-15/2/15.08.2010')
             self.assertEqual(sequence.get(), '2010-08-15/2/15.08.2010')
@@ -157,5 +156,5 @@ class SequenceStrictTestCase(SequenceTestCase):
 
     @staticmethod
     def get_model():
-        pool = Pool()
+        pool = tx.pool
         return pool.get('ir.sequence.strict')

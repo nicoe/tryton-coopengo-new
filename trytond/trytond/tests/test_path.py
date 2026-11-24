@@ -1,7 +1,7 @@
 # This file is part of Tryton.  The COPYRIGHT file at the top level of
 # this repository contains the full copyright notices and license terms.
 
-from trytond.pool import Pool
+from trytond import tx
 from trytond.tests.test_tryton import TestCase
 from trytond.transaction import inactive_records
 
@@ -13,7 +13,7 @@ class PathTestCase(TreeTestCaseMixin, TestCase):
     model_name = 'test.path'
 
     def check_tree(self, parent_id=None):
-        pool = Pool()
+        pool = tx.pool
         Path = pool.get(self.model_name)
 
         with inactive_records():
@@ -29,6 +29,6 @@ class PathTestCase(TreeTestCaseMixin, TestCase):
             self.check_tree(child.id)
 
     def rebuild(self):
-        pool = Pool()
+        pool = tx.pool
         Path = pool.get(self.model_name)
         Path._rebuild_path('parent')

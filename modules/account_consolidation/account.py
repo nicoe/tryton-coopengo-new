@@ -7,14 +7,14 @@ from operator import attrgetter
 from dateutil.relativedelta import relativedelta
 from sql.conditionals import Coalesce
 
+from trytond import tx
 from trytond.i18n import gettext
 from trytond.model import (
     ModelSQL, ModelView, fields, sequence_ordered, sum_tree, tree)
 from trytond.modules.currency.fields import Monetary
-from trytond.pool import Pool, PoolMeta
+from trytond.pool import PoolMeta
 from trytond.pyson import Bool, Eval, If
 from trytond.report import Report
-from trytond.transaction import Transaction
 
 from .exceptions import InvoiceConsolidationCompanyError
 
@@ -22,10 +22,10 @@ from .exceptions import InvoiceConsolidationCompanyError
 def with_currency_date(func):
     @wraps(func)
     def wrapper(*args, **kwargs):
-        pool = Pool()
+        pool = tx.pool
         Date = pool.get('ir.date')
         today = Date.today()
-        transaction = Transaction()
+        transaction = tx.transaction
         context = transaction.context
         with transaction.set_context(
                 date=context.get('date', context.get('to_date', today))):
@@ -76,10 +76,10 @@ class MoveLine(metaclass=PoolMeta):
 
     @classmethod
     def query_get(cls, table):
-        pool = Pool()
+        pool = tx.pool
         Move = pool.get('account.move')
         move = Move.__table__()
-        context = Transaction().context
+        context = tx.transaction.context
         query, fiscalyear_id = super().query_get(table)
         if context.get('consolidated') and context.get('companies'):
             query &= table.move.in_(move.select(move.id, where=~Coalesce(
@@ -102,7 +102,7 @@ class Invoice(metaclass=PoolMeta):
 
     @fields.depends('party', 'company', 'consolidation_company')
     def on_change_party(self):
-        pool = Pool()
+        pool = tx.pool
         Company = pool.get('company.company')
         super().on_change_party()
         if self.party:
@@ -123,7 +123,7 @@ class Invoice(metaclass=PoolMeta):
 
     @classmethod
     def set_number(cls, invoices):
-        pool = Pool()
+        pool = tx.pool
         Company = pool.get('company.company')
 
         super().set_number(invoices)
@@ -215,16 +215,16 @@ class Consolidation(
             self.statement = self.parent.statement
 
     def get_currency(self, name):
-        return Transaction().context.get('currency')
+        return tx.transaction.context.get('currency')
 
     @classmethod
     @with_currency_date
     def get_amount(cls, consolidations, name):
-        pool = Pool()
+        pool = tx.pool
         AccountType = pool.get('account.account.type')
         Currency = pool.get('currency.currency')
         User = pool.get('res.user')
-        transaction = Transaction()
+        transaction = tx.transaction
         context = transaction.context
         user = User(transaction.user)
 
@@ -274,7 +274,7 @@ class Consolidation(
 
     @classmethod
     def get_amount_cmp(cls, consolidations, name):
-        transaction = Transaction()
+        transaction = tx.transaction
         current = transaction.context
         if not current.get('comparison'):
             return dict.fromkeys([c.id for c in consolidations], None)
@@ -319,24 +319,24 @@ class ConsolidationBalanceSheetContext(ModelView):
 
     @classmethod
     def default_date(cls):
-        Date = Pool().get('ir.date')
-        return Transaction().context.get('date', Date.today())
+        Date = tx.pool.get('ir.date')
+        return tx.transaction.context.get('date', Date.today())
 
     @classmethod
     def default_posted(cls):
-        return Transaction().context.get('posted', False)
+        return tx.transaction.context.get('posted', False)
 
     @classmethod
     def default_currency(cls):
-        pool = Pool()
+        pool = tx.pool
         Company = pool.get('company.company')
-        company_id = Transaction().context.get('company')
+        company_id = tx.transaction.context.get('company')
         if company_id is not None and company_id >= 0:
             return Company(company_id).currency.id
 
     @classmethod
     def default_companies(cls):
-        context = Transaction().context
+        context = tx.transaction.context
         return context.get(
             'companies',
             [context['company']] if context.get('company') else None)
@@ -411,15 +411,15 @@ class ConsolidationIncomeStatementContext(ModelView):
 
     @classmethod
     def default_currency(cls):
-        pool = Pool()
+        pool = tx.pool
         Company = pool.get('company.company')
-        company_id = Transaction().context.get('company')
+        company_id = tx.transaction.context.get('company')
         if company_id is not None and company_id >= 0:
             return Company(company_id).currency.id
 
     @classmethod
     def default_companies(cls):
-        context = Transaction().context
+        context = tx.transaction.context
         return context.get(
             'companies',
             [context['company']] if context.get('company') else None)
@@ -438,10 +438,10 @@ class ConsolidationStatement(Report):
 
     @classmethod
     def get_context(cls, records, header, data):
-        pool = Pool()
+        pool = tx.pool
         Company = pool.get('company.company')
         User = pool.get('res.user')
-        transaction = Transaction()
+        transaction = tx.transaction
         context = transaction.context
         user = User(transaction.user)
 

@@ -3,12 +3,12 @@
 
 from decimal import Decimal
 
+from trytond import tx
 from trytond.i18n import gettext
 from trytond.model import ModelSQL, ModelView, fields
 from trytond.modules.product import round_price
-from trytond.pool import Pool, PoolMeta
+from trytond.pool import PoolMeta
 from trytond.pyson import Eval
-from trytond.transaction import Transaction
 
 from .common import (
     AmendmentLineMixin, get_moves, get_shipments_returns,
@@ -92,7 +92,7 @@ class LineComponent(
 
     def get_move(self, move_type):
         from trytond.modules.purchase.exceptions import PartyLocationError
-        pool = Pool()
+        pool = tx.pool
         Move = pool.get('stock.move')
         Date = pool.get('ir.date')
 
@@ -113,7 +113,7 @@ class LineComponent(
                     purchase=self.purchase.rec_name,
                     party=self.purchase.party.rec_name))
 
-        with Transaction().set_context(company=self.line.purchase.company.id):
+        with tx.transaction.set_context(company=self.line.purchase.company.id):
             today = Date.today()
 
         move = Move()
@@ -144,7 +144,7 @@ class LineComponent(
 
     def check_move_quantity(self):
         from trytond.modules.purchase.exceptions import PurchaseMoveQuantity
-        pool = Pool()
+        pool = tx.pool
         Lang = pool.get('ir.lang')
         Warning = pool.get('res.user.warning')
         lang = Lang.get()

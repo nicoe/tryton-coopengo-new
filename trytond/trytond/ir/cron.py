@@ -14,16 +14,15 @@ from sql import Literal
 from sql.conditionals import Case, Coalesce
 from sql.functions import CurrentTimestamp, Extract
 
-from trytond import backend, config
+from trytond import backend, config, tx
 from trytond.exceptions import UserError, UserWarning
 from trytond.i18n import gettext, ngettext
 from trytond.model import (
     DeactivableMixin, Index, ModelSQL, ModelView, dualmethod, fields)
-from trytond.pool import Pool
 from trytond.pyson import Eval
 from trytond.status import processing
 from trytond.tools import timezone as tz
-from trytond.transaction import Transaction, TransactionError
+from trytond.transaction import TransactionError
 from trytond.worker import run_task
 
 logger = logging.getLogger(__name__)
@@ -128,7 +127,7 @@ class Cron(DeactivableMixin, ModelSQL, ModelView):
 
     @classmethod
     def get_running(cls, crons, name):
-        transaction = Transaction()
+        transaction = tx.transaction
         database = transaction.database
         table = cls.__table__()
 
@@ -153,7 +152,7 @@ class Cron(DeactivableMixin, ModelSQL, ModelView):
     @classmethod
     def notifications(cls):
         "Yield method and label which support user notification"
-        pool = Pool()
+        pool = tx.pool
         ModelAccess = pool.get('ir.model.access')
         for method, label in cls.fields_get(['method'])['method']['selection']:
             if method in cls._notifications:
@@ -202,7 +201,7 @@ class Cron(DeactivableMixin, ModelSQL, ModelView):
     @dualmethod
     @ModelView.button
     def run_once(cls, crons):
-        pool = Pool()
+        pool = tx.pool
         for cron in crons:
             model, method = cron.method.split('|')
             Model = pool.get(model)
@@ -220,10 +219,10 @@ class Cron(DeactivableMixin, ModelSQL, ModelView):
         while True:
             if count:
                 time.sleep(0.02 * (retry - count))
-            with Transaction().start(
+            with tx.transaction.start(
                     db_name, 0, context={'_skip_warnings': True},
                     **transaction_extras) as transaction:
-                pool = Pool()
+                pool = tx.pool
                 Error = pool.get('ir.error')
                 Log = pool.get('ir.cron.log')
                 table = cls.__table__()
@@ -300,7 +299,7 @@ class Cron(DeactivableMixin, ModelSQL, ModelView):
         for task_id in skip_task_ids:
             if task_id < 0:
                 continue
-            with Transaction().start(db_name, 0) as transaction:
+            with tx.transaction.start(db_name, 0) as transaction:
                 try:
                     task = cls(task_id)
                     task.next_call = task.compute_next_call(now)
@@ -314,11 +313,11 @@ class Cron(DeactivableMixin, ModelSQL, ModelView):
             cls, icon, action_id, action_value,
             message_id, n=None, user_domain=None, **variables):
         "Notify subscribed users to the current cron task"
-        pool = Pool()
+        pool = tx.pool
         User = pool.get('res.user')
         Notification = pool.get('res.notification')
         ModelData = pool.get('ir.model.data')
-        transaction = Transaction()
+        transaction = tx.transaction
         if method := transaction.context.get('_cron'):
             notifications = []
             if action_id is not None:
@@ -372,9 +371,9 @@ class Log(ModelSQL, ModelView):
 
     @classmethod
     def clean(cls, size=None):
-        pool = Pool()
+        pool = tx.pool
         Cron = pool.get('ir.cron')
-        cursor = Transaction().connection.cursor()
+        cursor = tx.transaction.connection.cursor()
 
         log = cls.__table__()
         cron = Cron.__table__()

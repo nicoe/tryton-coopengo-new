@@ -11,13 +11,13 @@ from requests_oauthlib import OAuth2Session
 from sql.functions import CharLength
 
 import trytond.config as config
+from trytond import tx
 from trytond.i18n import gettext
 from trytond.model import ModelSQL, ModelView, Unique, Workflow, fields
 from trytond.model.exceptions import AccessError
 from trytond.modules.company.model import CompanyValueMixin
-from trytond.pool import Pool, PoolMeta
+from trytond.pool import PoolMeta
 from trytond.pyson import Bool, Eval, If
-from trytond.transaction import Transaction
 
 from .exceptions import ChorusCredentialWarning, InvoiceChorusValidationError
 
@@ -56,7 +56,7 @@ class _SyntaxMixin(object):
 
     @classmethod
     def get_syntaxes(cls):
-        pool = Pool()
+        pool = tx.pool
         syntaxes = [(None, "")]
         try:
             doc = pool.get('edocument.uncefact.invoice')
@@ -93,7 +93,7 @@ class Configuration(_SyntaxMixin, metaclass=PoolMeta):
 
     @classmethod
     def multivalue_model(cls, field):
-        pool = Pool()
+        pool = tx.pool
         if field in {
                 'chorus_piste_client_id', 'chorus_piste_client_secret',
                 'chorus_login', 'chorus_password', 'chorus_service'}:
@@ -117,7 +117,7 @@ class CredentialChorus(ModelSQL, CompanyValueMixin):
 
     @classmethod
     def get_session(cls):
-        pool = Pool()
+        pool = tx.pool
         Configuration = pool.get('account.configuration')
         config = Configuration(1)
         client = BackendApplicationClient(
@@ -128,7 +128,7 @@ class CredentialChorus(ModelSQL, CompanyValueMixin):
 
     @classmethod
     def _get_token(cls, session):
-        pool = Pool()
+        pool = tx.pool
         Configuration = pool.get('account.configuration')
         config = Configuration(1)
         return session.fetch_token(
@@ -138,7 +138,7 @@ class CredentialChorus(ModelSQL, CompanyValueMixin):
 
     @classmethod
     def post(cls, path, payload, session=None):
-        pool = Pool()
+        pool = tx.pool
         Configuration = pool.get('account.configuration')
         configuration = Configuration(1)
         if not session:
@@ -166,7 +166,7 @@ class CredentialChorus(ModelSQL, CompanyValueMixin):
 
     @classmethod
     def check_modification(cls, mode, records, values=None, external=False):
-        pool = Pool()
+        pool = tx.pool
         Warning = pool.get('res.user.warning')
         super().check_modification(
             mode, records, values=values, external=external)
@@ -192,7 +192,7 @@ class Invoice(metaclass=PoolMeta):
 
     @classmethod
     def _post(cls, invoices):
-        pool = Pool()
+        pool = tx.pool
         InvoiceChorus = pool.get('account.invoice.chorus')
         posted_invoices = {
             i for i in invoices if i.state in {'draft', 'validated'}}
@@ -270,7 +270,7 @@ class InvoiceChorus(
 
     @classmethod
     def __register__(cls, module):
-        cursor = Transaction().connection.cursor()
+        cursor = tx.transaction.connection.cursor()
         table = cls.__table__()
         table_h = cls.__table_handler__(module)
 
@@ -284,7 +284,7 @@ class InvoiceChorus(
 
     @classmethod
     def default_syntax(cls):
-        pool = Pool()
+        pool = tx.pool
         Configuration = pool.get('account.configuration')
         config = Configuration(1)
         return config.chorus_syntax
@@ -344,9 +344,9 @@ class InvoiceChorus(
 
         The transaction is committed after each invoice.
         """
-        pool = Pool()
+        pool = tx.pool
         Credential = pool.get('account.credential.chorus')
-        transaction = Transaction()
+        transaction = tx.transaction
 
         if not records:
             records = cls.search([
@@ -377,12 +377,12 @@ class InvoiceChorus(
                         resp['dateDepot'], '%Y-%m-%d').date()
                     record.state = 'sent'
                     record.save()
-            Transaction().commit()
+            tx.transaction.commit()
 
     def get_payload(self):
-        pool = Pool()
+        pool = tx.pool
         Doc = pool.get(self.syntax)
-        with Transaction().set_context(account_fr_chorus=True):
+        with tx.transaction.set_context(account_fr_chorus=True):
             self.data = Doc(self.invoice).render(None)
         return {
             'fichierFlux': base64.b64encode(self.data).decode('ascii'),
@@ -395,9 +395,9 @@ class InvoiceChorus(
     @ModelView.button
     def update(cls, records=None):
         "Update state from Chorus"
-        pool = Pool()
+        pool = tx.pool
         Credential = pool.get('account.credential.chorus')
-        transaction = Transaction()
+        transaction = tx.transaction
 
         if not records:
             records = cls.search([

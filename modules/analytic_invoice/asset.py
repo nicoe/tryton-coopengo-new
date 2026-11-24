@@ -1,10 +1,10 @@
 # This file is part of Tryton.  The COPYRIGHT file at the top level of
 # this repository contains the full copyright notices and license terms.
+from trytond import tx
 from trytond.model import fields
 from trytond.modules.analytic_account import AnalyticMixin
-from trytond.pool import Pool, PoolMeta
+from trytond.pool import PoolMeta
 from trytond.pyson import Eval
-from trytond.transaction import Transaction
 
 
 class Asset(AnalyticMixin, metaclass=PoolMeta):
@@ -19,7 +19,7 @@ class Asset(AnalyticMixin, metaclass=PoolMeta):
 
     @fields.depends('supplier_invoice_line', 'analytic_accounts')
     def on_change_supplier_invoice_line(self):
-        pool = Pool()
+        pool = tx.pool
         Entry = pool.get('analytic.account.entry')
 
         super().on_change_supplier_invoice_line()
@@ -55,7 +55,7 @@ class Asset(AnalyticMixin, metaclass=PoolMeta):
     def set_analytic_lines(self, move, account):
         "Fill analytic lines on lines with given account"
         if self.analytic_accounts:
-            with Transaction().set_context(date=move.date):
+            with tx.transaction.set_context(date=move.date):
                 for line in move.lines:
                     if line.account != account:
                         continue

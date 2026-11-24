@@ -1,10 +1,10 @@
 # This file is part of Tryton.  The COPYRIGHT file at the top level of
 # this repository contains the full copyright notices and license terms.
+from trytond import tx
 from trytond.i18n import gettext
 from trytond.model import ModelSQL, ValueMixin, fields
 from trytond.modules.party.exceptions import EraseError
-from trytond.pool import Pool, PoolMeta
-from trytond.transaction import Transaction
+from trytond.pool import PoolMeta
 
 supplier_location = fields.Many2One(
     'stock.location', "Supplier Location",
@@ -35,7 +35,7 @@ class Party(metaclass=PoolMeta):
 
     @classmethod
     def multivalue_model(cls, field):
-        pool = Pool()
+        pool = tx.pool
         if field in {'supplier_location', 'customer_location'}:
             return pool.get('party.party.location')
         return super().multivalue_model(field)
@@ -51,9 +51,9 @@ class Party(metaclass=PoolMeta):
             'customer_location').default_customer_location()
 
     def address_get(self, type=None):
-        pool = Pool()
+        pool = tx.pool
         Location = pool.get('stock.location')
-        context = Transaction().context
+        context = tx.transaction.context
         address = super().address_get(type=type)
         if (type == 'delivery'
                 and context.get('warehouse')):
@@ -71,7 +71,7 @@ class PartyLocation(ModelSQL, ValueMixin):
 
     @classmethod
     def default_supplier_location(cls):
-        pool = Pool()
+        pool = tx.pool
         ModelData = pool.get('ir.model.data')
         try:
             return ModelData.get_id('stock', 'location_supplier')
@@ -80,7 +80,7 @@ class PartyLocation(ModelSQL, ValueMixin):
 
     @classmethod
     def default_customer_location(cls):
-        pool = Pool()
+        pool = tx.pool
         ModelData = pool.get('ir.model.data')
         try:
             return ModelData.get_id('stock', 'location_customer')
@@ -140,7 +140,7 @@ class Erase(metaclass=PoolMeta):
     __name__ = 'party.erase'
 
     def check_erase_company(self, party, company):
-        pool = Pool()
+        pool = tx.pool
         ShipmentIn = pool.get('stock.shipment.in')
         ShipmentInReturn = pool.get('stock.shipment.in.return')
         ShipmentOut = pool.get('stock.shipment.out')

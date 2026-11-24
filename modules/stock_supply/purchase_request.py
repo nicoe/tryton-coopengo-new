@@ -4,10 +4,10 @@ import datetime
 import operator
 from collections import defaultdict
 
+from trytond import tx
 from trytond.model import ModelSQL, ValueMixin, fields
-from trytond.pool import Pool, PoolMeta
+from trytond.pool import PoolMeta
 from trytond.pyson import TimeDelta
-from trytond.transaction import Transaction
 
 supply_period = fields.TimeDelta(
     "Supply Period",
@@ -47,11 +47,11 @@ class PurchaseRequest(metaclass=PoolMeta):
         If warehouses is specified it will compute the purchase request
         necessary for the selected warehouses.
         """
-        pool = Pool()
+        pool = tx.pool
         Product = pool.get('product.product')
         Location = pool.get('stock.location')
         User = pool.get('res.user')
-        company = User(Transaction().user).company
+        company = User(tx.transaction.user).company
         if not company:
             return
 
@@ -99,7 +99,7 @@ class PurchaseRequest(metaclass=PoolMeta):
                         ] = order_point
 
             product_ids = [p.id for p in sub_products]
-            with Transaction().set_context(
+            with tx.transaction.set_context(
                     forecast=True,
                     stock_date_end=min_date):
                 pbl = Product.products_by_location(warehouse_ids,
@@ -164,7 +164,7 @@ class PurchaseRequest(metaclass=PoolMeta):
         Compare new_requests with already existing request to avoid
         to re-create existing requests.
         """
-        pool = Pool()
+        pool = tx.pool
         Uom = pool.get('product.uom')
         Request = pool.get('purchase.request')
 
@@ -224,7 +224,7 @@ class PurchaseRequest(metaclass=PoolMeta):
         """
         Return the interval of earliest supply dates for a product.
         """
-        Date = Pool().get('ir.date')
+        Date = tx.pool.get('ir.date')
 
         min_date = None
         max_date = None
@@ -258,7 +258,7 @@ class PurchaseRequest(metaclass=PoolMeta):
         purchase date, the expected supply date and the prefered
         supplier.
         """
-        pool = Pool()
+        pool = tx.pool
         Uom = pool.get('product.uom')
         Request = pool.get('purchase.request')
 
@@ -311,7 +311,7 @@ class PurchaseRequest(metaclass=PoolMeta):
         min_date_qty is the quantities for each products at the min_date.
         order_points is a dictionary that links products to order point.
         """
-        Product = Pool().get('product.product')
+        Product = tx.pool.get('product.product')
 
         res_dates = {}
         res_qties = {}
@@ -322,7 +322,7 @@ class PurchaseRequest(metaclass=PoolMeta):
             if order_point:
                 min_quantities[product_id] = order_point.min_quantity
 
-        with Transaction().set_context(
+        with tx.transaction.set_context(
                 forecast=True,
                 stock_date_start=min_date,
                 stock_date_end=max_date):

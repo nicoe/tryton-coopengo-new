@@ -1,7 +1,8 @@
 # This file is part of Tryton.  The COPYRIGHT file at the top level of
 # this repository contains the full copyright notices and license terms.
+from trytond import tx
 from trytond.i18n import gettext
-from trytond.pool import Pool, PoolMeta
+from trytond.pool import PoolMeta
 
 from .exceptions import OverShipmentWarning
 
@@ -10,7 +11,7 @@ class Line(metaclass=PoolMeta):
     __name__ = 'sale.line'
 
     def _test_under_shipment_tolerance(self, quantity):
-        pool = Pool()
+        pool = tx.pool
         Configuration = pool.get('sale.configuration')
         if quantity:
             config = Configuration(1)
@@ -31,7 +32,7 @@ class Line(metaclass=PoolMeta):
         return quantity
 
     def get_move(self, shipment_type):
-        pool = Pool()
+        pool = tx.pool
         Uom = pool.get('product.uom')
         move = super().get_move(shipment_type)
         # Compute tolerance only if there is already at least one move.
@@ -43,7 +44,7 @@ class Line(metaclass=PoolMeta):
         return move
 
     def check_over_shipment(self):
-        pool = Pool()
+        pool = tx.pool
         Configuration = pool.get('sale.configuration')
         Warning = pool.get('res.user.warning')
         Lang = pool.get('ir.lang')

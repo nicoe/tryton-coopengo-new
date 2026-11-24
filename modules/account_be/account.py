@@ -4,19 +4,19 @@ import stdnum.exceptions
 from sql.aggregate import Min, Sum
 from stdnum.be import ogm_vcs
 
+from trytond import tx
 from trytond.model import ModelSQL, ModelView, fields
 from trytond.modules.account.exceptions import FiscalYearNotFoundError
 from trytond.modules.currency.fields import Monetary
-from trytond.pool import Pool, PoolMeta
+from trytond.pool import PoolMeta
 from trytond.pyson import Eval
-from trytond.transaction import Transaction
 
 
 class CreateChart(metaclass=PoolMeta):
     __name__ = 'account.create_chart'
 
     def default_properties(self, fields):
-        pool = Pool()
+        pool = tx.pool
         ModelData = pool.get('ir.model.data')
         defaults = super().default_properties(fields)
         for lang in ['fr', 'nl']:
@@ -53,7 +53,7 @@ class BEVATCustomer(ModelSQL, ModelView):
 
     @classmethod
     def table_query(cls):
-        pool = Pool()
+        pool = tx.pool
         Identifier = pool.get('party.identifier')
         Invoice = pool.get('account.invoice')
         InvoiceTax = pool.get('account.invoice.tax')
@@ -61,7 +61,7 @@ class BEVATCustomer(ModelSQL, ModelView):
         Move = pool.get('account.move')
         Period = pool.get('account.period')
         Tax = pool.get('account.tax')
-        context = Transaction().context
+        context = tx.transaction.context
         company_identifier = Identifier.__table__()
         party_identifier = Identifier.__table__()
         invoice = Invoice.__table__()
@@ -125,13 +125,13 @@ class BEVATCustomerContext(ModelView):
 
     @classmethod
     def default_company(cls):
-        return Transaction().context.get('company')
+        return tx.transaction.context.get('company')
 
     @classmethod
     def default_fiscalyear(cls):
-        pool = Pool()
+        pool = tx.pool
         FiscalYear = pool.get('account.fiscalyear')
-        context = Transaction().context
+        context = tx.transaction.context
         if 'fiscalyear' not in context:
             try:
                 fiscalyear = FiscalYear.find(

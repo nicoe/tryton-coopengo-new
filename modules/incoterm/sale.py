@@ -1,9 +1,10 @@
 # This file is part of Tryton.  The COPYRIGHT file at the top level of
 # this repository contains the full copyright notices and license terms.
 
+from trytond import tx
 from trytond.i18n import gettext
 from trytond.model import ModelView, Workflow, fields
-from trytond.pool import Pool, PoolMeta
+from trytond.pool import PoolMeta
 from trytond.pyson import Eval
 
 from .common import IncotermAvailableMixin, IncotermMixin
@@ -23,7 +24,7 @@ class Sale(IncotermAvailableMixin, metaclass=PoolMeta):
         return self.party.sale_incoterms if self.party else []
 
     def _get_shipment_sale(self, Shipment, key):
-        pool = Pool()
+        pool = tx.pool
         ShipmentOut = pool.get('stock.shipment.out')
         shipment = super()._get_shipment_sale(Shipment, key)
         if isinstance(shipment, ShipmentOut):

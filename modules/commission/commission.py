@@ -13,17 +13,16 @@ except ImportError:
     Null = None
 from sql.aggregate import Sum
 
-from trytond import backend
+from trytond import backend, tx
 from trytond.i18n import gettext
 from trytond.model import (
     ChatMixin, DeactivableMixin, MatchMixin, ModelSQL, ModelView, fields,
     sequence_ordered)
 from trytond.modules.currency.fields import Monetary
 from trytond.modules.product import price_digits, round_price
-from trytond.pool import Pool
 from trytond.pyson import Bool, Eval, Id, If
 from trytond.tools import decistmt, sqlite_apply_types
-from trytond.transaction import Transaction, check_access
+from trytond.transaction import check_access
 from trytond.wizard import Button, StateAction, StateView, Wizard
 
 from .exceptions import FormulaError
@@ -68,9 +67,9 @@ class Agent(DeactivableMixin, ModelSQL, ModelView):
 
     @fields.depends('active', 'selections', 'company')
     def on_change_active(self):
-        pool = Pool()
+        pool = tx.pool
         Date = pool.get('ir.date')
-        with Transaction().set_context(
+        with tx.transaction.set_context(
                 company=self.company.id if self.company else None):
             today = Date.today()
         if not self.active and self.selections:
@@ -83,7 +82,7 @@ class Agent(DeactivableMixin, ModelSQL, ModelView):
 
     @staticmethod
     def default_company():
-        return Transaction().context.get('company')
+        return tx.transaction.context.get('company')
 
     @staticmethod
     def default_type_():
@@ -91,7 +90,7 @@ class Agent(DeactivableMixin, ModelSQL, ModelView):
 
     @classmethod
     def default_currency(cls):
-        pool = Pool()
+        pool = tx.pool
         Company = pool.get('company.company')
         company = cls.default_company()
         if company is not None and company >= 0:
@@ -121,10 +120,10 @@ class Agent(DeactivableMixin, ModelSQL, ModelView):
 
     @classmethod
     def get_pending_amount(cls, agents, name):
-        pool = Pool()
+        pool = tx.pool
         Commission = pool.get('commission')
         commission = Commission.__table__()
-        cursor = Transaction().connection.cursor()
+        cursor = tx.transaction.connection.cursor()
 
         amounts = defaultdict(lambda: None)
         query = commission.select(
@@ -204,13 +203,13 @@ class AgentSelection(sequence_ordered(), MatchMixin, ModelSQL, ModelView):
         return [('agent.' + clause[0],) + tuple(clause[1:])]
 
     def match(self, pattern):
-        pool = Pool()
+        pool = tx.pool
         Date = pool.get('ir.date')
 
         pattern = pattern.copy()
         if 'company' in pattern:
             pattern.pop('company')
-        with Transaction().set_context(company=self.company.id):
+        with tx.transaction.set_context(company=self.company.id):
             date = pattern.pop('date', None) or Date.today()
         if self.start_date and self.start_date > date:
             return False
@@ -394,7 +393,7 @@ class Commission(ModelSQL, ModelView, ChatMixin):
 
     @classmethod
     def get_origin(cls):
-        pool = Pool()
+        pool = tx.pool
         Model = pool.get('ir.model')
         get_name = Model.get_name
         models = cls._get_origin()
@@ -402,7 +401,7 @@ class Commission(ModelSQL, ModelView, ChatMixin):
 
     @fields.depends('agent', 'origin', 'base_amount')
     def on_change_with_base_amount(self):
-        pool = Pool()
+        pool = tx.pool
         InvoiceLine = pool.get('account.invoice.line')
         Currency = pool.get('currency.currency')
         if (self.agent
@@ -459,7 +458,7 @@ class Commission(ModelSQL, ModelView, ChatMixin):
     @classmethod
     @ModelView.button
     def invoice(cls, commissions):
-        pool = Pool()
+        pool = tx.pool
         Invoice = pool.get('account.invoice')
         InvoiceLine = pool.get('account.invoice.line')
         try:
@@ -521,7 +520,7 @@ class Commission(ModelSQL, ModelView, ChatMixin):
 
     @classmethod
     def get_journal(cls):
-        pool = Pool()
+        pool = tx.pool
         Journal = pool.get('account.journal')
 
         journals = Journal.search([
@@ -532,7 +531,7 @@ class Commission(ModelSQL, ModelView, ChatMixin):
 
     @classmethod
     def _get_invoice(cls, key):
-        pool = Pool()
+        pool = tx.pool
         Invoice = pool.get('account.invoice')
 
         agent = key['agent']
@@ -556,7 +555,7 @@ class Commission(ModelSQL, ModelView, ChatMixin):
 
     @classmethod
     def _get_invoice_line(cls, key, invoice, commissions):
-        pool = Pool()
+        pool = tx.pool
         InvoiceLine = pool.get('account.invoice.line')
 
         def sign(commission):
@@ -585,7 +584,7 @@ class Commission(ModelSQL, ModelView, ChatMixin):
 
     @property
     def stock_moves(self):
-        pool = Pool()
+        pool = tx.pool
         InvoiceLine = pool.get('account.invoice.line')
         stock_moves = set()
         if (isinstance(self.origin, InvoiceLine)
@@ -620,7 +619,7 @@ class CreateInvoice(Wizard):
         return domain
 
     def do_create_(self, action):
-        pool = Pool()
+        pool = tx.pool
         Commission = pool.get('commission')
         with check_access():
             commissions = Commission.search(self.get_domain(),

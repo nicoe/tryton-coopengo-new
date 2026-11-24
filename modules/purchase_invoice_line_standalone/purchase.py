@@ -1,9 +1,9 @@
 # This file is part of Tryton.  The COPYRIGHT file at the top level of
 # this repository contains the full copyright notices and license terms.
 
-from trytond import backend
+from trytond import backend, tx
 from trytond.model import ModelSQL, fields
-from trytond.pool import Pool, PoolMeta
+from trytond.pool import PoolMeta
 
 
 class Purchase(metaclass=PoolMeta):
@@ -29,7 +29,7 @@ class Purchase(metaclass=PoolMeta):
 
     @classmethod
     def _save_invoice(cls, invoices):
-        pool = Pool()
+        pool = tx.pool
         InvoiceLine = pool.get('account.invoice.line')
 
         lines = []

@@ -1,7 +1,8 @@
 # This file is part of Tryton.  The COPYRIGHT file at the top level of this
 # repository contains the full copyright notices and license terms.
+from trytond import tx
 from trytond.model import ModelSQL, ValueMixin, fields
-from trytond.pool import Pool, PoolMeta
+from trytond.pool import PoolMeta
 
 
 class Party(metaclass=PoolMeta):
@@ -18,7 +19,7 @@ class Party(metaclass=PoolMeta):
 
     @classmethod
     def default_sale_invoice_grouping_method(cls, **pattern):
-        pool = Pool()
+        pool = tx.pool
         Configuration = pool.get('sale.configuration')
         return Configuration(1).get_multivalue(
             'sale_invoice_grouping_method', **pattern)
@@ -33,7 +34,7 @@ class PartySaleInvoiceGroupingMethod(ModelSQL, ValueMixin):
 
     @classmethod
     def get_sale_invoice_grouping_methods(cls):
-        pool = Pool()
+        pool = tx.pool
         Party = pool.get('party.party')
         field_name = 'sale_invoice_grouping_method'
         return Party.fields_get([field_name])[field_name]['selection']

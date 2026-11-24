@@ -8,12 +8,11 @@ from io import BytesIO
 from pypdf import PdfReader, PdfWriter
 
 import trytond.config as config
+from trytond import tx
 from trytond.i18n import gettext
 from trytond.model import (
     DeactivableMixin, ModelSingleton, ModelSQL, ModelView, Workflow, fields)
-from trytond.pool import Pool
 from trytond.pyson import Eval, If
-from trytond.transaction import Transaction
 from trytond.wizard import Button, StateTransition, StateView, Wizard
 
 from .exceptions import DocumentIncomingSplitError
@@ -144,7 +143,7 @@ class Incoming(DeactivableMixin, Workflow, ModelSQL, ModelView):
 
     @classmethod
     def get_results(cls):
-        pool = Pool()
+        pool = tx.pool
         IrModel = pool.get('ir.model')
         get_name = IrModel.get_name
         models = cls._get_results()
@@ -226,7 +225,7 @@ class Incoming(DeactivableMixin, Workflow, ModelSQL, ModelView):
     @ModelView.button
     @Workflow.transition('processing')
     def process(cls, documents, with_children=False):
-        transaction = Transaction()
+        transaction = tx.transaction
         context = transaction.context
         with transaction.set_context(
                 queue_batch=context.get('queue_batch', True)):
@@ -236,7 +235,7 @@ class Incoming(DeactivableMixin, Workflow, ModelSQL, ModelView):
     @ModelView.button
     @Workflow.transition('done')
     def proceed(cls, documents, with_children=False):
-        pool = Pool()
+        pool = tx.pool
         Attachment = pool.get('ir.attachment')
         results = defaultdict(list)
         attachments = []
@@ -335,7 +334,7 @@ class IncomingSplit(Wizard):
             }
 
     def transition_split(self):
-        pool = Pool()
+        pool = tx.pool
         Document = pool.get('document.incoming')
         if self.record.active and self.record.mime_type == 'application/pdf':
             self.record.active = False

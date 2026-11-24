@@ -6,10 +6,9 @@ from dateutil.rrule import (
     DAILY, FR, MO, MONTHLY, SA, SU, TH, TU, WE, WEEKLY, YEARLY, rrule,
     rruleset)
 
+from trytond import tx
 from trytond.i18n import gettext
 from trytond.model import ModelSQL, ModelView, fields
-from trytond.pool import Pool
-from trytond.transaction import Transaction
 from trytond.wizard import Button, StateView, Wizard
 
 from .exceptions import RecurrenceRuleValidationError
@@ -47,7 +46,7 @@ class RecurrenceRuleSet(ModelSQL, ModelView):
 
     @classmethod
     def default_rules(cls):
-        if Transaction().user == 0:
+        if tx.transaction.user == 0:
             return []
         return [{}]
 
@@ -244,11 +243,11 @@ class TestRecurrenceRuleSetView(ModelView):
 
     @classmethod
     def default_start_date(cls):
-        return Pool().get('ir.date').today()
+        return tx.pool.get('ir.date').today()
 
     @fields.depends('recurrence', 'start_date', 'count', 'result')
     def on_change_with_result(self):
-        pool = Pool()
+        pool = tx.pool
         Result = pool.get('sale.subscription.recurrence.rule.set.test.result')
         result = []
         if self.recurrence and self.start_date and self.count:

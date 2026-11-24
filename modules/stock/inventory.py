@@ -5,14 +5,13 @@ from collections import defaultdict
 from sql import Null
 from sql.functions import CharLength
 
+from trytond import tx
 from trytond.i18n import gettext
 from trytond.model import (
     ChatMixin, Check, Index, Model, ModelSQL, ModelView, Workflow, fields)
 from trytond.model.exceptions import AccessError
-from trytond.pool import Pool
 from trytond.pyson import Bool, Eval, If
 from trytond.tools import is_full_text, lstrip_wildcard
-from trytond.transaction import Transaction
 from trytond.wizard import Button, StateTransition, StateView, Wizard
 
 from .exceptions import InventoryCountWarning, InventoryValidationError
@@ -111,15 +110,15 @@ class Inventory(Workflow, ModelSQL, ModelView, ChatMixin):
 
     @staticmethod
     def default_date():
-        Date = Pool().get('ir.date')
+        Date = tx.pool.get('ir.date')
         return Date.today()
 
     @staticmethod
     def default_company():
-        return Transaction().context.get('company')
+        return tx.transaction.context.get('company')
 
     def get_rec_name(self, name):
-        pool = Pool()
+        pool = tx.pool
         Lang = pool.get('ir.lang')
         lang = Lang.get()
         date = lang.strftime(self.date)
@@ -150,9 +149,9 @@ class Inventory(Workflow, ModelSQL, ModelView, ChatMixin):
     @ModelView.button
     @Workflow.transition('done')
     def confirm(cls, inventories):
-        pool = Pool()
+        pool = tx.pool
         Move = pool.get('stock.move')
-        transaction = Transaction()
+        transaction = tx.transaction
         moves = []
         for inventory in inventories:
             keys = set()
@@ -176,12 +175,12 @@ class Inventory(Workflow, ModelSQL, ModelView, ChatMixin):
     @ModelView.button
     @Workflow.transition('cancelled')
     def cancel(cls, inventories):
-        Line = Pool().get("stock.inventory.line")
+        Line = tx.pool.get("stock.inventory.line")
         Line.cancel_move([l for i in inventories for l in i.lines])
 
     @classmethod
     def preprocess_values(cls, mode, values):
-        pool = Pool()
+        pool = tx.pool
         Configuration = pool.get('stock.configuration')
         values = super().preprocess_values(mode, values)
         if mode == 'create' and not values.get('number'):
@@ -213,7 +212,7 @@ class Inventory(Workflow, ModelSQL, ModelView, ChatMixin):
 
     @classmethod
     def copy(cls, inventories, default=None):
-        pool = Pool()
+        pool = tx.pool
         Date = pool.get('ir.date')
 
         if default is None:
@@ -236,7 +235,7 @@ class Inventory(Workflow, ModelSQL, ModelView, ChatMixin):
         '''
         Complete or update the inventories
         '''
-        pool = Pool()
+        pool = tx.pool
         Line = pool.get('stock.inventory.line')
         Product = pool.get('product.product')
 
@@ -247,7 +246,7 @@ class Inventory(Workflow, ModelSQL, ModelView, ChatMixin):
             if inventory.state == 'done':
                 continue
             # Compute product quantities
-            with Transaction().set_context(
+            with tx.transaction.set_context(
                     company=inventory.company.id,
                     stock_date_end=inventory.date):
                 if fill:
@@ -400,7 +399,7 @@ class InventoryLine(ModelSQL, ModelView):
 
     @classmethod
     def get_inventory_states(cls):
-        pool = Pool()
+        pool = tx.pool
         Inventory = pool.get('stock.inventory')
         return Inventory.fields_get(['state'])['state']['selection']
 
@@ -432,7 +431,7 @@ class InventoryLine(ModelSQL, ModelView):
 
     @classmethod
     def cancel_move(cls, lines):
-        Move = Pool().get('stock.move')
+        Move = tx.pool.get('stock.move')
         moves = [m for l in lines for m in l.moves if l.moves]
         Move.cancel(moves)
         Move.delete(moves)
@@ -441,7 +440,7 @@ class InventoryLine(ModelSQL, ModelView):
         '''
         Return Move instance for the inventory line
         '''
-        pool = Pool()
+        pool = tx.pool
         Move = pool.get('stock.move')
 
         qty = self.quantity
@@ -517,7 +516,7 @@ class Count(Wizard):
     add = StateTransition()
 
     def default_quantity(self, fields):
-        pool = Pool()
+        pool = tx.pool
         InventoryLine = pool.get('stock.inventory.line')
         Warning = pool.get('res.user.warning')
         values = {}
@@ -543,7 +542,7 @@ class Count(Wizard):
         return values
 
     def get_line_domain(self, inventory):
-        pool = Pool()
+        pool = tx.pool
         Product = pool.get('product.product')
         domain = [
             ('inventory', '=', inventory.id),
@@ -553,7 +552,7 @@ class Count(Wizard):
         return domain
 
     def get_line(self):
-        pool = Pool()
+        pool = tx.pool
         Product = pool.get('product.product')
         InventoryLine = pool.get('stock.inventory.line')
 

@@ -9,10 +9,10 @@ from collections import defaultdict
 from decimal import Decimal
 from xml import sax
 
-from trytond import __version__
+from trytond import __version__, tx
 from trytond.pyson import CONTEXT, PYSONEncoder
-from trytond.transaction import Transaction, inactive_records
 from trytond.server_context import ServerContext
+from trytond.transaction import inactive_records
 
 logger = logging.getLogger(__name__)
 
@@ -49,7 +49,9 @@ class MenuitemTagHandler:
         self.xml_id = None
 
     def startElement(self, name, attributes):
-        cursor = Transaction().connection.cursor()
+        from trytond import tx
+
+        cursor = tx.transaction.connection.cursor()
 
         values = {}
 
@@ -419,7 +421,8 @@ class TrytondXmlHandler(sax.handler.ContentHandler):
         source = sax.InputSource()
         source.setByteStream(stream)
 
-        with Transaction().set_context(language='en', module=self.module):
+        with tx.transaction.set_context(
+                language='en', module=self.module):
             try:
                 self.sax_parser.parse(source)
             except Exception as e:
@@ -618,7 +621,9 @@ def post_import(pool, module, to_delete):
     """
     Remove the records that are given in to_delete.
     """
-    transaction = Transaction()
+    from trytond import tx
+
+    transaction = tx.transaction
     mdata_delete = []
     ModelData = pool.get("ir.model.data")
 

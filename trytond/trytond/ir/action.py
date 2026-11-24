@@ -8,18 +8,17 @@ from unidecode import unidecode
 
 from genshi.template.text import TextTemplate
 
+from trytond import tx
 from trytond.cache import Cache, MemoryCache
 from trytond.i18n import gettext
 from trytond.model import (
     DeactivableMixin, Index, ModelSingleton, ModelSQL, ModelStorage, ModelView,
     fields, sequence_ordered)
 from trytond.model.exceptions import ValidationError
-from trytond.pool import Pool
 from trytond.pyson import PYSON, Eval, PYSONDecoder, PYSONEncoder
 from trytond.rpc import RPC
 from trytond.tools import file_open
-from trytond.transaction import (
-    Transaction, inactive_records, without_check_access)
+from trytond.transaction import inactive_records, without_check_access
 
 
 class WizardModelError(ValidationError):
@@ -94,7 +93,7 @@ class Action(DeactivableMixin, ModelSQL, ModelView):
 
     @classmethod
     def on_modification(cls, mode, actions, field_names=None):
-        pool = Pool()
+        pool = tx.pool
         ActionKeyword = pool.get('ir.action.keyword')
         super().on_modification(mode, actions, field_names=field_names)
         ActionKeyword._get_keyword_cache.clear()
@@ -103,7 +102,7 @@ class Action(DeactivableMixin, ModelSQL, ModelView):
     @inactive_records
     @without_check_access
     def get_action_id(cls, action_id):
-        pool = Pool()
+        pool = tx.pool
         if cls.search([
                     ('id', '=', action_id),
                     ]):
@@ -124,7 +123,7 @@ class Action(DeactivableMixin, ModelSQL, ModelView):
 
     @classmethod
     def get_action_values(cls, type_, action_ids, columns=None):
-        pool = Pool()
+        pool = tx.pool
         Action = pool.get(type_)
         if columns is None:
             columns = []
@@ -165,7 +164,7 @@ class ActionGroup(ModelSQL):
 
     @classmethod
     def preprocess_values(cls, mode, values):
-        pool = Pool()
+        pool = tx.pool
         Action = pool.get('ir.action')
         values = super().preprocess_values(mode, values)
         if values.get('action') is not None:
@@ -174,7 +173,7 @@ class ActionGroup(ModelSQL):
 
     @classmethod
     def on_modification(cls, mode, records, field_names=None):
-        pool = Pool()
+        pool = tx.pool
         Action = pool.get('ir.action')
         super().on_modification(mode, records, field_names=field_names)
         Action._groups_cache.clear()
@@ -222,7 +221,7 @@ class ActionKeyword(ModelSQL, ModelView):
 
     @classmethod
     def check_wizard_model(cls, actions, field_names=None):
-        pool = Pool()
+        pool = tx.pool
         ActionWizard = pool.get('ir.action.wizard')
         if field_names and not (field_names & {'action', 'model'}):
             return
@@ -243,7 +242,7 @@ class ActionKeyword(ModelSQL, ModelView):
 
     @classmethod
     def preprocess_values(cls, mode, values):
-        pool = Pool()
+        pool = tx.pool
         Action = pool.get('ir.action')
         values = super().preprocess_values(mode, values)
         if values.get('action') is not None:
@@ -258,7 +257,7 @@ class ActionKeyword(ModelSQL, ModelView):
 
     @staticmethod
     def models_get():
-        pool = Pool()
+        pool = tx.pool
         Model = pool.get('ir.model')
         return [(None, '')] + Model.get_name_items(ModelView)
 
@@ -271,14 +270,14 @@ class ActionKeyword(ModelSQL, ModelView):
 
     @classmethod
     def get_keyword(cls, keyword, value):
-        pool = Pool()
+        pool = tx.pool
         Action = pool.get('ir.action')
         Menu = pool.get('ir.ui.menu')
         ModelAccess = pool.get('ir.model.access')
         ModelData = pool.get('ir.model.data')
         User = pool.get('res.user')
         groups = User.get_groups()
-        key = (Transaction().language, groups, keyword, tuple(value))
+        key = (tx.transaction.language, groups, keyword, tuple(value))
         keywords = cls._get_keyword_cache.get(key)
         if keywords is not None:
             return keywords
@@ -350,7 +349,7 @@ class ActionMixin(ModelSQL):
 
     @classmethod
     def __setup__(cls):
-        pool = Pool()
+        pool = tx.pool
         super().__setup__()
         cls.__access__.add('action')
         cls.action.domain = [
@@ -370,7 +369,7 @@ class ActionMixin(ModelSQL):
 
     @staticmethod
     def _default_action(name):
-        pool = Pool()
+        pool = tx.pool
         Action = pool.get('ir.action')
         return getattr(Action, 'default_' + name, None)()
 
@@ -402,7 +401,7 @@ class ActionMixin(ModelSQL):
 
     @classmethod
     def set_action(cls, records, name, value):
-        pool = Pool()
+        pool = tx.pool
         Action = pool.get('ir.action')
         Action.write([r.action for r in records], {
                 name: value,
@@ -415,7 +414,7 @@ class ActionMixin(ModelSQL):
     @classmethod
     @without_check_access
     def get_groups(cls, name, action_id=None):
-        pool = Pool()
+        pool = tx.pool
         Action = pool.get('ir.action')
 
         key = (name, action_id)
@@ -434,7 +433,7 @@ class ActionMixin(ModelSQL):
 
     @classmethod
     def on_modification(cls, mode, records, field_names=None):
-        pool = Pool()
+        pool = tx.pool
         Action = pool.get('ir.action')
         ActionKeyword = pool.get('ir.action.keyword')
         super().on_modification(mode, records, field_names=field_names)
@@ -446,7 +445,7 @@ class ActionMixin(ModelSQL):
 
     @classmethod
     def create(cls, vlist):
-        pool = Pool()
+        pool = tx.pool
         Action = pool.get('ir.action')
         ir_action = cls.__table__()
         new_records = []
@@ -463,7 +462,7 @@ class ActionMixin(ModelSQL):
             for field in later:
                 del values[field]
             action_values['type'] = cls.default_type()
-            transaction = Transaction()
+            transaction = tx.transaction
             database = transaction.database
             cursor = transaction.connection.cursor()
             if database.nextid(transaction.connection, cls._table):
@@ -487,7 +486,7 @@ class ActionMixin(ModelSQL):
 
     @classmethod
     def copy(cls, records, default=None):
-        pool = Pool()
+        pool = tx.pool
         Action = pool.get('ir.action')
         if default is None:
             default = {}
@@ -659,7 +658,7 @@ class ActionReport(
 
     @staticmethod
     def default_module():
-        return Transaction().context.get('module')
+        return tx.transaction.context.get('module')
 
     def get_is_custom(self, name):
         return bool(self.report_content_custom)
@@ -669,7 +668,7 @@ class ActionReport(
         contents = {}
         converter = fields.Binary.cast
         default = None
-        format_ = Transaction().context.get(
+        format_ = tx.transaction.context.get(
             '%s.%s' % (cls.__name__, name), '')
         if format_ == 'size':
             converter = len
@@ -729,7 +728,7 @@ class ActionReport(
 
     @classmethod
     def preprocess_values(cls, mode, values):
-        context = Transaction().context
+        context = tx.transaction.context
         values = super().preprocess_values(mode, values)
         if 'module' in context and not values.get('module'):
             values['module'] = context['module']
@@ -957,7 +956,7 @@ class ActionActWindow(
 
     @classmethod
     def get_pyson(cls, windows, name):
-        pool = Pool()
+        pool = tx.pool
         encoder = PYSONEncoder()
         pysons = {}
         field = name[6:]
@@ -980,7 +979,7 @@ class ActionActWindow(
     @classmethod
     def get(cls, xml_id):
         'Get values from XML id or id'
-        pool = Pool()
+        pool = tx.pool
         ModelData = pool.get('ir.model.data')
         Action = pool.get('ir.action')
         if '.' in xml_id:
@@ -1014,7 +1013,7 @@ class ActionActWindowView(
 
     @classmethod
     def on_modification(cls, mode, records, field_names=None):
-        pool = Pool()
+        pool = tx.pool
         Keyword = pool.get('ir.action.keyword')
         super().on_modification(mode, records, field_names=field_names)
         Keyword._get_keyword_cache.clear()
@@ -1079,7 +1078,7 @@ class ActionActWindowDomain(
 
     @classmethod
     def on_modification(cls, mode, records, field_names=None):
-        pool = Pool()
+        pool = tx.pool
         Keyword = pool.get('ir.action.keyword')
         super().on_modification(mode, records, field_names=field_names)
         Keyword._get_keyword_cache.clear()

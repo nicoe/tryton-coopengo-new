@@ -2,16 +2,17 @@
 # this repository contains the full copyright notices and license terms.
 from functools import wraps
 
+from trytond import tx
 from trytond.i18n import gettext
 from trytond.model.exceptions import AccessError
-from trytond.pool import Pool, PoolMeta
+from trytond.pool import PoolMeta
 from trytond.transaction import without_check_access
 
 
 def process_opportunity(func):
     @wraps(func)
     def wrapper(cls, sales):
-        pool = Pool()
+        pool = tx.pool
         Opportunity = pool.get('sale.opportunity')
         with without_check_access():
             opportunities = Opportunity.browse(
@@ -33,7 +34,7 @@ class Sale(metaclass=PoolMeta):
 
     @classmethod
     def check_modification(cls, mode, sales, values=None, external=False):
-        pool = Pool()
+        pool = tx.pool
         Opportunity = pool.get('sale.opportunity')
 
         super().check_modification(

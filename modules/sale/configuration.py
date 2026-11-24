@@ -3,13 +3,12 @@
 
 import datetime as dt
 
+from trytond import tx
 from trytond.model import (
     ModelSingleton, ModelSQL, ModelView, ValueMixin, fields)
 from trytond.modules.company.model import (
     CompanyMultiValueMixin, CompanyValueMixin)
-from trytond.pool import Pool
 from trytond.pyson import Eval, Id, TimeDelta
-from trytond.transaction import Transaction
 
 sale_invoice_method = fields.Selection(
     'get_sale_invoice_methods', "Sale Invoice Method")
@@ -26,7 +25,7 @@ sale_quotation_validity = fields.TimeDelta(
 def get_sale_methods(field_name):
     @classmethod
     def func(cls):
-        pool = Pool()
+        pool = tx.pool
         Sale = pool.get('sale.sale')
         return Sale.fields_get([field_name])[field_name]['selection']
     return func
@@ -68,7 +67,7 @@ class Configuration(
 
     @classmethod
     def multivalue_model(cls, field):
-        pool = Pool()
+        pool = tx.pool
         if field in {'sale_invoice_method', 'sale_shipment_method'}:
             return pool.get('sale.configuration.sale_method')
         if field == 'sale_sequence':
@@ -93,7 +92,7 @@ class ConfigurationSequence(ModelSQL, CompanyValueMixin):
 
     @classmethod
     def default_sale_sequence(cls):
-        pool = Pool()
+        pool = tx.pool
         ModelData = pool.get('ir.model.data')
         try:
             return ModelData.get_id('sale', 'sequence_sale')
@@ -110,7 +109,7 @@ class ConfigurationSaleMethod(ModelSQL, ValueMixin):
 
     @classmethod
     def __register__(cls, module_name):
-        cursor = Transaction().connection.cursor()
+        cursor = tx.transaction.connection.cursor()
         table = cls.__table__()
 
         super().__register__(module_name)

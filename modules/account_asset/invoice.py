@@ -1,9 +1,10 @@
 # This file is part of Tryton.  The COPYRIGHT file at the top level of this
 # repository contains the full copyright notices and license terms.
+
+from trytond import tx
 from trytond.model import Unique, fields
-from trytond.pool import Pool, PoolMeta
+from trytond.pool import PoolMeta
 from trytond.pyson import Eval
-from trytond.transaction import Transaction
 
 
 class InvoiceLine(metaclass=PoolMeta):
@@ -51,12 +52,12 @@ class InvoiceLine(metaclass=PoolMeta):
                 and self.product.depreciable):
             date = (self.invoice.accounting_date or self.invoice.invoice_date
                 if self.invoice else None)
-            with Transaction().set_context(date=date):
+            with tx.transaction.set_context(date=date):
                 self.account = self.product.account_asset_used
 
     @fields.depends('asset', 'unit')
     def on_change_asset(self):
-        Uom = Pool().get('product.uom')
+        Uom = tx.pool.get('product.uom')
 
         if self.asset:
             quantity = self.asset.quantity
@@ -75,7 +76,7 @@ class InvoiceLine(metaclass=PoolMeta):
         return False
 
     def get_move_lines(self):
-        Asset = Pool().get('account.asset')
+        Asset = tx.pool.get('account.asset')
         if self.asset:
             date = self.invoice.accounting_date or self.invoice.invoice_date
             Asset.close([self.asset], account=self.account, date=date)

@@ -8,13 +8,13 @@ from collections import defaultdict
 from functools import total_ordering
 from itertools import chain, groupby
 
+from trytond import tx
 from trytond.i18n import lazy_gettext
 from trytond.model import fields
-from trytond.pool import Pool, PoolBase, PoolMeta
+from trytond.pool import PoolBase, PoolMeta
 from trytond.pyson import PYSONDecoder, PYSONEncoder
 from trytond.rpc import RPC
 from trytond.server_context import ServerContext
-from trytond.transaction import Transaction
 from trytond.url import URLMixin
 
 __all__ = ['Model']
@@ -32,7 +32,7 @@ def humanize(name):
 class ModelMeta(PoolMeta):
     @property
     def __queue__(self):
-        pool = Pool()
+        pool = tx.pool
         Queue = pool.get('ir.queue')
         return Queue.caller(self)
 
@@ -124,7 +124,7 @@ class Model(URLMixin, PoolBase, metaclass=ModelMeta):
         Add model in ir.model and ir.model.field.
         """
         super().__register__(module_name)
-        pool = Pool()
+        pool = tx.pool
         Translation = pool.get('ir.translation')
         Model_ = pool.get('ir.model')
         ModelField = pool.get('ir.model.field')
@@ -142,9 +142,9 @@ class Model(URLMixin, PoolBase, metaclass=ModelMeta):
         Return a dict with the default values for each field in fields_names.
         If with_rec_name is True, rec_name will be added.
         '''
-        pool = Pool()
+        pool = tx.pool
         values = {}
-        context = Transaction().context
+        context = tx.transaction.context
 
         if fields_names is None:
             fields_names = cls._fields.keys()
@@ -204,13 +204,13 @@ class Model(URLMixin, PoolBase, metaclass=ModelMeta):
         Return the definition of each field on the model.
         """
         definition = {}
-        pool = Pool()
+        pool = tx.pool
         Translation = pool.get('ir.translation')
         FieldAccess = pool.get('ir.model.field.access')
         ModelAccess = pool.get('ir.model.access')
 
         # Add translation to cache
-        language = Transaction().language
+        language = tx.transaction.language
         trans_args = []
         for fname, field in cls._fields.items():
             if fields_names and fname not in fields_names:
@@ -272,7 +272,7 @@ class Model(URLMixin, PoolBase, metaclass=ModelMeta):
 
     @classmethod
     def __names__(cls, field=None, record=None):
-        pool = Pool()
+        pool = tx.pool
         IrModel = pool.get('ir.model')
         IrModelField = pool.get('ir.model.field')
 
@@ -367,10 +367,10 @@ class Model(URLMixin, PoolBase, metaclass=ModelMeta):
 
     def __repr__(self):
         if self.id is None or self.id < 0:
-            return "Pool().get('%s')(**%s)" % (self.__name__,
+            return "tx.pool.get('%s')(**%s)" % (self.__name__,
                 repr(self._default_values))
         else:
-            return "Pool().get('%s')(%s)" % (self.__name__, self.id)
+            return "tx.pool.get('%s')(%s)" % (self.__name__, self.id)
 
     def __eq__(self, other):
         if not isinstance(other, Model):

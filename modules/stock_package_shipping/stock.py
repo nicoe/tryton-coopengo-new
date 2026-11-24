@@ -3,13 +3,13 @@
 import mimetypes
 
 import trytond.config as config
+from trytond import tx
 from trytond.i18n import gettext
 from trytond.model import ModelView, Workflow, fields
 from trytond.model.exceptions import AccessError
-from trytond.pool import Pool, PoolMeta
+from trytond.pool import PoolMeta
 from trytond.pyson import Eval
 from trytond.report import Report
-from trytond.transaction import Transaction
 from trytond.wizard import StateAction, StateTransition, Wizard
 
 from .exceptions import PackWarning
@@ -147,7 +147,7 @@ class ShippingMixin:
     def __register__(cls, module):
         table = cls.__table__()
         table_h = cls.__table_handler__(module)
-        cursor = Transaction().connection.cursor()
+        cursor = tx.transaction.connection.cursor()
 
         fill_shiping_reference = (
             table_h.column_exist('reference')
@@ -163,7 +163,7 @@ class ShippingMixin:
 
     @property
     def shipping_description_used(self):
-        pool = Pool()
+        pool = tx.pool
         Product = pool.get('product.product')
         description = self.shipping_description
         if not description and hasattr(Product, 'customs_category'):
@@ -214,7 +214,7 @@ class ShippingMixin:
 
     @classmethod
     def check_no_carrier(cls, shipments):
-        pool = Pool()
+        pool = tx.pool
         Warning = pool.get('res.user.warning')
         for shipment in shipments:
             if (not shipment.carrier
@@ -347,7 +347,7 @@ class ShipmentInternal(ShippingMixin, metaclass=PoolMeta):
     @Workflow.transition('packed')
     def pack(cls, shipments):
         super().pack(shipments)
-        pool = Pool()
+        pool = tx.pool
         Warning = pool.get('res.user.warning')
         for shipment in shipments:
             if not shipment.transit_location:

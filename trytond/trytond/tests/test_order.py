@@ -2,8 +2,8 @@
 # this repository contains the full copyright notices and license terms.
 from unittest.mock import Mock
 
+from trytond import tx
 from trytond.model import sequence_reorder, sort
-from trytond.pool import Pool
 from trytond.tests.test_tryton import (
     TestCase, activate_module, with_transaction)
 
@@ -19,7 +19,7 @@ class SequenceOrderedMixinTestCase(TestCase):
     @with_transaction()
     def test_order(self):
         'Test order'
-        pool = Pool()
+        pool = tx.pool
         Order = pool.get('test.order.sequence')
 
         models = []

@@ -6,10 +6,11 @@ from io import BytesIO, TextIOWrapper
 from mt940 import (
     MT940, abn_amro_description, ing_description, regiobank_description)
 
+from trytond import tx
 from trytond.i18n import gettext
 from trytond.model import fields
 from trytond.modules.account_statement.exceptions import ImportStatementError
-from trytond.pool import Pool, PoolMeta
+from trytond.pool import PoolMeta
 from trytond.pyson import Eval
 
 
@@ -48,7 +49,7 @@ class StatementImport(metaclass=PoolMeta):
             yield statement
 
     def mt940_statement(self, mt940_statement):
-        pool = Pool()
+        pool = tx.pool
         Statement = pool.get('account.statement')
         Journal = pool.get('account.statement.journal')
 
@@ -80,7 +81,7 @@ class StatementImport(metaclass=PoolMeta):
         return mt940_statement.account, None
 
     def mt940_origin(self, mt940_statement, transaction):
-        pool = Pool()
+        pool = tx.pool
         Origin = pool.get('account.statement.origin')
 
         origin = Origin()
@@ -94,7 +95,7 @@ class StatementImport(metaclass=PoolMeta):
         return [origin]
 
     def mt940_party(self, mt940_statement, transaction):
-        pool = Pool()
+        pool = tx.pool
         AccountNumber = pool.get('bank.account.number')
 
         account = self.mt940_account(mt940_statement, transaction)

@@ -14,18 +14,17 @@ from sql.functions import CurrentTimestamp, Extract, RowNumber, Substring
 from sql.operators import (
     And, Concat, Equal, Exists, Less, LessEqual, Operator, Or)
 
-from trytond import backend, config
+from trytond import backend, config, tx
 from trytond.cache import freeze
 from trytond.exceptions import ConcurrencyException
 from trytond.i18n import gettext, lazy_gettext
-from trytond.pool import Pool
 from trytond.pyson import PYSONDecoder, PYSONEncoder
 from trytond.rpc import RPC
 from trytond.sql.functions import Range
 from trytond.tools import cursor_dict, grouped_slice
 from trytond.tools.domain_inversion import simplify
 from trytond.transaction import (
-    Transaction, inactive_records, record_cache_size, without_check_access)
+    inactive_records, record_cache_size, without_check_access)
 
 from . import fields
 from .descriptors import dualmethod
@@ -229,7 +228,7 @@ class Index:
         @property
         def expression(self):
             expression = self._expression
-            database = Transaction().database
+            database = tx.transaction.database
             if database.has_unaccent_indexable():
                 expression = database.unaccent(expression)
             return expression
@@ -395,7 +394,7 @@ class ModelSQL(ModelStorage):
 
     @classmethod
     def __setup_indexes__(cls):
-        pool = Pool()
+        pool = tx.pool
         for field_name, field in cls._fields.items():
             Targets = []
             if isinstance(field, fields.Many2One):
@@ -488,7 +487,7 @@ class ModelSQL(ModelStorage):
 
     @classmethod
     def __register__(cls, module_name):
-        transaction = Transaction()
+        transaction = tx.transaction
         database = transaction.database
         connection = transaction.connection
         cursor = connection.cursor()
@@ -506,14 +505,14 @@ class ModelSQL(ModelStorage):
                         transaction.connection, cls._table, query)
             return
 
-        pool = Pool()
+        pool = tx.pool
         # Initiate after the callable test to prevent calling table_query which
         # may rely on other model being registered
         sql_table = cls.__table__()
 
         # create/update table in the database
         table = cls.__table_handler__(module_name)
-        if Pool.test:
+        if pool.test:
             from trytond.tests import TABLES_CREATED
             if cls._table not in TABLES_CREATED:
                 database.setnextid(
@@ -524,7 +523,7 @@ class ModelSQL(ModelStorage):
         if cls._history:
             history_table = cls.__table_handler__(module_name, history=True)
             table_history = f'{cls._table}__history'
-            if Pool.test:
+            if tx.pool.test:
                 from trytond.tests import TABLES_CREATED
                 if cls._table not in TABLES_CREATED:
                     database.setnextid(
@@ -670,7 +669,7 @@ class ModelSQL(ModelStorage):
     @classmethod
     def _table_query_refresh(cls, concurrently=True, force=False):
         table = cls.__table__()
-        transaction = Transaction()
+        transaction = tx.transaction
         if not transaction.database.has_materialized_views():
             return
         cursor = transaction.connection.cursor()
@@ -691,11 +690,11 @@ class ModelSQL(ModelStorage):
     @without_check_access
     def __raise_integrity_error(
             cls, exception, values, field_names=None, transaction=None):
-        pool = Pool()
+        pool = tx.pool
         if field_names is None:
             field_names = list(cls._fields.keys())
         if transaction is None:
-            transaction = Transaction()
+            transaction = tx.transaction
         for field_name in field_names:
             if field_name not in cls._fields:
                 continue
@@ -752,7 +751,7 @@ class ModelSQL(ModelStorage):
         if field_names is None:
             field_names = list(cls._fields.keys())
         if transaction is None:
-            transaction = Transaction()
+            transaction = tx.transaction
         for field_name in field_names:
             if field_name not in cls._fields:
                 continue
@@ -775,7 +774,7 @@ class ModelSQL(ModelStorage):
     @classmethod
     def estimated_count(cls):
         "Returns the estimation of the number of records."
-        transaction = Transaction()
+        transaction = tx.transaction
         count = cls._count_cache.get(cls.__name__)
         if count is None:
             count = transaction.database.estimated_count(
@@ -785,10 +784,10 @@ class ModelSQL(ModelStorage):
 
     @classmethod
     def history_revisions(cls, ids):
-        pool = Pool()
+        pool = tx.pool
         ModelAccess = pool.get('ir.model.access')
         User = pool.get('res.user')
-        cursor = Transaction().connection.cursor()
+        cursor = tx.transaction.connection.cursor()
 
         ModelAccess.check(cls.__name__, 'read')
 
@@ -812,7 +811,7 @@ class ModelSQL(ModelStorage):
 
     @classmethod
     def _insert_history(cls, ids, deleted=False):
-        transaction = Transaction()
+        transaction = tx.transaction
         cursor = transaction.connection.cursor()
         if not cls._history:
             return
@@ -853,7 +852,7 @@ class ModelSQL(ModelStorage):
     def _restore_history(cls, ids, datetime, _before=False):
         if not cls._history:
             return
-        transaction = Transaction()
+        transaction = tx.transaction
         cursor = transaction.connection.cursor()
         table = cls.__table__()
         history = cls.__table_history__()
@@ -969,7 +968,7 @@ class ModelSQL(ModelStorage):
 
     @classmethod
     def __check_timestamp(cls, ids):
-        transaction = Transaction()
+        transaction = tx.transaction
         cursor = transaction.connection.cursor()
         table = cls.__table__()
         if not transaction.timestamp:
@@ -1006,9 +1005,9 @@ class ModelSQL(ModelStorage):
     @classmethod
     @no_table_query
     def create(cls, vlist):
-        transaction = Transaction()
+        transaction = tx.transaction
         cursor = transaction.connection.cursor()
-        pool = Pool()
+        pool = tx.pool
         Translation = pool.get('ir.translation')
 
         vlist = cls._before_create(vlist)
@@ -1172,7 +1171,7 @@ class ModelSQL(ModelStorage):
 
         if translation_values:
             for name, translations in translation_values.items():
-                Translation.set_ids(name, 'model', Transaction().language,
+                Translation.set_ids(name, 'model', tx.transaction.language,
                     list(translations.keys()), list(translations.values()))
 
         for fname in sorted(fields_to_set, key=cls.index_set_field):
@@ -1187,11 +1186,11 @@ class ModelSQL(ModelStorage):
 
     @classmethod
     def read(cls, ids, fields_names):
-        pool = Pool()
+        pool = tx.pool
         Rule = pool.get('ir.rule')
         Translation = pool.get('ir.translation')
-        transaction = Transaction()
-        cursor = Transaction().connection.cursor()
+        transaction = tx.transaction
+        cursor = tx.transaction.connection.cursor()
         context = transaction.context
 
         ids, fields_names = cls._before_read(ids, fields_names)
@@ -1327,7 +1326,7 @@ class ModelSQL(ModelStorage):
                 if getattr(field, 'translate', False):
                     translations = Translation.get_ids(
                         cls.__name__ + ',' + fname, 'model',
-                        Transaction().language, ids,
+                        tx.transaction.language, ids,
                         cached_after=max_write_date)
                     for row in result:
                         row[fname] = translations.get(row['id']) or row[fname]
@@ -1356,7 +1355,7 @@ class ModelSQL(ModelStorage):
                 func_fields[key].append(fname)
             elif getattr(field, 'datetime_field', None):
                 for row in result:
-                    with Transaction().set_context(
+                    with tx.transaction.set_context(
                             _datetime=row[field.datetime_field]):
                         date_result = field.get([row['id']], cls, fname,
                             values=[row])
@@ -1374,7 +1373,7 @@ class ModelSQL(ModelStorage):
             _, getter_with_context, datetime_field = key
             if datetime_field:
                 for row in result:
-                    with Transaction().set_context(
+                    with tx.transaction.set_context(
                             _datetime=row[datetime_field]):
                         date_results = field.get([row['id']], cls, field_list,
                             values=[row])
@@ -1509,7 +1508,7 @@ class ModelSQL(ModelStorage):
             for (Target, ctx), rows in groupby(
                     sorted(result, key=orderfunc), key=groupfunc):
                 rows = list(rows)
-                with Transaction().set_context(ctx):
+                with tx.transaction.set_context(ctx):
                     if Target:
                         targets = read_related(
                             field, Target, rows, list(fields_related[fname]))
@@ -1526,9 +1525,9 @@ class ModelSQL(ModelStorage):
     @classmethod
     @no_table_query
     def write(cls, records, values, *args):
-        transaction = Transaction()
+        transaction = tx.transaction
         cursor = transaction.connection.cursor()
-        pool = Pool()
+        pool = tx.pool
         Translation = pool.get('ir.translation')
         Config = pool.get('ir.configuration')
 
@@ -1554,7 +1553,7 @@ class ModelSQL(ModelStorage):
 
             columns = [table.write_uid, table.write_date]
             update_values = [transaction.user, CurrentTimestamp()]
-            store_translation = Transaction().language == Config.get_language()
+            store_translation = tx.transaction.language == Config.get_language()
             for fname, value in values.items():
                 field = cls._fields[fname]
                 if not hasattr(field, 'set'):
@@ -1570,8 +1569,8 @@ class ModelSQL(ModelStorage):
             except (
                     backend.DatabaseIntegrityError,
                     backend.DatabaseDataError) as exception:
-                transaction = Transaction()
-                with Transaction().new_transaction():
+                transaction = tx.transaction
+                with tx.transaction.new_transaction():
                     if isinstance(
                             exception, backend.DatabaseIntegrityError):
                         cls.__raise_integrity_error(
@@ -1619,9 +1618,9 @@ class ModelSQL(ModelStorage):
     @classmethod
     @no_table_query
     def delete(cls, records):
-        transaction = Transaction()
+        transaction = tx.transaction
         cursor = transaction.connection.cursor()
-        pool = Pool()
+        pool = tx.pool
 
         ids, on_delete = cls._before_delete(records)
         if not ids:
@@ -1714,8 +1713,8 @@ class ModelSQL(ModelStorage):
             cursor.execute(*table.delete(
                     where=fields.SQL_OPERATORS['in'](table.id, ids)))
         except backend.DatabaseIntegrityError as exception:
-            transaction = Transaction()
-            with Transaction().new_transaction():
+            transaction = tx.transaction
+            with tx.transaction.new_transaction():
                 cls.__raise_integrity_error(
                     exception, {}, transaction=transaction)
                 raise
@@ -1728,7 +1727,7 @@ class ModelSQL(ModelStorage):
 
     @classmethod
     def __check_domain_rule(cls, ids, mode):
-        pool = Pool()
+        pool = tx.pool
         Lang = pool.get('ir.lang')
         Rule = pool.get('ir.rule')
         Model = pool.get('ir.model')
@@ -1738,7 +1737,7 @@ class ModelSQL(ModelStorage):
         except KeyError:
             User = Group = None
         table = cls.__table__()
-        transaction = Transaction()
+        transaction = tx.transaction
         history_clause = None
         limit = None
         if (mode == 'read'
@@ -1832,7 +1831,7 @@ class ModelSQL(ModelStorage):
 
     @classmethod
     def __search_query(cls, domain, count, query, order):
-        pool = Pool()
+        pool = tx.pool
         Rule = pool.get('ir.rule')
 
         def convert(domain):
@@ -1915,7 +1914,7 @@ class ModelSQL(ModelStorage):
         if order is None:
             order = []
         columns = [table.id.as_('id')]
-        if (cls._history and Transaction().context.get('_datetime')
+        if (cls._history and tx.transaction.context.get('_datetime')
                 and (eager or history)):
             columns.append(
                 Coalesce(table.write_date, table.create_date).as_('_datetime'))
@@ -1966,7 +1965,7 @@ class ModelSQL(ModelStorage):
     def search(cls, domain, offset=0, limit=None, order=None, count=False,
             query=False):
         domain = domain if domain is not None else []
-        transaction = Transaction()
+        transaction = tx.transaction
         cursor = transaction.connection.cursor()
 
         super().search(
@@ -2061,7 +2060,7 @@ class ModelSQL(ModelStorage):
         Return SQL tables and expression
         Set active_test to add it.
         '''
-        transaction = Transaction()
+        transaction = tx.transaction
         if active_test is None:
             active_test = transaction.active_records
         context = transaction.context
@@ -2128,7 +2127,7 @@ class ModelSQL(ModelStorage):
     @classmethod
     def _rebuild_path(cls, field_name):
         "Rebuild path for the tree."
-        cursor = Transaction().connection.cursor()
+        cursor = tx.transaction.connection.cursor()
         field = cls._fields[field_name]
         table = cls.__table__()
         tree = With('id', 'path', recursive=True)
@@ -2148,7 +2147,7 @@ class ModelSQL(ModelStorage):
 
     @classmethod
     def _set_path(cls, field_names, list_ids):
-        cursor = Transaction().connection.cursor()
+        cursor = tx.transaction.connection.cursor()
         table = cls.__table__()
         parent = cls.__table__()
         for field_name, ids in zip(field_names, list_ids):
@@ -2166,7 +2165,7 @@ class ModelSQL(ModelStorage):
 
     @classmethod
     def _update_path(cls, field_names, list_ids):
-        transaction = Transaction()
+        transaction = tx.transaction
         cursor = transaction.connection.cursor()
         update = transaction.connection.cursor()
         table = cls.__table__()
@@ -2231,7 +2230,7 @@ class ModelSQL(ModelStorage):
         '''
         Rebuild left, right value for the tree.
         '''
-        cursor = Transaction().connection.cursor()
+        cursor = tx.transaction.connection.cursor()
         table = cls.__table__()
         right = left + 1
 
@@ -2257,7 +2256,7 @@ class ModelSQL(ModelStorage):
             - the value (right - left - 1) / 2 will not give
                 the number of children node
         '''
-        cursor = Transaction().connection.cursor()
+        cursor = tx.transaction.connection.cursor()
         table = cls.__table__()
         left = Column(table, left)
         right = Column(table, right)
@@ -2311,7 +2310,7 @@ class ModelSQL(ModelStorage):
     @classmethod
     def validate(cls, records):
         super().validate(records)
-        transaction = Transaction()
+        transaction = tx.transaction
         database = transaction.database
         has_constraint = database.has_constraint
         cursor = transaction.connection.cursor()
@@ -2380,7 +2379,7 @@ class ModelSQL(ModelStorage):
 
     @dualmethod
     def lock(cls, records=None):
-        transaction = Transaction()
+        transaction = tx.transaction
         if records is not None:
             new_ids = set(transaction.create_records[cls.__name__])
             ids = [id_ for id_ in map(int, records) if id_ not in new_ids]

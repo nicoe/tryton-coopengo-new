@@ -1,7 +1,7 @@
 # This file is part of Tryton.  The COPYRIGHT file at the top level of
 # this repository contains the full copyright notices and license terms.
 
-from trytond.pool import Pool
+from trytond import tx
 from trytond.tests.test_tryton import (
     TestCase, activate_module, with_transaction)
 
@@ -17,7 +17,7 @@ class FieldFMany2OneTestCase(TestCase):
     @with_transaction()
     def test_create(self):
         "Test create fmany2one"
-        pool = Pool()
+        pool = tx.pool
         Target = pool.get('test.fmany2one_target')
         FMany2One = pool.get('test.fmany2one')
         target, = Target.create([{'name': "Foo"}])
@@ -32,7 +32,7 @@ class FieldFMany2OneTestCase(TestCase):
     @with_transaction()
     def test_create_composed_key(self):
         "Test create fmany2one with composed key"
-        pool = Pool()
+        pool = tx.pool
         Target = pool.get('test.fmany2one_target')
         TargetChild = pool.get('test.fmany2one_target.child')
         FMany2One = pool.get('test.fmany2one')
@@ -53,7 +53,7 @@ class FieldFMany2OneTestCase(TestCase):
     @with_transaction()
     def test_create_required(self):
         "Test create fmany2one required"
-        pool = Pool()
+        pool = tx.pool
         Target = pool.get('test.fmany2one_target')
         FMany2One = pool.get('test.fmany2one_required')
         target, = Target.create([{'name': "Foo"}])
@@ -68,7 +68,7 @@ class FieldFMany2OneTestCase(TestCase):
     @with_transaction()
     def test_write(self):
         "Test write fmany2one"
-        pool = Pool()
+        pool = tx.pool
         Target = pool.get('test.fmany2one_target')
         FMany2One = pool.get('test.fmany2one')
         target, = Target.create([{'name': "Foo"}])
@@ -84,7 +84,7 @@ class FieldFMany2OneTestCase(TestCase):
     @with_transaction()
     def test_write_composed_key(self):
         "Test create fmany2one with composed key"
-        pool = Pool()
+        pool = tx.pool
         Target = pool.get('test.fmany2one_target')
         TargetChild = pool.get('test.fmany2one_target.child')
         FMany2One = pool.get('test.fmany2one')
@@ -106,7 +106,7 @@ class FieldFMany2OneTestCase(TestCase):
     @with_transaction()
     def test_search_id(self):
         "Test search on fmany2one with id"
-        pool = Pool()
+        pool = tx.pool
         Target = pool.get('test.fmany2one_target')
         FMany2One = pool.get('test.fmany2one')
         target, = Target.create([{'name': "Foo"}])
@@ -121,7 +121,7 @@ class FieldFMany2OneTestCase(TestCase):
     @with_transaction()
     def test_search_string(self):
         "Test search on fmany2one with string"
-        pool = Pool()
+        pool = tx.pool
         Target = pool.get('test.fmany2one_target')
         FMany2One = pool.get('test.fmany2one')
         target, = Target.create([{'name': "Foo"}])
@@ -136,7 +136,7 @@ class FieldFMany2OneTestCase(TestCase):
     @with_transaction()
     def test_search_nested(self):
         "Test search on fmany2one with nested clause"
-        pool = Pool()
+        pool = tx.pool
         Target = pool.get('test.fmany2one_target')
         FMany2One = pool.get('test.fmany2one')
         target, = Target.create([{'name': "Foo"}])
@@ -151,7 +151,7 @@ class FieldFMany2OneTestCase(TestCase):
     @with_transaction()
     def test_search_composed_key(self):
         "Test search on fmany2one with composed key"
-        pool = Pool()
+        pool = tx.pool
         Target = pool.get('test.fmany2one_target')
         TargetChild = pool.get('test.fmany2one_target.child')
         FMany2One = pool.get('test.fmany2one')

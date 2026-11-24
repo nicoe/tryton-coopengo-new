@@ -1,6 +1,7 @@
 # This file is part of Tryton.  The COPYRIGHT file at the top level of
 # this repository contains the full copyright notices and license terms.
-from trytond.pool import Pool, PoolMeta
+from trytond import tx
+from trytond.pool import PoolMeta
 
 
 class Product(metaclass=PoolMeta):
@@ -8,7 +9,7 @@ class Product(metaclass=PoolMeta):
 
     @classmethod
     def recompute_cost_price(cls, products, start=None):
-        pool = Pool()
+        pool = tx.pool
         Move = pool.get('stock.move')
         Shipment = pool.get('stock.shipment.drop')
         shipments = set()

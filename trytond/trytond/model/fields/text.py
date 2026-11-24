@@ -3,7 +3,7 @@
 from sql import Expression, Literal, Null, Query
 from sql.operators import ILike, In, Not, NotIn
 
-from trytond.transaction import Transaction
+from trytond import tx
 
 from .char import Char
 from .field import SQL_OPERATORS, Field, order_method
@@ -31,14 +31,14 @@ class FullText(Field):
             return Null
         if isinstance(value, (int, float)):
             return value
-        transaction = Transaction()
+        transaction = tx.transaction
         database = transaction.database
         if isinstance(value, str):
             value = [value]
         return database.format_full_text(*value, language=transaction.language)
 
     def _rank_column(self, column, name, Model):
-        transaction = Transaction()
+        transaction = tx.transaction
         context = transaction.context
         database = transaction.database
         key = '%s.%s.order' % (Model.__name__, name)
@@ -49,7 +49,7 @@ class FullText(Field):
             return database.rank_full_text(column, value, normalize=['rank'])
 
     def _convert_domain(self, domain, tables, Model):
-        transaction = Transaction()
+        transaction = tx.transaction
         database = transaction.database
         table, _ = tables[None]
         name, operator, value = domain

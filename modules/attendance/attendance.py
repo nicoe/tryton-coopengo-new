@@ -7,14 +7,13 @@ from sql.aggregate import Min, Sum
 from sql.conditionals import Coalesce
 from sql.functions import Function, NthValue
 
-from trytond import backend
+from trytond import backend, tx
 from trytond.cache import Cache
 from trytond.i18n import gettext
 from trytond.model import Index, ModelSQL, ModelView, Workflow, fields
-from trytond.pool import Pool, PoolMeta
+from trytond.pool import PoolMeta
 from trytond.pyson import Eval
 from trytond.tools import timezone as tz
-from trytond.transaction import Transaction
 
 from .exceptions import PeriodClosedError, PeriodTransitionError
 
@@ -64,11 +63,11 @@ class Line(ModelSQL, ModelView):
 
     @classmethod
     def default_company(cls):
-        return Transaction().context.get('company')
+        return tx.transaction.context.get('company')
 
     @classmethod
     def default_employee(cls):
-        return Transaction().context.get('employee')
+        return tx.transaction.context.get('employee')
 
     @fields.depends('at', 'company')
     def on_change_with_date(self):
@@ -81,7 +80,7 @@ class Line(ModelSQL, ModelView):
         return at.date()
 
     def get_rec_name(self, name):
-        pool = Pool()
+        pool = tx.pool
         Lang = pool.get('ir.lang')
         lang = Lang.get()
         return '%s@%s' % (self.employee.rec_name, lang.strftime(self.at))
@@ -110,7 +109,7 @@ class Line(ModelSQL, ModelView):
 
     @classmethod
     def check_closed_period(cls, records, msg='modify', field_names=None):
-        pool = Pool()
+        pool = tx.pool
         Period = pool.get('attendance.period')
         if field_names and not (field_names & {'company', 'at'}):
             return
@@ -182,14 +181,14 @@ class Period(Workflow, ModelSQL, ModelView):
 
     @classmethod
     def default_company(cls):
-        return Transaction().context.get('company')
+        return tx.transaction.context.get('company')
 
     @classmethod
     def default_state(cls):
         return 'draft'
 
     def get_rec_name(self, name):
-        pool = Pool()
+        pool = tx.pool
         Lang = pool.get('ir.lang')
         lang = Lang.get()
         return lang.strftime(self.ends_at)
@@ -272,7 +271,7 @@ class SheetLine(ModelSQL, ModelView):
 
     @classmethod
     def table_query(cls):
-        pool = Pool()
+        pool = tx.pool
         Attendance = pool.get('attendance.line')
 
         attendance = Attendance.__table__()
@@ -333,7 +332,7 @@ class Sheet(ModelSQL, ModelView):
 
     @classmethod
     def table_query(cls):
-        pool = Pool()
+        pool = tx.pool
         Line = pool.get('attendance.sheet.line')
 
         line = Line.__table__()
@@ -354,7 +353,7 @@ class Sheet_Timesheet(metaclass=PoolMeta):
 
     @classmethod
     def table_query(cls):
-        pool = Pool()
+        pool = tx.pool
         Timesheet = pool.get('timesheet.line')
         line = Timesheet.__table__()
         timesheet = line.select(

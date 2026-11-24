@@ -4,15 +4,15 @@ import json
 from collections import OrderedDict
 
 import trytond.config as config
+from trytond import tx
 from trytond.cache import Cache
 from trytond.i18n import gettext, lazy_gettext
 from trytond.model import fields
 from trytond.model.exceptions import ValidationError
-from trytond.pool import Pool
 from trytond.pyson import Eval, PYSONDecoder
 from trytond.rpc import RPC
 from trytond.tools import slugify
-from trytond.transaction import Transaction, inactive_records
+from trytond.transaction import inactive_records
 
 
 class DomainError(ValidationError):
@@ -166,7 +166,7 @@ class DictSchemaMixin(object):
 
     @classmethod
     def get_keys(cls, records):
-        pool = Pool()
+        pool = tx.pool
         Config = pool.get('ir.configuration')
         keys = []
         for record in records:
@@ -180,7 +180,8 @@ class DictSchemaMixin(object):
                 'sequence': getattr(record, 'sequence', record.name),
                 }
             if record.type_ in {'selection', 'multiselection'}:
-                with Transaction().set_context(language=Config.get_language()):
+                with tx.transaction.set_context(
+                        language=Config.get_language()):
                     english_key = cls(record.id)
                     selection = OrderedDict(json.loads(
                             english_key.selection_json))
@@ -221,7 +222,7 @@ class DictSchemaMixin(object):
         cls._relation_fields_cache.clear()
 
     def format(self, value, lang=None):
-        pool = Pool()
+        pool = tx.pool
         Lang = pool.get('ir.lang')
         if lang is None:
             lang = Lang.get()

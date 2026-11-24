@@ -11,9 +11,9 @@ from functools import wraps
 from string import Template
 
 import trytond.config as config
+from trytond import tx
 from trytond.model import fields
-from trytond.pool import Pool, PoolMeta
-from trytond.transaction import Transaction
+from trytond.pool import PoolMeta
 
 _SUBSTITUTION_HELP = (
     "The following placeholders can be used:\n"
@@ -30,13 +30,13 @@ def product_substitutions(func):
         substitutions.setdefault('id', product.id)
         substitutions.setdefault('code', product.code or product.id)
         substitutions.setdefault('name', product.name)
-        substitutions.setdefault('language', Transaction().language)
+        substitutions.setdefault('language', tx.transaction.language)
         return func(self, product, **substitutions)
     return wrapper
 
 
 def _get_directory():
-    database = Transaction().database.name
+    database = tx.transaction.database.name
     directory = os.path.join(
         tempfile.gettempdir(), f'trytond/{database}/web_shop')
     os.makedirs(directory, mode=0o700, exist_ok=True)
@@ -85,7 +85,7 @@ class Shop(metaclass=PoolMeta):
 
     def get_context(self):
         context = super().get_context()
-        if language := Transaction().context.get('_product_data_language'):
+        if language := tx.transaction.context.get('_product_data_language'):
             context['language'] = language
         return context
 
@@ -110,9 +110,9 @@ class Shop(metaclass=PoolMeta):
                     format, language=language, duration=duration / 2)
 
     def product_data_feed_csv(self, format, language=None, duration=None):
-        pool = Pool()
+        pool = tx.pool
         Lang = pool.get('ir.lang')
-        transaction = Transaction()
+        transaction = tx.transaction
         directory = _get_directory()
         if duration is None:
             duration = config.getint(
@@ -142,7 +142,7 @@ class Shop(metaclass=PoolMeta):
             sale_prices, sale_taxes = prices, taxes
 
             context = self.get_context()
-            with Transaction().set_context(_non_sale_price=True):
+            with tx.transaction.set_context(_non_sale_price=True):
                 sale_context = self.get_context()
                 if context != sale_context:
                     _, prices, taxes = self.get_products()
@@ -316,7 +316,7 @@ class Shop_Measurement(metaclass=PoolMeta):
 
     def _product_data_feed_carrier_cost(
             self, product, country, carrier, price):
-        pool = Pool()
+        pool = tx.pool
         UoM = pool.get('product.uom')
         context = {}
         if (carrier.carrier_cost_method == 'weight'
@@ -326,12 +326,12 @@ class Shop_Measurement(metaclass=PoolMeta):
                     product.weight_uom, product.weight, carrier.weight_uom,
                     round=False),
                 ]
-        with Transaction().set_context(context=context):
+        with tx.transaction.set_context(context=context):
             return super()._product_data_feed_carrier_cost(
                 product, country, carrier, price)
 
     def _product_data_feed_row(self, product, price, sale_price):
-        pool = Pool()
+        pool = tx.pool
         ModelData = pool.get('ir.model.data')
         UoM = pool.get('product.uom')
 
@@ -378,7 +378,7 @@ class Shop_ShipmentCost(metaclass=PoolMeta):
 
     def _product_data_feed_carrier_selection(
             self, product, country, **pattern):
-        pool = Pool()
+        pool = tx.pool
         CarrierSelection = pool.get('carrier.selection')
         if (self.warehouse
                 and self.warehouse.address
@@ -392,7 +392,7 @@ class Shop_ShipmentCost(metaclass=PoolMeta):
 
     def _product_data_feed_carrier_cost(
             self, product, country, carrier, price, pattern=None):
-        pool = Pool()
+        pool = tx.pool
         Currency = pool.get('currency.currency')
         Date = pool.get('ir.date')
         Tax = pool.get('account.tax')
@@ -404,7 +404,7 @@ class Shop_ShipmentCost(metaclass=PoolMeta):
         if carrier.carrier_cost_method == 'percentage':
             context['amount'] = price
             context['currency'] = self.currency.id
-        with Transaction().set_context(context=context):
+        with tx.transaction.set_context(context=context):
             cost, currency_id = carrier.get_sale_price()
         if cost is None:
             return

@@ -8,12 +8,11 @@ import tempfile
 from sql import Column, Literal, Null
 from sql.functions import CurrentTimestamp
 
+from trytond import tx
 from trytond.config import config
 from trytond.filestore import filestore
 from trytond.i18n import gettext
-from trytond.pool import Pool
 from trytond.tools import cached_property
-from trytond.transaction import Transaction
 
 from .field import SQL_OPERATORS, Field
 
@@ -33,7 +32,7 @@ def caster(d):
 def check_content(model_name, field_name, *binaries):
     from trytond.model.modelstorage import BinaryScanError
 
-    ModelField = Pool().get('ir.model.field')
+    ModelField = tx.pool.get('ir.model.field')
 
     scanner = config.get('database', 'binary_scanner')
     scanner_dir = config.get(
@@ -103,11 +102,11 @@ class Binary(Field):
         '''
         if values is None:
             values = {}
-        transaction = Transaction()
+        transaction = tx.transaction
         res = {}
         converter = self.cast
         default = None
-        format_ = Transaction().context.get(
+        format_ = tx.transaction.context.get(
             '%s.%s' % (model.__name__, name), '')
         if format_ == 'size':
             converter = len
@@ -154,7 +153,7 @@ class Binary(Field):
         return res
 
     def queue_for_removal(self, Model, name, ids):
-        pool = Pool()
+        pool = tx.pool
         Queue = pool.get('ir.filestore.queue')
         queue = Queue.__table__()
 
@@ -163,7 +162,7 @@ class Binary(Field):
         if not self.file_id:
             return
 
-        transaction = Transaction()
+        transaction = tx.transaction
         table = Model.__table__()
         cursor = transaction.connection.cursor()
 
@@ -182,7 +181,7 @@ class Binary(Field):
                 ))
 
     def set(self, Model, name, ids, value, *args):
-        transaction = Transaction()
+        transaction = tx.transaction
         table = Model.__table__()
         cursor = transaction.connection.cursor()
 

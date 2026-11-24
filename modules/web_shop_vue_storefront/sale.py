@@ -3,8 +3,9 @@
 
 from decimal import Decimal
 
+from trytond import tx
 from trytond.i18n import gettext
-from trytond.pool import Pool, PoolMeta
+from trytond.pool import PoolMeta
 
 from .exceptions import BadRequest
 from .web import split_name
@@ -113,7 +114,7 @@ class SaleShipmentCost(metaclass=PoolMeta):
     __name__ = 'sale.sale'
 
     def get_vsf(self):
-        pool = Pool()
+        pool = tx.pool
         Tax = pool.get('account.tax')
         item = super().get_vsf()
         if self.carrier:
@@ -136,7 +137,7 @@ class SaleShipmentCost(metaclass=PoolMeta):
         return item
 
     def set_vsf_shipping_methods(self, data):
-        pool = Pool()
+        pool = tx.pool
         Country = pool.get('country.country')
         Address = pool.get('party.address')
         try:
@@ -150,7 +151,7 @@ class SaleShipmentCost(metaclass=PoolMeta):
         self.shipment_address.country = country
 
     def set_vsf(self, data, user):
-        pool = Pool()
+        pool = tx.pool
         Carrier = pool.get('carrier')
         super().set_vsf(data, user)
         if 'addressInformation' in data:
@@ -217,7 +218,7 @@ class Line(metaclass=PoolMeta):
             }
 
     def set_vsf(self, data):
-        pool = Pool()
+        pool = tx.pool
         Product = pool.get('product.product')
         try:
             self.product, = Product.search([

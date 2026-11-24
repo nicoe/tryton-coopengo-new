@@ -2,11 +2,11 @@
 # this repository contains the full copyright notices and license terms.
 from decimal import Decimal
 
+from trytond import tx
 from trytond.model import ModelView, Workflow, fields
 from trytond.modules.product import round_price
-from trytond.pool import Pool, PoolMeta
+from trytond.pool import PoolMeta
 from trytond.pyson import Eval
-from trytond.transaction import Transaction
 
 
 class Move(metaclass=PoolMeta):
@@ -37,7 +37,7 @@ class Move(metaclass=PoolMeta):
 
     @classmethod
     def get_invoice_types(cls):
-        pool = Pool()
+        pool = tx.pool
         Invoice = pool.get('account.invoice')
         return Invoice.fields_get(['type'])['type']['selection']
 
@@ -55,7 +55,7 @@ class Move(metaclass=PoolMeta):
     @property
     def invoiced_quantity(self):
         'The quantity from linked invoice lines in move unit'
-        pool = Pool()
+        pool = tx.pool
         Uom = pool.get('product.uom')
         quantity = 0
         for invoice_line in self.invoice_lines:
@@ -70,7 +70,7 @@ class Move(metaclass=PoolMeta):
             default = {}
         else:
             default = default.copy()
-        if not Transaction().context.get('_stock_move_split'):
+        if not tx.transaction.context.get('_stock_move_split'):
             default.setdefault('invoice_lines', None)
         return super().copy(moves, default=default)
 
@@ -98,13 +98,13 @@ class Move(metaclass=PoolMeta):
         cls.save(moves)
 
     def _compute_unit_price(self, unit_price):
-        pool = Pool()
+        pool = tx.pool
         UoM = pool.get('product.uom')
         Currency = pool.get('currency.currency')
         amount, quantity = 0, 0
         for line in self.invoice_lines:
             if line.invoice and line.invoice.state in {'posted', 'paid'}:
-                with Transaction().set_context(date=self.effective_date):
+                with tx.transaction.set_context(date=self.effective_date):
                     amount += Currency.compute(
                         line.invoice.currency, line.amount, self.currency)
                 if line.invoice.type == 'out' or not line.correction:

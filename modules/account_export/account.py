@@ -2,13 +2,13 @@
 # this repository contains the full copyright notices and license terms.
 
 import trytond.config as config
+from trytond import tx
 from trytond.i18n import gettext
 from trytond.model import ModelSQL, ModelView, Workflow, fields
 from trytond.model.exceptions import AccessError
 from trytond.modules.company.model import CompanyValueMixin
-from trytond.pool import Pool, PoolMeta
+from trytond.pool import PoolMeta
 from trytond.pyson import Eval
-from trytond.transaction import Transaction
 
 if config.getboolean('account_export', 'filestore', default=False):
     file_id = 'file_id'
@@ -22,7 +22,7 @@ class _ExportTypes:
 
     @classmethod
     def get_move_export_types(cls):
-        pool = Pool()
+        pool = tx.pool
         MoveExport = pool.get('account.move.export')
         return MoveExport.fields_get(['type'])['type']['selection']
 
@@ -35,7 +35,7 @@ class Configuration(_ExportTypes, metaclass=PoolMeta):
 
     @classmethod
     def multivalue_model(cls, field):
-        pool = Pool()
+        pool = tx.pool
         if field == 'move_export_type':
             return pool.get('account.configuration.export')
         return super().multivalue_model(field)
@@ -131,11 +131,11 @@ class MoveExport(Workflow, ModelSQL, ModelView):
 
     @classmethod
     def default_company(cls):
-        return Transaction().context.get('company')
+        return tx.transaction.context.get('company')
 
     @fields.depends('company')
     def on_change_company(self):
-        pool = Pool()
+        pool = tx.pool
         Configuration = pool.get('account.configuration')
         if self.company:
             self.type = Configuration(1).get_multivalue(
@@ -145,7 +145,7 @@ class MoveExport(Workflow, ModelSQL, ModelView):
 
     @classmethod
     def default_type(cls):
-        pool = Pool()
+        pool = tx.pool
         Configuration = pool.get('account.configuration')
         return Configuration(1).get_multivalue(
             'move_export_type', company=cls.default_company())
@@ -164,7 +164,7 @@ class MoveExport(Workflow, ModelSQL, ModelView):
     @ModelView.button
     @Workflow.transition('draft')
     def draft(cls, exports):
-        pool = Pool()
+        pool = tx.pool
         Move = pool.get('account.move')
         moves = list(sum((e.moves for e in exports), ()))
         Move.write(moves, {'export': None})
@@ -173,7 +173,7 @@ class MoveExport(Workflow, ModelSQL, ModelView):
     @classmethod
     @ModelView.button
     def select_moves(cls, exports):
-        pool = Pool()
+        pool = tx.pool
         Move = pool.get('account.move')
         exports = [e for e in exports if e.state == 'draft']
         moves = list(sum((e.moves for e in exports), ()))

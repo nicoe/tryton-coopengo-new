@@ -1,7 +1,8 @@
 # This file is part of Tryton.  The COPYRIGHT file at the top level of
 # this repository contains the full copyright notices and license terms.
+from trytond import tx
 from trytond.model import ModelView, fields
-from trytond.pool import Pool, PoolMeta
+from trytond.pool import PoolMeta
 
 
 class User(metaclass=PoolMeta):
@@ -30,7 +31,7 @@ class User(metaclass=PoolMeta):
 
     @classmethod
     def on_modification(cls, mode, users, field_names=None):
-        pool = Pool()
+        pool = tx.pool
         View = pool.get('ir.ui.view')
         super().on_modification(mode, users, field_names=field_names)
         if (mode == 'write'

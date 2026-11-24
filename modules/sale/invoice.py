@@ -2,20 +2,21 @@
 # this repository contains the full copyright notices and license terms.
 from functools import wraps
 
+from trytond import tx
 from trytond.i18n import gettext
 from trytond.model import Workflow, fields
 from trytond.model.exceptions import AccessError
-from trytond.pool import Pool, PoolMeta
+from trytond.pool import PoolMeta
 from trytond.pyson import Bool, Eval, If
-from trytond.transaction import Transaction, without_check_access
+from trytond.transaction import without_check_access
 
 
 def process_sale(func):
     @wraps(func)
     def wrapper(cls, invoices):
-        pool = Pool()
+        pool = tx.pool
         Sale = pool.get('sale.sale')
-        transaction = Transaction()
+        transaction = tx.transaction
         context = transaction.context
         with without_check_access():
             sales = set(s for i in cls.browse(invoices) for s in i.sales)
@@ -52,7 +53,7 @@ class Invoice(metaclass=PoolMeta):
         return ''
 
     def get_sales(self, name):
-        pool = Pool()
+        pool = tx.pool
         SaleLine = pool.get('sale.line')
         sales = set()
         for line in self.lines:
@@ -129,7 +130,7 @@ class Line(metaclass=PoolMeta):
 
     @fields.depends('origin')
     def on_change_with_product_uom_category(self, name=None):
-        pool = Pool()
+        pool = tx.pool
         SaleLine = pool.get('sale.line')
         category = super().on_change_with_product_uom_category(name=name)
         # Enforce the same unit category as they are used to compute the
@@ -141,7 +142,7 @@ class Line(metaclass=PoolMeta):
         return category
 
     def get_warehouse(self, name):
-        pool = Pool()
+        pool = tx.pool
         SaleLine = pool.get('sale.line')
         warehouse = super().get_warehouse(name)
         if (not warehouse
@@ -152,7 +153,7 @@ class Line(metaclass=PoolMeta):
 
     @property
     def origin_name(self):
-        pool = Pool()
+        pool = tx.pool
         SaleLine = pool.get('sale.line')
         name = super().origin_name
         if isinstance(self.origin, SaleLine) and self.origin.id >= 0:
@@ -167,9 +168,9 @@ class Line(metaclass=PoolMeta):
 
     @classmethod
     def on_delete(cls, lines):
-        pool = Pool()
+        pool = tx.pool
         Sale = pool.get('sale.sale')
-        transaction = Transaction()
+        transaction = tx.transaction
         context = transaction.context
         with without_check_access():
             invoices = (l.invoice for l in cls.browse(lines)

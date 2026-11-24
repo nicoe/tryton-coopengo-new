@@ -2,11 +2,12 @@
 # this repository contains the full copyright notices and license terms.
 from decimal import Decimal
 
+from trytond import tx
 from trytond.model import (
     ModelSQL, ModelStorage, ModelView, fields, sequence_ordered)
 from trytond.modules.product import (
     copy_product_filtered, copy_template_filtered, round_price)
-from trytond.pool import Pool, PoolMeta
+from trytond.pool import PoolMeta
 from trytond.pyson import Bool, Eval, If
 
 
@@ -47,7 +48,7 @@ class Product(
         'product.component', 'parent_product', "Components")
 
     def get_multivalue(self, name, **pattern):
-        pool = Pool()
+        pool = tx.pool
         Uom = pool.get('product.uom')
         value = super().get_multivalue(name, **pattern)
         if name == 'cost_price' and self.type == 'kit':
@@ -72,7 +73,7 @@ class Product(
 
     @classmethod
     def get_quantity(cls, products, name):
-        pool = Pool()
+        pool = tx.pool
         Uom = pool.get('product.uom')
         kits = [p for p in products if p.type == 'kit']
         quantities = super().get_quantity(products, name)
@@ -120,7 +121,7 @@ class ComponentMixin(sequence_ordered(), ModelStorage):
 
     @classmethod
     def get_product_types(cls):
-        pool = Pool()
+        pool = tx.pool
         Product = pool.get('product.product')
         return Product.fields_get(['type'])['type']['selection']
 
@@ -146,7 +147,7 @@ class ComponentMixin(sequence_ordered(), ModelStorage):
         return self.product.default_uom.category if self.product else None
 
     def get_line(self, Line, quantity, unit, **values):
-        pool = Pool()
+        pool = tx.pool
         Uom = pool.get('product.uom')
         line = Line(product=self.product, **values)
         line.unit = self.unit
@@ -159,7 +160,7 @@ class ComponentMixin(sequence_ordered(), ModelStorage):
         return line
 
     def get_rec_name(self, name):
-        pool = Pool()
+        pool = tx.pool
         Lang = pool.get('ir.lang')
         lang = Lang.get()
         return (lang.format_number_symbol(

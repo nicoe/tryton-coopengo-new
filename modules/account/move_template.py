@@ -5,13 +5,12 @@ from xml.sax.saxutils import quoteattr
 
 from simpleeval import InvalidExpression, simple_eval
 
+from trytond import tx
 from trytond.i18n import gettext
 from trytond.model import (
     DeactivableMixin, ModelSQL, ModelView, fields, sequence_ordered)
-from trytond.pool import Pool
 from trytond.pyson import Eval
 from trytond.tools import decistmt
-from trytond.transaction import Transaction
 from trytond.wizard import (
     Button, StateAction, StateTransition, StateView, Wizard)
 
@@ -42,7 +41,7 @@ class MoveTemplate(DeactivableMixin, ModelSQL, ModelView):
 
     @staticmethod
     def default_company():
-        return Transaction().context.get('company')
+        return tx.transaction.context.get('company')
 
     @classmethod
     def validate_fields(cls, templates, field_names):
@@ -51,7 +50,7 @@ class MoveTemplate(DeactivableMixin, ModelSQL, ModelView):
 
     @classmethod
     def check_description(cls, templates, field_names=None):
-        pool = Pool()
+        pool = tx.pool
         Keyword = pool.get('account.move.template.keyword')
         if field_names and not (field_names & {'description', 'keywords'}):
             return
@@ -71,7 +70,7 @@ class MoveTemplate(DeactivableMixin, ModelSQL, ModelView):
 
     def get_move(self, values):
         'Return the move for the keyword values'
-        pool = Pool()
+        pool = tx.pool
         Move = pool.get('account.move')
         Keyword = pool.get('account.move.template.keyword')
 
@@ -170,7 +169,7 @@ class MoveTemplateKeyword(sequence_ordered(), ModelSQL, ModelView):
             }
 
     def _format_party(self, lang, value):
-        pool = Pool()
+        pool = tx.pool
         Party = pool.get('party.party')
         if value:
             return Party(value).rec_name
@@ -180,11 +179,11 @@ class MoveTemplateKeyword(sequence_ordered(), ModelSQL, ModelView):
     @staticmethod
     def format_values(template, values):
         "Yield key and formatted value"
-        pool = Pool()
+        pool = tx.pool
         Lang = pool.get('ir.lang')
 
         lang, = Lang.search([
-                ('code', '=', Transaction().language),
+                ('code', '=', tx.transaction.language),
                 ])
         keywords = {k.name: k for k in template.keywords}
 
@@ -239,7 +238,7 @@ class MoveLineTemplate(ModelSQL, ModelView):
 
     def get_line(self, values):
         'Return the move line for the keyword values'
-        pool = Pool()
+        pool = tx.pool
         Line = pool.get('account.move.line')
         Keyword = pool.get('account.move.template.keyword')
 
@@ -310,7 +309,7 @@ class TaxLineTemplate(ModelSQL, ModelView):
 
     def get_line(self, values):
         'Return the tax line for the keyword values'
-        pool = Pool()
+        pool = tx.pool
         TaxLine = pool.get('account.tax.line')
 
         line = TaxLine()
@@ -393,7 +392,7 @@ class CreateMove(Wizard):
         return move
 
     def transition_start(self):
-        context = Transaction().context
+        context = tx.transaction.context
         action_id = context.get('action_id')
         period = context.get('period')
         if self.model and self.model.__name__ == 'account.move.line':
@@ -437,15 +436,15 @@ class CreateMoveTemplate(ModelView):
 
     @classmethod
     def default_date(cls):
-        pool = Pool()
+        pool = tx.pool
         Date = pool.get('ir.date')
         return Date.today()
 
     @classmethod
     def default_period(cls):
-        pool = Pool()
+        pool = tx.pool
         Period = pool.get('account.period')
-        company = Transaction().context.get('company')
+        company = tx.transaction.context.get('company')
         try:
             period = Period.find(company)
         except PeriodNotFoundError:
@@ -454,9 +453,9 @@ class CreateMoveTemplate(ModelView):
 
     @fields.depends('date', 'period')
     def on_change_date(self):
-        pool = Pool()
+        pool = tx.pool
         Period = pool.get('account.period')
-        company = Transaction().context.get('company')
+        company = tx.transaction.context.get('company')
         if self.date:
             if (not self.period
                 or not (
@@ -469,7 +468,7 @@ class CreateMoveTemplate(ModelView):
 
     @fields.depends('period', 'date')
     def on_change_period(self):
-        pool = Pool()
+        pool = tx.pool
         Date = pool.get('ir.date')
         today = Date.today()
         if self.period:

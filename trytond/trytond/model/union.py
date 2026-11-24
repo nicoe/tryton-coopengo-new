@@ -2,8 +2,8 @@
 # repository contains the full copyright notices and license terms.
 from sql import Cast, Column, Literal, Union
 
+from trytond import tx
 from trytond.model import fields
-from trytond.pool import Pool
 
 from .modelsql import _TABLE_QUERY_COLUMNS
 
@@ -25,7 +25,7 @@ class UnionMixin:
 
     @classmethod
     def union_unshard(cls, record_id):
-        pool = Pool()
+        pool = tx.pool
         models = cls.union_models()
         length = len(models)
         record_id, i = divmod(record_id, length)
@@ -49,7 +49,7 @@ class UnionMixin:
 
     @classmethod
     def union_columns(cls, model):
-        pool = Pool()
+        pool = tx.pool
         Model = pool.get(model)
         table = Model.__table__()
         columns = [cls.union_shard(table.id, model).as_('id')]

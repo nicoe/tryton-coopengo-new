@@ -1,6 +1,7 @@
 # This file is part of Tryton.  The COPYRIGHT file at the top level of
 # this repository contains the full copyright notices and license terms.
-from trytond.pool import Pool, PoolMeta
+from trytond import tx
+from trytond.pool import PoolMeta
 
 
 class Work(metaclass=PoolMeta):
@@ -11,7 +12,7 @@ class Work(metaclass=PoolMeta):
         return super()._get_origin() + ['production.work']
 
     def _validate_company(self):
-        pool = Pool()
+        pool = tx.pool
         ProductionWork = pool.get('production.work')
         result = super()._validate_company()
         if isinstance(self.origin, ProductionWork):

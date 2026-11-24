@@ -9,6 +9,7 @@ from sql.conditionals import Case
 from sql.functions import CharLength
 from sql.operators import Concat
 
+from trytond import tx
 from trytond.i18n import gettext
 from trytond.model import (
     DeactivableMixin, Index, Model, ModelSQL, ModelView, fields)
@@ -16,9 +17,8 @@ from trytond.model.exceptions import (
     AccessError, RequiredValidationError, ValidationError)
 from trytond.modules.stock import StockMixin
 from trytond.modules.stock.exceptions import ShipmentCheckQuantityWarning
-from trytond.pool import Pool, PoolMeta
+from trytond.pool import PoolMeta
 from trytond.pyson import Bool, Eval, If, Len
-from trytond.transaction import Transaction
 from trytond.wizard import Button, StateTransition, StateView, Wizard
 
 
@@ -78,7 +78,7 @@ class Lot(DeactivableMixin, ModelSQL, ModelView, LotMixin, StockMixin):
 
     @classmethod
     def get_quantity(cls, lots, name):
-        location_ids = Transaction().context.get('locations')
+        location_ids = tx.transaction.context.get('locations')
         product_ids = list(set(l.product.id for l in lots))
         return cls._get_quantity(
             lots, name, location_ids,
@@ -87,7 +87,7 @@ class Lot(DeactivableMixin, ModelSQL, ModelView, LotMixin, StockMixin):
 
     @classmethod
     def search_quantity(cls, name, domain=None):
-        location_ids = Transaction().context.get('locations')
+        location_ids = tx.transaction.context.get('locations')
         return cls._search_quantity(name, location_ids, domain,
             grouping=('product', 'lot'))
 
@@ -110,7 +110,7 @@ class Lot(DeactivableMixin, ModelSQL, ModelView, LotMixin, StockMixin):
 
     @classmethod
     def preprocess_values(cls, mode, values):
-        pool = Pool()
+        pool = tx.pool
         Product = pool.get('product.product')
         values = super().preprocess_values(mode, values)
         if mode == 'create' and not values.get('number'):
@@ -123,9 +123,9 @@ class Lot(DeactivableMixin, ModelSQL, ModelView, LotMixin, StockMixin):
 
     @classmethod
     def check_modification(cls, mode, lots, values=None, external=False):
-        pool = Pool()
+        pool = tx.pool
         Move = pool.get('stock.move')
-        transaction = Transaction()
+        transaction = tx.transaction
 
         def find_moves(cls, state=None):
             domain = [
@@ -202,7 +202,7 @@ class LotTrace(ModelSQL, ModelView):
 
     @classmethod
     def _joins(cls):
-        pool = Pool()
+        pool = tx.pool
         Move = pool.get('stock.move')
         InventoryLine = pool.get('stock.inventory.line')
 
@@ -244,7 +244,7 @@ class LotTrace(ModelSQL, ModelView):
 
     @classmethod
     def get_documents(cls):
-        pool = Pool()
+        pool = tx.pool
         Model = pool.get('ir.model')
         Move = pool.get('stock.move')
         return Move.get_shipment() + [
@@ -275,7 +275,7 @@ class LotTrace(ModelSQL, ModelView):
                     key=self._trace_move_order_key)))
 
     def _get_upward_traces(self):
-        pool = Pool()
+        pool = tx.pool
         Move = pool.get('stock.move')
         return set(Move.search([
                     ('lot', '=', self.lot.id),
@@ -289,7 +289,7 @@ class LotTrace(ModelSQL, ModelView):
                     key=self._trace_move_order_key, reverse=True)))
 
     def _get_downward_traces(self):
-        pool = Pool()
+        pool = tx.pool
         Move = pool.get('stock.move')
         return set(Move.search([
                     ('lot', '=', self.lot.id),
@@ -310,7 +310,7 @@ class LotByLocationContext(ModelView):
 
     @staticmethod
     def default_forecast_date():
-        Date = Pool().get('ir.date')
+        Date = tx.pool.get('ir.date')
         return Date.today()
 
     @fields.depends('forecast_date')
@@ -345,7 +345,7 @@ class LotsByLocations(ModelSQL, ModelView):
 
     @classmethod
     def table_query(cls):
-        pool = Pool()
+        pool = tx.pool
         Lot = pool.get('stock.lot')
         lot = Lot.__table__()
         columns = []
@@ -383,9 +383,9 @@ class Location(metaclass=PoolMeta):
 
     @classmethod
     def _get_quantity_grouping(cls):
-        pool = Pool()
+        pool = tx.pool
         Lot = pool.get('stock.lot')
-        context = Transaction().context
+        context = tx.transaction.context
         grouping, grouping_filter, key = super()._get_quantity_grouping()
         if context.get('lot') is not None:
             try:
@@ -509,7 +509,7 @@ class MoveAddLots(Wizard):
         return default
 
     def transition_add(self):
-        pool = Pool()
+        pool = tx.pool
         Lang = pool.get('ir.lang')
         Lot = pool.get('stock.lot')
         lang = Lang.get()
@@ -553,7 +553,7 @@ class MoveAddLots(Wizard):
                     self.record.lot = lot
                     self.record.save()
                 else:
-                    with Transaction().set_context(_stock_move_split=True):
+                    with tx.transaction.set_context(_stock_move_split=True):
                         moves.extend(self.model.copy([self.record], {
                                 'quantity': line.quantity,
                                 'lot': lot.id,
@@ -650,7 +650,7 @@ class MoveAddLotsStartLot(ModelView, LotMixin):
 
     @fields.depends('number', 'product', methods=['_set_lot_values'])
     def on_change_number(self):
-        pool = Pool()
+        pool = tx.pool
         Lot = pool.get('stock.lot')
         if self.number and self.product:
             lots = Lot.search([
@@ -665,7 +665,7 @@ class MoveAddLotsStartLot(ModelView, LotMixin):
         pass
 
     def get_lot(self, move):
-        pool = Pool()
+        pool = tx.pool
         Lot = pool.get('stock.lot')
         values = self._get_lot_values(move)
         lots = Lot.search(
@@ -691,7 +691,7 @@ class ShipmentCheckQuantity:
     __slots__ = ()
 
     def check_quantity(self):
-        pool = Pool()
+        pool = tx.pool
         Warning = pool.get('res.user.warning')
         Lang = pool.get('ir.lang')
         lang = Lang.get()
@@ -796,7 +796,7 @@ class Period(metaclass=PoolMeta):
 
     @classmethod
     def get_cache(cls, grouping):
-        pool = Pool()
+        pool = tx.pool
         Cache = super().get_cache(grouping)
         if grouping == ('product', 'lot'):
             return pool.get('stock.period.cache.lot')
@@ -876,7 +876,7 @@ class InventoryCount(metaclass=PoolMeta):
     __name__ = 'stock.inventory.count'
 
     def default_quantity(self, fields):
-        pool = Pool()
+        pool = tx.pool
         Product = pool.get('product.product')
         InventoryLine = pool.get('stock.inventory.line')
         inventory = self.record
@@ -893,7 +893,7 @@ class InventoryCount(metaclass=PoolMeta):
         return values
 
     def get_line_domain(self, inventory):
-        pool = Pool()
+        pool = tx.pool
         Lot = pool.get('stock.lot')
         domain = super().get_line_domain(inventory)
         if isinstance(self.search.search, Lot):
@@ -901,7 +901,7 @@ class InventoryCount(metaclass=PoolMeta):
         return domain
 
     def get_line(self):
-        pool = Pool()
+        pool = tx.pool
         Lot = pool.get('stock.lot')
 
         line = super().get_line()

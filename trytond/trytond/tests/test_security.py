@@ -1,10 +1,9 @@
 # This file is part of Tryton.  The COPYRIGHT file at the top level of this
 # repository contains the full copyright notices and license terms.
 
-from trytond import security
+from trytond import security, tx
 from trytond.pool import Pool
 from trytond.tests.test_tryton import RouteTestCase, with_transaction
-from trytond.transaction import Transaction
 
 
 class SecurityTestCase(RouteTestCase):
@@ -13,7 +12,7 @@ class SecurityTestCase(RouteTestCase):
 
     @classmethod
     def setUpDatabase(cls):
-        pool = Pool()
+        pool = tx.pool
         User = pool.get('res.user')
         User.create([{
                     'name': 'user',
@@ -23,22 +22,22 @@ class SecurityTestCase(RouteTestCase):
 
     @with_transaction()
     def tearDown(self):
-        pool = Pool()
+        pool = tx.pool
         Session = pool.get('ir.session')
         Session.delete(Session.search([]))
-        Transaction().commit()
+        tx.transaction.commit()
 
     @with_transaction()
     def _get_auth(self):
-        pool = Pool()
+        pool = tx.pool
         User = pool.get('res.user')
         Session = pool.get('ir.session')
 
         user, = User.search([('login', '=', 'user')])
-        with Transaction().set_user(user.id):
+        with tx.transaction.set_user(user.id):
             key = Session.new()
 
-        Transaction().commit()
+        tx.transaction.commit()
         return user.id, key
 
     def test_security_check(self):

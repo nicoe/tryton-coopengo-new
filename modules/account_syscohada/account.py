@@ -1,14 +1,15 @@
 # This file is part of Tryton.  The COPYRIGHT file at the top level of
 # this repository contains the full copyright notices and license terms.
 
-from trytond.pool import Pool, PoolMeta
+from trytond import tx
+from trytond.pool import PoolMeta
 
 
 class CreateChart(metaclass=PoolMeta):
     __name__ = 'account.create_chart'
 
     def default_properties(self, fields):
-        pool = Pool()
+        pool = tx.pool
         ModelData = pool.get('ir.model.data')
         defaults = super().default_properties(fields)
         for lang in ['fr']:

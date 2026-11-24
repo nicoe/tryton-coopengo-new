@@ -3,7 +3,7 @@
 
 from sql import Literal
 
-from trytond.pool import Pool
+from trytond import tx
 
 
 class AbstractMixin:
@@ -11,7 +11,7 @@ class AbstractMixin:
 
     @classmethod
     def _joins(cls):
-        pool = Pool()
+        pool = tx.pool
         Product = pool.get('product.product')
         Template = pool.get('product.template')
         from_item, tables, withs = super()._joins()

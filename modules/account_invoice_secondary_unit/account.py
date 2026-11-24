@@ -1,8 +1,9 @@
 # This file is part of Tryton.  The COPYRIGHT file at the top level of
 # this repository contains the full copyright notices and license terms.
+from trytond import tx
 from trytond.model import fields
 from trytond.modules.product import price_digits, round_price
-from trytond.pool import Pool, PoolMeta
+from trytond.pool import PoolMeta
 from trytond.pyson import Eval
 
 
@@ -46,7 +47,7 @@ class InvoiceLine(metaclass=PoolMeta):
 
     @fields.depends('quantity', 'unit', 'secondary_unit', 'origin')
     def on_change_with_secondary_quantity(self, name=None):
-        pool = Pool()
+        pool = tx.pool
         Uom = pool.get('product.uom')
         if (self.quantity and self.unit and self.secondary_unit
                 and (self.secondary_uom_factor or self.secondary_uom_rate)):
@@ -60,7 +61,7 @@ class InvoiceLine(metaclass=PoolMeta):
     @fields.depends('secondary_quantity', 'secondary_unit', 'unit', 'origin',
         methods=['on_change_with_amount'])
     def on_change_secondary_quantity(self):
-        pool = Pool()
+        pool = tx.pool
         Uom = pool.get('product.uom')
         if (self.secondary_quantity and self.secondary_unit and self.unit
                 and (self.secondary_uom_factor or self.secondary_uom_rate)):
@@ -72,7 +73,7 @@ class InvoiceLine(metaclass=PoolMeta):
 
     @fields.depends('unit_price', 'unit', 'secondary_unit', 'origin')
     def on_change_with_secondary_unit_price(self, name=None):
-        pool = Pool()
+        pool = tx.pool
         Uom = pool.get('product.uom')
         if (self.unit_price is not None and self.unit and self.secondary_unit
                 and (self.secondary_uom_factor or self.secondary_uom_rate)):
@@ -87,7 +88,7 @@ class InvoiceLine(metaclass=PoolMeta):
     @fields.depends('secondary_unit_price', 'secondary_unit', 'unit', 'origin',
         methods=['on_change_with_amount'])
     def on_change_secondary_unit_price(self, name=None):
-        pool = Pool()
+        pool = tx.pool
         Uom = pool.get('product.uom')
         if (self.secondary_unit_price is not None
                 and self.secondary_unit and self.unit

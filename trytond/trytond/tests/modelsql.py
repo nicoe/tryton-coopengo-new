@@ -4,6 +4,7 @@ from sql import Literal
 from sql.aggregate import Count, Min
 from sql.operators import Equal
 
+from trytond import tx
 from trytond.model import (
     Check, DeactivableMixin, Exclude, ModelSQL, Unique, fields)
 from trytond.pool import Pool
@@ -128,7 +129,7 @@ class ModelSQLSearchOR2Union(ModelSQL):
 
     @classmethod
     def order_integer(cls, tables):
-        pool = Pool()
+        pool = tx.pool
         Target = pool.get('test.modelsql.search.or2union.target')
         target = Target.__table__()
 
@@ -283,7 +284,7 @@ class ModelMaterializedView(ModelSQL):
 
     @classmethod
     def table_query(cls):
-        pool = Pool()
+        pool = tx.pool
         Model = pool.get('test.modelsql.materialized.data')
         model = Model.__table__()
 

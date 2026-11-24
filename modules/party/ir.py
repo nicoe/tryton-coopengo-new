@@ -1,9 +1,9 @@
 # This file is part of Tryton.  The COPYRIGHT file at the top level of
 # this repository contains the full copyright notices and license terms.
+from trytond import tx
 from trytond.model import fields
-from trytond.pool import Pool, PoolMeta
+from trytond.pool import PoolMeta
 from trytond.tools import escape_wildcard, grouped_slice
-from trytond.transaction import Transaction
 
 
 class Email(metaclass=PoolMeta):
@@ -11,7 +11,7 @@ class Email(metaclass=PoolMeta):
 
     @classmethod
     def _match(cls, name, email):
-        pool = Pool()
+        pool = tx.pool
         ContactMechanism = pool.get('party.contact_mechanism')
         yield from super()._match(name, email)
         domain = ['OR']
@@ -38,12 +38,12 @@ class EmailTemplate(metaclass=PoolMeta):
 
     @classmethod
     def get_contact_mechanisms(cls):
-        pool = Pool()
+        pool = tx.pool
         ContactMechanism = pool.get('party.contact_mechanism')
         return ContactMechanism.usages()
 
     def get(self, record):
-        with Transaction().set_context(usage=self.contact_mechanism):
+        with tx.transaction.set_context(usage=self.contact_mechanism):
             return super().get(record)
 
     @classmethod
@@ -53,7 +53,7 @@ class EmailTemplate(metaclass=PoolMeta):
 
     @classmethod
     def _get_default_exclude(cls, record):
-        pool = Pool()
+        pool = tx.pool
         Party = pool.get('party.party')
         ContactMechanism = pool.get('party.contact_mechanism')
         exclude = super()._get_default_exclude(record)
@@ -65,11 +65,11 @@ class EmailTemplate(metaclass=PoolMeta):
 
     @classmethod
     def _get_address(cls, record):
-        pool = Pool()
+        pool = tx.pool
         Party = pool.get('party.party')
         ContactMechanism = pool.get('party.contact_mechanism')
         address = super()._get_address(record)
-        usage = Transaction().context.get('usage')
+        usage = tx.transaction.context.get('usage')
         if isinstance(record, ContactMechanism):
             if record.type == 'email':
                 if not usage or getattr(record, usage):
@@ -84,12 +84,12 @@ class EmailTemplate(metaclass=PoolMeta):
 
     @classmethod
     def _get_language(cls, record):
-        pool = Pool()
+        pool = tx.pool
         Party = pool.get('party.party')
         ContactMechanism = pool.get('party.contact_mechanism')
         language = super()._get_language(record)
         if isinstance(record, Party):
-            usage = Transaction().context.get('usage')
+            usage = tx.transaction.context.get('usage')
             contact = record.contact_mechanism_get('email', usage=usage)
             if contact and contact.language:
                 language = contact.language
@@ -108,7 +108,7 @@ class Channel(metaclass=PoolMeta):
 
     @classmethod
     def _get_followers(cls, resource):
-        pool = Pool()
+        pool = tx.pool
         Party = pool.get('party.party')
         ContactMechanism = pool.get('party.contact_mechanism')
 
@@ -131,7 +131,7 @@ class Channel(metaclass=PoolMeta):
 
     @classmethod
     def _search_followers(cls, resource, text):
-        pool = Pool()
+        pool = tx.pool
         Party = pool.get('party.party')
         ContactMechanism = pool.get('party.contact_mechanism')
 

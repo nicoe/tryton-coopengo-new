@@ -7,14 +7,13 @@ from sql.aggregate import Count, Min, Sum
 from sql.conditionals import Coalesce
 from sql.functions import DateTrunc
 
+from trytond import tx
 from trytond.i18n import lazy_gettext
 from trytond.model import ModelSQL, ModelView, fields
 from trytond.modules.currency.fields import Monetary
-from trytond.pool import Pool
 from trytond.pyson import Eval, If
 from trytond.tools import pairwise_longest, sql_pairing, unpair
 from trytond.tools.chart import sparkline
-from trytond.transaction import Transaction
 
 
 class Abstract(ModelSQL):
@@ -46,7 +45,7 @@ class Abstract(ModelSQL):
 
     @classmethod
     def _joins(cls):
-        pool = Pool()
+        pool = tx.pool
         Line = pool.get('purchase.line')
         Purchase = pool.get('purchase.purchase')
 
@@ -86,7 +85,7 @@ class Abstract(ModelSQL):
 
     @classmethod
     def _where(cls, tables):
-        context = Transaction().context
+        context = tx.transaction.context
         purchase = tables['line.purchase']
 
         where = purchase.company == context.get('company')
@@ -119,7 +118,7 @@ class Abstract(ModelSQL):
 
     @classmethod
     def _period_delta(cls):
-        context = Transaction().context
+        context = tx.transaction.context
         return {
             'year': relativedelta(years=1),
             'month': relativedelta(months=1),
@@ -148,7 +147,7 @@ class AbstractTimeseries(Abstract):
 
     @classmethod
     def _column_date(cls, tables):
-        context = Transaction().context
+        context = tx.transaction.context
         purchase = tables['line.purchase']
         date = DateTrunc(
             context.get('period', 'month'), purchase.purchase_date)
@@ -192,33 +191,33 @@ class Context(ModelView):
 
     @classmethod
     def default_company(cls):
-        return Transaction().context.get('company')
+        return tx.transaction.context.get('company')
 
     @classmethod
     def default_from_date(cls):
-        pool = Pool()
+        pool = tx.pool
         Date = pool.get('ir.date')
-        context = Transaction().context
+        context = tx.transaction.context
         if 'from_date' in context:
             return context['from_date']
         return Date.today() - relativedelta(years=1)
 
     @classmethod
     def default_to_date(cls):
-        pool = Pool()
+        pool = tx.pool
         Date = pool.get('ir.date')
-        context = Transaction().context
+        context = tx.transaction.context
         if 'to_date' in context:
             return context['to_date']
         return Date.today()
 
     @classmethod
     def default_period(cls):
-        return Transaction().context.get('period', 'month')
+        return tx.transaction.context.get('period', 'month')
 
     @classmethod
     def default_warehouse(cls):
-        return Transaction().context.get('warehouse')
+        return tx.transaction.context.get('warehouse')
 
 
 class Main(Abstract, ModelView):
@@ -233,7 +232,7 @@ class Main(Abstract, ModelView):
         return ''
 
     def get_time_series(self, name):
-        pool = Pool()
+        pool = tx.pool
         Timeseries = pool.get('purchase.reporting.main.time_series')
         return [t.id for t in Timeseries.search([])]
 
@@ -328,7 +327,7 @@ class ProductMixin(object):
 
     @classmethod
     def _where(cls, tables):
-        context = Transaction().context
+        context = tx.transaction.context
         line = tables['line']
         purchase = tables['line.purchase']
         where = super()._where(tables)
@@ -343,9 +342,9 @@ class ProductMixin(object):
         return where
 
     def get_rec_name(self, name):
-        pool = Pool()
+        pool = tx.pool
         Party = pool.get('party.party')
-        context = Transaction().context
+        context = tx.transaction.context
 
         name = self.product.rec_name if self.product else None
         if context.get('supplier'):

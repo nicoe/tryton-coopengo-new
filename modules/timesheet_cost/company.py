@@ -3,10 +3,10 @@
 from decimal import Decimal
 
 import trytond.config as config
+from trytond import tx
 from trytond.cache import Cache
 from trytond.model import Index, ModelSQL, ModelView, Unique, fields
-from trytond.pool import Pool, PoolMeta
-from trytond.transaction import Transaction
+from trytond.pool import PoolMeta
 
 __all__ = ['price_digits']
 
@@ -28,12 +28,12 @@ class Employee(metaclass=PoolMeta):
         Return the cost price at the date given in the context or the
         current date
         '''
-        ctx_date = Transaction().context.get('date', None)
+        ctx_date = tx.transaction.context.get('date', None)
         return self.compute_cost_price(ctx_date)
 
     def get_employee_costs(self):
         "Return a sorted list by date of start date and cost_price"
-        pool = Pool()
+        pool = tx.pool
         CostPrice = pool.get('company.employee_cost_price')
         # Get from cache employee costs or fetch them from the db
         employee_costs = self._cost_prices_cache.get(self.id)
@@ -52,13 +52,13 @@ class Employee(metaclass=PoolMeta):
 
     def compute_cost_price(self, date=None):
         "Return the cost price at the given date"
-        pool = Pool()
+        pool = tx.pool
         Date = pool.get('ir.date')
 
         employee_costs = self.get_employee_costs()
 
         if date is None:
-            with Transaction().set_context(company=self.company.id):
+            with tx.transaction.set_context(company=self.company.id):
                 date = Date.today()
         # compute the cost price for the given date
         cost = 0
@@ -100,15 +100,15 @@ class EmployeeCostPrice(ModelSQL, ModelView):
 
     @staticmethod
     def default_date():
-        Date = Pool().get('ir.date')
+        Date = tx.pool.get('ir.date')
         return Date.today()
 
     def get_rec_name(self, name):
-        return Pool().get('ir.lang').get().strftime(self.date)
+        return tx.pool.get('ir.lang').get().strftime(self.date)
 
     @classmethod
     def on_modification(cls, mode, prices, field_names=None):
-        pool = Pool()
+        pool = tx.pool
         Employee = pool.get('company.employee')
         super().on_modification(mode, prices, field_names=field_names)
         Employee._cost_prices_cache.clear()

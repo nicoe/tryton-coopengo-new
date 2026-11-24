@@ -4,9 +4,9 @@ from itertools import chain
 
 from sql import With
 
+from trytond import tx
 from trytond.model import (
     DeactivableMixin, ModelSQL, ModelView, Unique, fields, tree)
-from trytond.pool import Pool
 
 
 class MenuMany2Many(fields.Many2Many):
@@ -55,7 +55,7 @@ class Group(DeactivableMixin, tree(), ModelSQL, ModelView):
 
     @classmethod
     def on_modification(cls, mode, groups, field_names=None):
-        pool = Pool()
+        pool = tx.pool
         User = pool.get('res.user')
         super().on_modification(mode, groups, field_names=field_names)
         User._get_groups_cache.clear()

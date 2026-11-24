@@ -1,8 +1,9 @@
 # This file is part of Tryton.  The COPYRIGHT file at the top level of
 # this repository contains the full copyright notices and license terms.
+from trytond import tx
 from trytond.i18n import gettext
 from trytond.modules.party.exceptions import EraseError
-from trytond.pool import Pool, PoolMeta
+from trytond.pool import PoolMeta
 
 
 class Replace(metaclass=PoolMeta):
@@ -22,7 +23,7 @@ class Erase(metaclass=PoolMeta):
     __name__ = 'party.erase'
 
     def check_erase_company(self, party, company):
-        pool = Pool()
+        pool = tx.pool
         ShipmentDrop = pool.get('stock.shipment.drop')
         super().check_erase_company(party, company)
 

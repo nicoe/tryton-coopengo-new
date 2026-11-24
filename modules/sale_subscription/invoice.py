@@ -1,6 +1,7 @@
 # This file is part of Tryton.  The COPYRIGHT file at the top level of
 # this repository contains the full copyright notices and license terms.
-from trytond.pool import Pool, PoolMeta
+from trytond import tx
+from trytond.pool import PoolMeta
 from trytond.pyson import Bool, Eval, If
 
 
@@ -24,7 +25,7 @@ class InvoiceLine(metaclass=PoolMeta):
 
     @property
     def origin_name(self):
-        pool = Pool()
+        pool = tx.pool
         SubscriptionLine = pool.get('sale.subscription.line')
         name = super().origin_name
         if isinstance(self.origin, SubscriptionLine) and self.origin.id >= 0:

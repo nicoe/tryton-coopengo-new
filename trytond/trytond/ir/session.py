@@ -5,9 +5,9 @@ import json
 from secrets import compare_digest, token_hex
 
 import trytond.config as config
+from trytond import tx
 from trytond.cache import Cache
 from trytond.model import Index, ModelSQL, fields
-from trytond.transaction import Transaction
 
 
 class Session(ModelSQL):
@@ -41,7 +41,7 @@ class Session(ModelSQL):
 
     @classmethod
     def default_ip_address(cls):
-        ip_address, _ = Transaction().remote_address()
+        ip_address, _ = tx.transaction.remote_address()
         return str(ip_address) if ip_address else None
 
     @classmethod
@@ -84,7 +84,7 @@ class Session(ModelSQL):
         now = datetime.datetime.now()
         timeout = datetime.timedelta(
             seconds=config.getint('session', 'max_age'))
-        ip_address, _ = Transaction().remote_address()
+        ip_address, _ = tx.transaction.remote_address()
         sessions = cls.search([
                 ('create_uid', '=', user),
                 ('ip_address', '=', str(ip_address) if ip_address else None),

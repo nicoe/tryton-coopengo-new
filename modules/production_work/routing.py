@@ -1,7 +1,8 @@
 # This file is part of Tryton.  The COPYRIGHT file at the top level of
 # this repository contains the full copyright notices and license terms.
+from trytond import tx
 from trytond.model import fields
-from trytond.pool import Pool, PoolMeta
+from trytond.pool import PoolMeta
 
 
 class Operation(metaclass=PoolMeta):
@@ -15,7 +16,7 @@ class RoutingStep(metaclass=PoolMeta):
 
     def get_work(self, production, work_center_picker):
         "Return work instance for the production using the work center picker"
-        pool = Pool()
+        pool = tx.pool
         Work = pool.get('production.work')
 
         work = Work()

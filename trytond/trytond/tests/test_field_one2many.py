@@ -2,9 +2,9 @@
 # this repository contains the full copyright notices and license terms.
 
 import trytond.config as config
+from trytond import tx
 from trytond.model.exceptions import (
     DomainValidationError, RequiredValidationError, SizeValidationError)
-from trytond.pool import Pool
 from trytond.tests.test_tryton import (
     TestCase, activate_module, with_transaction)
 
@@ -500,18 +500,18 @@ class FieldOne2ManyTestCase(
         activate_module('tests')
 
     def One2Many(self):
-        return Pool().get('test.one2many')
+        return tx.pool.get('test.one2many')
 
     def One2ManyTarget(self):
-        return Pool().get('test.one2many.target')
+        return tx.pool.get('test.one2many.target')
 
     def One2ManyActive(self):
-        return Pool().get('test.one2many.active')
+        return tx.pool.get('test.one2many.active')
 
     @with_transaction()
     def test_create_required_with_value(self):
         "Test create one2many required with value"
-        One2Many = Pool().get('test.one2many_required')
+        One2Many = tx.pool.get('test.one2many_required')
 
         one2many, = One2Many.create([{
                     'targets': [
@@ -526,7 +526,7 @@ class FieldOne2ManyTestCase(
     @with_transaction()
     def test_create_required_without_value(self):
         "Test create one2many required without value"
-        One2Many = Pool().get('test.one2many_required')
+        One2Many = tx.pool.get('test.one2many_required')
 
         with self.assertRaises(RequiredValidationError):
             One2Many.create([{}])
@@ -534,7 +534,7 @@ class FieldOne2ManyTestCase(
     @with_transaction()
     def test_create_size_valid(self):
         "Test create one2many size valid"
-        One2Many = Pool().get('test.one2many_size')
+        One2Many = tx.pool.get('test.one2many_size')
 
         one2many, = One2Many.create([{
                     'targets': [
@@ -547,7 +547,7 @@ class FieldOne2ManyTestCase(
     @with_transaction()
     def test_create_size_invalid(self):
         "Test create one2many size invalid"
-        One2Many = Pool().get('test.one2many_size')
+        One2Many = tx.pool.get('test.one2many_size')
 
         with self.assertRaises(SizeValidationError):
             One2Many.create([{
@@ -559,7 +559,7 @@ class FieldOne2ManyTestCase(
     @with_transaction()
     def test_create_size_pyson_valid(self):
         "Test create one2many size pyson valid"
-        One2Many = Pool().get('test.one2many_size_pyson')
+        One2Many = tx.pool.get('test.one2many_size_pyson')
 
         one2many, = One2Many.create([{
                     'limit': 4,
@@ -573,7 +573,7 @@ class FieldOne2ManyTestCase(
     @with_transaction()
     def test_create_size_pyson_invalid(self):
         "Test create one2many size pyson invalid"
-        One2Many = Pool().get('test.one2many_size_pyson')
+        One2Many = tx.pool.get('test.one2many_size_pyson')
 
         with self.assertRaises(SizeValidationError):
             One2Many.create([{
@@ -586,7 +586,7 @@ class FieldOne2ManyTestCase(
     @with_transaction()
     def test_create_size_pyson_none(self):
         "Test create one2many with PYSON size as None"
-        pool = Pool()
+        pool = tx.pool
         One2Many = pool.get('test.one2many_size_pyson')
 
         one2many, = One2Many.create([{
@@ -599,7 +599,7 @@ class FieldOne2ManyTestCase(
     @with_transaction()
     def test_create_with_domain_valid(self):
         "Test create one2many with valid domain"
-        pool = Pool()
+        pool = tx.pool
         One2Many = pool.get('test.one2many_domain')
 
         one2many, = One2Many.create([{
@@ -613,7 +613,7 @@ class FieldOne2ManyTestCase(
     @with_transaction()
     def test_create_with_domain_invalid(self):
         "Test create one2many with invalid domain"
-        pool = Pool()
+        pool = tx.pool
         One2Many = pool.get('test.one2many_domain')
 
         with self.assertRaisesRegex(
@@ -629,7 +629,7 @@ class FieldOne2ManyTestCase(
     @with_transaction()
     def test_create_filter(self):
         "Test create one2many with filter"
-        One2Many = Pool().get('test.one2many_filter')
+        One2Many = tx.pool.get('test.one2many_filter')
 
         filtered, = One2Many.create([{
                     'targets': [
@@ -643,7 +643,7 @@ class FieldOne2ManyTestCase(
     @with_transaction()
     def test_create_filter_domain(self):
         "Test create one2many with filter and domain"
-        One2Many = Pool().get('test.one2many_filter_domain')
+        One2Many = tx.pool.get('test.one2many_filter_domain')
 
         filtered, = One2Many.create([{
                     'targets': [
@@ -657,7 +657,7 @@ class FieldOne2ManyTestCase(
     @with_transaction()
     def test_search_equals_filter(self):
         "Test search one2many equals with filter"
-        One2Many = Pool().get('test.one2many_filter')
+        One2Many = tx.pool.get('test.one2many_filter')
         one2many, = One2Many.create([{
                     'targets': [('create', [{'value': 3}])],
                     }])
@@ -672,7 +672,7 @@ class FieldOne2ManyTestCase(
     @with_transaction()
     def test_search_non_equals_filter(self):
         "Test search one2many non equals with filter"
-        One2Many = Pool().get('test.one2many_filter')
+        One2Many = tx.pool.get('test.one2many_filter')
         one2many, = One2Many.create([{
                     'targets': [('create', [{'value': -1}])],
                     }])
@@ -687,7 +687,7 @@ class FieldOne2ManyTestCase(
     @with_transaction()
     def test_search_join_filter(self):
         "Test search one2many join with filter"
-        One2Many = Pool().get('test.one2many_filter')
+        One2Many = tx.pool.get('test.one2many_filter')
         one2many, = One2Many.create([{
                     'targets': [('create', [{'value': -1}])],
                     }])
@@ -702,7 +702,7 @@ class FieldOne2ManyTestCase(
     @with_transaction()
     def test_context_attribute(self):
         "Test context on one2many attribute"
-        pool = Pool()
+        pool = tx.pool
         Many2One = pool.get('test.one2many_context')
 
         record, = Many2One.create([{
@@ -714,7 +714,7 @@ class FieldOne2ManyTestCase(
     @with_transaction()
     def test_context_read(self):
         "Test context on one2many read"
-        pool = Pool()
+        pool = tx.pool
         Many2One = pool.get('test.one2many_context')
 
         record, = Many2One.create([{
@@ -727,7 +727,7 @@ class FieldOne2ManyTestCase(
     @with_transaction()
     def test_context_read_multi(self):
         "Test context on one2many read multiple records"
-        pool = Pool()
+        pool = tx.pool
         Many2One = pool.get('test.one2many_context')
 
         records = Many2One.create([{
@@ -743,7 +743,7 @@ class FieldOne2ManyTestCase(
     @with_transaction()
     def test_context_set(self):
         "Test context on one2many set"
-        pool = Pool()
+        pool = tx.pool
         Many2One = pool.get('test.one2many_context')
         Target = pool.get('test.one2many_context.target')
 
@@ -755,7 +755,7 @@ class FieldOne2ManyTestCase(
     @with_transaction()
     def test_read_order(self):
         "Test read on one2many respect the order specified"
-        pool = Pool()
+        pool = tx.pool
         One2Many = pool.get('test.one2many_order')
         Target = pool.get('test.one2many_order.target')
 
@@ -788,13 +788,13 @@ class FieldOne2ManyReferenceTestCase(
         activate_module('tests')
 
     def One2Many(self):
-        return Pool().get('test.one2many_reference')
+        return tx.pool.get('test.one2many_reference')
 
     def One2ManyTarget(self):
-        return Pool().get('test.one2many_reference.target')
+        return tx.pool.get('test.one2many_reference.target')
 
     def One2ManyActive(self):
-        return Pool().get('test.one2many_reference.active')
+        return tx.pool.get('test.one2many_reference.active')
 
 
 class FieldOne2ManyExistsTestCase(TestCase, SearchTestCaseMixin):
@@ -813,13 +813,13 @@ class FieldOne2ManyExistsTestCase(TestCase, SearchTestCaseMixin):
         self.addCleanup(config.set, 'database', 'subquery_threshold', previous)
 
     def One2Many(self):
-        return Pool().get('test.one2many')
+        return tx.pool.get('test.one2many')
 
     def One2ManyTarget(self):
-        return Pool().get('test.one2many.target')
+        return tx.pool.get('test.one2many.target')
 
     def One2ManyActive(self):
-        return Pool().get('test.one2many.active')
+        return tx.pool.get('test.one2many.active')
 
 
 class FieldOne2ManyReferenceExistsTestCase(
@@ -839,13 +839,13 @@ class FieldOne2ManyReferenceExistsTestCase(
         self.addCleanup(config.set, 'database', 'subquery_threshold', previous)
 
     def One2Many(self):
-        return Pool().get('test.one2many_reference')
+        return tx.pool.get('test.one2many_reference')
 
     def One2ManyTarget(self):
-        return Pool().get('test.one2many_reference.target')
+        return tx.pool.get('test.one2many_reference.target')
 
     def One2ManyActive(self):
-        return Pool().get('test.one2many_reference.active')
+        return tx.pool.get('test.one2many_reference.active')
 
     def assert_strategy(self, query):
         self.assertIn('EXISTS', query)

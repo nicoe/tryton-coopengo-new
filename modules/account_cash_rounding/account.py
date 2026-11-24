@@ -2,13 +2,13 @@
 # this repository contains the full copyright notices and license terms.
 from decimal import Decimal
 
+from trytond import tx
 from trytond.i18n import gettext
 from trytond.model import ModelSQL, fields
 from trytond.modules.account.exceptions import AccountMissing
 from trytond.modules.company.model import CompanyValueMixin
-from trytond.pool import Pool, PoolMeta
+from trytond.pool import PoolMeta
 from trytond.pyson import Eval
-from trytond.transaction import Transaction
 
 
 class Configuration(metaclass=PoolMeta):
@@ -38,7 +38,7 @@ class Configuration(metaclass=PoolMeta):
 
     @classmethod
     def multivalue_model(cls, field):
-        pool = Pool()
+        pool = tx.pool
         if field in {
                 'cash_rounding',
                 'cash_rounding_credit_account',
@@ -95,7 +95,7 @@ class Invoice(metaclass=PoolMeta):
 
     @fields.depends('company', 'type')
     def set_cash_rounding(self):
-        pool = Pool()
+        pool = tx.pool
         Config = pool.get('account.configuration')
         config = Config(1)
         try:
@@ -137,12 +137,12 @@ class Invoice(metaclass=PoolMeta):
         "Round total amount according to cash rounding"
         from trytond.modules.account_invoice.exceptions import (
             PaymentTermComputeError)
-        pool = Pool()
+        pool = tx.pool
         Date = pool.get('ir.date')
         if self.currency:
             amounts = [amount]
             if self.payment_term and self.company:
-                with Transaction().set_context(company=self.company.id):
+                with tx.transaction.set_context(company=self.company.id):
                     today = Date.today()
                 payment_date = (
                     self.payment_term_date or self.invoice_date or today)
@@ -170,7 +170,7 @@ class Invoice(metaclass=PoolMeta):
         return line
 
     def get_move(self):
-        pool = Pool()
+        pool = tx.pool
         Configuration = pool.get('account.configuration')
         MoveLine = pool.get('account.move.line')
         move = super().get_move()

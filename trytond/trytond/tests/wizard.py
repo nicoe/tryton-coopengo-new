@@ -1,8 +1,8 @@
 # This file is part of Tryton.  The COPYRIGHT file at the top level of
 # this repository contains the full copyright notices and license terms.
+from trytond import tx
 from trytond.model import ModelSQL, ModelView, fields
 from trytond.pool import Pool
-from trytond.transaction import Transaction
 from trytond.wizard import (
     Button, StateAction, StateTransition, StateView, Wizard)
 
@@ -15,7 +15,7 @@ class TestWizardStart(ModelSQL, ModelView):
 
     @staticmethod
     def default_user():
-        return Transaction().user
+        return tx.transaction.user
 
 
 class TestWizard(Wizard):

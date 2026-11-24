@@ -2,10 +2,9 @@
 # this repository contains the full copyright notices and license terms.
 import logging
 
-from trytond import backend
+from trytond import backend, tx
 from trytond.exceptions import UserError, UserWarning
 from trytond.protocols.wrappers import exceptions, with_pool, with_transaction
-from trytond.transaction import Transaction
 from trytond.wsgi import app
 
 logger = logging.getLogger(__name__)
@@ -26,7 +25,7 @@ def route(request, pool, shop, target, action, sku=None):
     method = '_'.join(
         [request.method, 'vsf', target, action.replace('-', '_')])
     if 'token' in request.args:
-        with Transaction().new_transaction():
+        with tx.transaction.new_transaction():
             try:
                 Session.reset(request.args['token'])
             except backend.DatabaseOperationalError:
@@ -39,15 +38,15 @@ def route(request, pool, shop, target, action, sku=None):
         kwargs = request.args.to_dict()
         if sku is not None:
             kwargs['sku'] = sku
-        with Transaction().set_context(**shop.get_context()):
+        with tx.transaction.set_context(**shop.get_context()):
             result = getattr(shop, method)(data, **kwargs)
     except exceptions.HTTPException as exception:
-        Transaction().rollback()
+        tx.transaction.rollback()
         return {'code': exception.code, 'result': exception.description}
     except (UserError, UserWarning) as exception:
-        Transaction().rollback()
+        tx.transaction.rollback()
         return {'code': '400', 'result': str(exception)}
     except Exception as exception:
-        Transaction().rollback()
+        tx.transaction.rollback()
         return {'code': 500, 'result': str(exception)}
     return {'code': 200, 'result': result}

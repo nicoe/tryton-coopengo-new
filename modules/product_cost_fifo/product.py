@@ -4,8 +4,9 @@ import datetime as dt
 from decimal import Decimal
 
 import trytond.config as config
+from trytond import tx
 from trytond.modules.product import round_price
-from trytond.pool import Pool, PoolMeta
+from trytond.pool import PoolMeta
 
 
 class Template(metaclass=PoolMeta):
@@ -23,7 +24,7 @@ class Product(metaclass=PoolMeta):
     __name__ = 'product.product'
 
     def _get_available_fifo_moves(self, date=None, offset=0, limit=None):
-        pool = Pool()
+        pool = tx.pool
         Move = pool.get('stock.move')
 
         domain = [
@@ -48,7 +49,7 @@ class Product(metaclass=PoolMeta):
         to be consumed on this move. The list contains the "first in"
         moves for the given quantity.
         '''
-        pool = Pool()
+        pool = tx.pool
         Uom = pool.get('product.uom')
 
         avail_qty = self._get_storage_quantity(date=date)
@@ -89,7 +90,7 @@ class Product(metaclass=PoolMeta):
         return fifo_moves
 
     def recompute_cost_price_fifo(self, start=None):
-        pool = Pool()
+        pool = tx.pool
         Move = pool.get('stock.move')
         Uom = pool.get('product.uom')
         Revision = pool.get('product.cost_price.revision')

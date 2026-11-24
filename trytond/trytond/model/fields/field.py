@@ -11,14 +11,12 @@ from sql.aggregate import Min
 from sql.conditionals import Coalesce, NullIf
 from sql.operators import Concat
 
-from trytond import backend
+from trytond import backend, tx
 from trytond.const import OPERATORS
-from trytond.pool import Pool
 from trytond.pyson import PYSON, Eval, PYSONDecoder, PYSONEncoder
 from trytond.rpc import RPC
 from trytond.tools import cached_property
 from trytond.tools.string_ import LazyString, StringPartitioned
-from trytond.transaction import Transaction
 
 _sql_version = tuple(map(int, sql.__version__.split('.')))
 
@@ -458,14 +456,14 @@ class Field(object):
             return value
 
         assert self._sql_type is not None
-        database = Transaction().database
+        database = tx.transaction.database
         if (self._py_type and value is not None
                 and not isinstance(value, self._py_type)):
             value = self._py_type(value)
         return database.sql_format(self._sql_type, value)
 
     def sql_type(self):
-        database = Transaction().database
+        database = tx.transaction.database
         return database.sql_type(self._sql_type)
 
     def sql_cast(self, expression):
@@ -537,7 +535,7 @@ class Field(object):
                 RPC(instantiate=0, decorator=decorator, result=result))
 
     def definition(self, model, language):
-        pool = Pool()
+        pool = tx.pool
         Translation = pool.get('ir.translation')
         encoder = PYSONEncoder()
         definition = {
@@ -631,7 +629,7 @@ class FieldTranslate(Field):
     def _get_translation_join(
             self, Model, name, translation, table, from_, language):
         if Model.__name__ == 'ir.model.field':
-            pool = Pool()
+            pool = tx.pool
             ModelData = pool.get('ir.model.data')
             ModelField = pool.get('ir.model.field')
             Translation = pool.get('ir.translation')
@@ -713,11 +711,11 @@ class FieldTranslate(Field):
 
     def _get_translation_column(self, Model, name):
         from trytond.ir.lang import get_parent_language
-        pool = Pool()
+        pool = tx.pool
         Translation = pool.get('ir.translation')
 
         table = join = Model.__table__()
-        language = Transaction().language
+        language = tx.transaction.language
         column = None
         while language:
             translation = Translation.__table__()
@@ -747,11 +745,11 @@ class FieldTranslate(Field):
 
     def _get_translation_order(self, tables, Model, name):
         from trytond.ir.lang import get_parent_language
-        pool = Pool()
+        pool = tx.pool
         Translation = pool.get('ir.translation')
         table, _ = tables[None]
         join = table
-        language = Transaction().language
+        language = tx.transaction.language
         column = None
         while language:
             key = name + '.translation-' + language
@@ -801,14 +799,14 @@ class Translated:
         self.name = name
 
     def __get__(self, inst, cls):
-        pool = Pool()
+        pool = tx.pool
         Translation = pool.get('ir.translation')
         if inst is None:
             return self
 
         def translate(language=None):
             if language is None:
-                language = Transaction().language
+                language = tx.transaction.language
             read_size = max(1, min(
                     inst._cache.size_limit,
                     inst._local_cache.size_limit))

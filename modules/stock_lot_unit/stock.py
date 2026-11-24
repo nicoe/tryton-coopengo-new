@@ -2,9 +2,10 @@
 # this repository contains the full copyright notices and license terms.
 from collections import defaultdict
 
+from trytond import tx
 from trytond.i18n import gettext
 from trytond.model import ModelView, Workflow, fields
-from trytond.pool import Pool, PoolMeta
+from trytond.pool import PoolMeta
 from trytond.pyson import Bool, Eval
 
 from .exceptions import LotUnitQuantityError
@@ -71,7 +72,7 @@ class MoveAddLotsStartLot(LotUnitMixin, metaclass=PoolMeta):
     @fields.depends(
         'unit', 'unit_quantity', 'quantity', 'parent', '_parent_parent.unit')
     def _set_lot_values(self, lot):
-        pool = Pool()
+        pool = tx.pool
         Uom = pool.get('product.uom')
         super()._set_lot_values(lot)
         self.unit = lot.unit
@@ -93,7 +94,7 @@ class Move(metaclass=PoolMeta):
     __name__ = 'stock.move'
 
     def check_lot(self):
-        pool = Pool()
+        pool = tx.pool
         UoM = pool.get('product.uom')
         super().check_lot()
         if (self.state == 'done'
@@ -137,7 +138,7 @@ class InventoryCount(metaclass=PoolMeta):
     __name__ = 'stock.inventory.count'
 
     def default_quantity(self, fields):
-        pool = Pool()
+        pool = tx.pool
         InventoryLine = pool.get('stock.inventory.line')
         UoM = pool.get('product.uom')
         values = super().default_quantity(fields)
@@ -155,7 +156,7 @@ class LotUnitMixin(object):
 
     @classmethod
     def validate(cls, shipments):
-        pool = Pool()
+        pool = tx.pool
         UoM = pool.get('product.uom')
 
         super().validate(shipments)

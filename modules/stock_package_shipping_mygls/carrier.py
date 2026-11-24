@@ -1,9 +1,10 @@
 # This file is part of Tryton.  The COPYRIGHT file at the top level of
 # this repository contains the full copyright notices and license terms.
+from trytond import tx
 from trytond.i18n import gettext
 from trytond.model import (
     MatchMixin, ModelSQL, ModelView, fields, sequence_ordered)
-from trytond.pool import Pool, PoolMeta
+from trytond.pool import PoolMeta
 from trytond.pyson import Eval, If
 
 from .exceptions import MyGLSCredentialWarning
@@ -36,7 +37,7 @@ class CredentialMyGLS(sequence_ordered(), ModelSQL, ModelView, MatchMixin):
     @classmethod
     def check_modification(
             cls, mode, credentials, values=None, external=False):
-        pool = Pool()
+        pool = tx.pool
         Warning = pool.get('res.user.warning')
         super().check_modification(
             mode, credentials, values=values, external=external)

@@ -12,20 +12,19 @@ from sql.conditionals import Case
 from sql.operators import Equal
 
 import trytond.config as config
-from trytond import backend
+from trytond import backend, tx
 from trytond.cache import Cache
 from trytond.i18n import gettext
 from trytond.model import (
     DeactivableMixin, EvalEnvironment, Exclude, Index, ModelSingleton,
     ModelSQL, ModelView, Unique, Workflow, fields)
 from trytond.model.exceptions import AccessError, ValidationError
-from trytond.pool import Pool
 from trytond.pyson import Bool, Eval, PYSONDecoder
 from trytond.report import Report
 from trytond.rpc import RPC
 from trytond.tools import cursor_dict, is_instance_method
 from trytond.tools.string_ import StringMatcher
-from trytond.transaction import Transaction, without_check_access
+from trytond.transaction import without_check_access
 from trytond.wizard import (
     Button, StateAction, StateTransition, StateView, Wizard)
 
@@ -94,7 +93,7 @@ class Model(
 
     @classmethod
     def register(cls, model, module_name):
-        cursor = Transaction().connection.cursor()
+        cursor = tx.transaction.connection.cursor()
 
         ir_model = cls.__table__()
         cursor.execute(*ir_model.select(ir_model.id,
@@ -122,8 +121,8 @@ class Model(
 
     @classmethod
     def clean(cls):
-        pool = Pool()
-        transaction = Transaction()
+        pool = tx.pool
+        transaction = tx.transaction
         cursor = transaction.connection.cursor()
         ir_model = cls.__table__()
         cursor.execute(*ir_model.select(ir_model.name, ir_model.id))
@@ -153,7 +152,7 @@ class Model(
     @classmethod
     def list_history(cls):
         'Return a list of all models with history'
-        return [name for name, model in Pool().iterobject()
+        return [name for name, model in tx.pool.iterobject()
             if getattr(model, '_history', False)]
 
     @classmethod
@@ -161,7 +160,7 @@ class Model(
         "Return a dictionary of model to notify with the depending fields"
         return {
             name: list(model._on_change_notify_depends)
-            for name, model in Pool().iterobject()
+            for name, model in tx.pool.iterobject()
             if issubclass(model, ModelView)
             and model._on_change_notify_depends}
 
@@ -169,9 +168,9 @@ class Model(
     @without_check_access
     def get_name_items(cls, classes=None):
         "Return a list of couple mapping models to names"
-        pool = Pool()
+        pool = tx.pool
         key = ('items', str(classes),
-            Transaction().context.get('language', None))
+            tx.transaction.context.get('language', None))
         items = cls._get_names_cache.get(key)
         if items is None:
             items = cls._get_name_items()
@@ -196,7 +195,8 @@ class Model(
     @without_check_access
     def get_names(cls, classes=None):
         "Return a dictionary mapping models to names"
-        key = 'dict', str(classes), Transaction().context.get('language', None)
+        key = 'dict', str(classes), tx.transaction.context.get(
+            'language', None)
         dict_ = cls._get_names_cache.get(key)
         if dict_ is None:
             dict_ = dict(cls.get_name_items(classes=classes))
@@ -210,7 +210,7 @@ class Model(
         Returns a list of tuple (ratio, model, model_name, id, name, icon)
         The size of the list is limited to limit
         """
-        pool = Pool()
+        pool = tx.pool
         ModelAccess = pool.get('ir.model.access')
 
         if not limit > 0:
@@ -247,7 +247,7 @@ class Model(
 
     @classmethod
     def refresh_materialized(cls):
-        pool = Pool()
+        pool = tx.pool
         for _, Model in pool.iterobject():
             if hasattr(Model, '_table_query_refresh'):
                 Model._table_query_refresh()
@@ -330,9 +330,9 @@ class ModelField(
 
     @classmethod
     def __register__(cls, module):
-        pool = Pool()
+        pool = tx.pool
         Model = pool.get('ir.model')
-        transaction = Transaction()
+        transaction = tx.transaction
         cursor = transaction.connection.cursor()
         table_h = cls.__table_handler__(module)
         table = cls.__table__()
@@ -361,10 +361,10 @@ class ModelField(
 
     @classmethod
     def register(cls, model, module_name, model_id):
-        pool = Pool()
+        pool = tx.pool
         Model = pool.get('ir.model')
 
-        cursor = Transaction().connection.cursor()
+        cursor = tx.transaction.connection.cursor()
 
         ir_model_field = cls.__table__()
 
@@ -435,8 +435,8 @@ class ModelField(
 
     @classmethod
     def clean(cls):
-        pool = Pool()
-        transaction = Transaction()
+        pool = tx.pool
+        transaction = tx.transaction
         cursor = transaction.connection.cursor()
         ir_model_field = cls.__table__()
         cursor.execute(*ir_model_field.select(
@@ -475,11 +475,11 @@ class ModelField(
 
     @classmethod
     def read(cls, ids, fields_names):
-        pool = Pool()
+        pool = tx.pool
         Translation = pool.get('ir.translation')
 
         to_delete = []
-        if Transaction().context.get('language'):
+        if tx.transaction.context.get('language'):
             if 'string' in fields_names or 'help' in fields_names:
                 if 'model' not in fields_names:
                     fields_names.append('model')
@@ -490,7 +490,7 @@ class ModelField(
 
         res = super().read(ids, fields_names)
 
-        if (Transaction().context.get('language')
+        if (tx.transaction.context.get('language')
                 and ('string' in fields_names
                     or 'help' in fields_names)):
             trans_args = []
@@ -498,23 +498,23 @@ class ModelField(
                 if 'string' in fields_names:
                     trans_args.append((
                             rec['model'] + ',' + rec['name'],
-                            'field', Transaction().language, None))
+                            'field', tx.transaction.language, None))
                 if 'help' in fields_names:
                     trans_args.append((
                             rec['model'] + ',' + rec['name'],
-                            'help', Transaction().language, None))
+                            'help', tx.transaction.language, None))
             Translation.get_sources(trans_args)
             for rec in res:
                 if 'string' in fields_names:
                     res_trans = Translation.get_source(
                             rec['model'] + ',' + rec['name'],
-                            'field', Transaction().language)
+                            'field', tx.transaction.language)
                     if res_trans:
                         rec['string'] = res_trans
                 if 'help' in fields_names:
                     res_trans = Translation.get_source(
                             rec['model'] + ',' + rec['name'],
-                            'help', Transaction().language)
+                            'help', tx.transaction.language)
                     if res_trans:
                         rec['help'] = res_trans
 
@@ -559,9 +559,9 @@ class ModelAccess(
 
     @classmethod
     def __register__(cls, module):
-        pool = Pool()
+        pool = tx.pool
         Model = pool.get('ir.model')
-        transaction = Transaction()
+        transaction = tx.transaction
         cursor = transaction.connection.cursor()
         table_h = cls.__table_handler__(module)
         table = cls.__table__()
@@ -611,12 +611,12 @@ class ModelAccess(
     def get_access(cls, models):
         'Return access for models'
         # root user above constraint
-        if Transaction().user == 0:
+        if tx.transaction.user == 0:
             return defaultdict(lambda: defaultdict(lambda: True))
 
-        pool = Pool()
+        pool = tx.pool
         User = pool.get('res.user')
-        cursor = Transaction().connection.cursor()
+        cursor = tx.transaction.connection.cursor()
         model_access = cls.__table__()
 
         groups = User.get_groups()
@@ -699,11 +699,11 @@ class ModelAccess(
     @classmethod
     def check(cls, model_name, mode='read', raise_exception=True):
         'Check access for model_name and mode'
-        pool = Pool()
+        pool = tx.pool
         Model = pool.get(model_name)
         assert mode in ['read', 'write', 'create', 'delete'], \
             'Invalid access mode for security'
-        transaction = Transaction()
+        transaction = tx.transaction
         if (transaction.user == 0
                 or (raise_exception and not transaction.check_access)):
             return True
@@ -727,7 +727,7 @@ class ModelAccess(
     @classmethod
     def check_relation(cls, model_name, field_name, mode='read'):
         'Check access to relation field for model_name and mode'
-        pool = Pool()
+        pool = tx.pool
         Model = pool.get(model_name)
         field = getattr(Model, field_name)
         if field._type in ('one2many', 'many2one'):
@@ -797,9 +797,9 @@ class ModelFieldAccess(
 
     @classmethod
     def __register__(cls, module):
-        pool = Pool()
+        pool = tx.pool
         Field = pool.get('ir.model.field')
-        transaction = Transaction()
+        transaction = tx.transaction
         cursor = transaction.connection.cursor()
         table_h = cls.__table_handler__(module)
         table = cls.__table__()
@@ -851,11 +851,11 @@ class ModelFieldAccess(
     def get_access(cls, models):
         'Return fields access for models'
         # root user above constraint
-        if Transaction().user == 0:
+        if tx.transaction.user == 0:
             return defaultdict(lambda: defaultdict(
                     lambda: defaultdict(lambda: True)))
 
-        pool = Pool()
+        pool = tx.pool
         User = pool.get('res.user')
         field_access = cls.__table__()
 
@@ -872,7 +872,7 @@ class ModelFieldAccess(
 
         default = {}
         accesses = dict((m, default) for m in models)
-        cursor = Transaction().connection.cursor()
+        cursor = tx.transaction.connection.cursor()
         cursor.execute(*field_access.select(
                 field_access.model,
                 field_access.field,
@@ -905,11 +905,11 @@ class ModelFieldAccess(
         '''
         Check access for fields on model_name.
         '''
-        pool = Pool()
+        pool = tx.pool
         Model = pool.get(model_name)
         assert mode in ('read', 'write', 'create', 'delete'), \
             'Invalid access mode'
-        transaction = Transaction()
+        transaction = tx.transaction
         if (transaction.user == 0
                 or (raise_exception and not transaction.check_access)):
             if access:
@@ -985,9 +985,9 @@ class ModelButton(
 
     @classmethod
     def __register__(cls, module_name):
-        pool = Pool()
+        pool = tx.pool
         Model = pool.get('ir.model')
-        transaction = Transaction()
+        transaction = tx.transaction
         cursor = transaction.connection.cursor()
         table_h = cls.__table_handler__(module_name)
         table = cls.__table__()
@@ -1043,7 +1043,7 @@ class ModelButton(
     @without_check_access
     def get_rules(cls, model, name):
         'Return a list of rules to apply on the named button of the model'
-        pool = Pool()
+        pool = tx.pool
         Rule = pool.get('ir.model.button.rule')
         key = (model, name)
         rule_ids = cls._rules_cache.get(key)
@@ -1103,7 +1103,7 @@ class ModelButton(
     @classmethod
     def get_view_attributes(cls, model, name):
         "Return the view attributes of the named button of the model"
-        key = (model, name, Transaction().language)
+        key = (model, name, tx.transaction.language)
         attributes = cls._view_attributes_cache.get(key)
         if attributes is not None:
             return attributes
@@ -1132,7 +1132,7 @@ class ModelButtonGroup(DeactivableMixin, ModelSQL):
 
     @classmethod
     def on_modification(cls, mode, records, field_names=None):
-        pool = Pool()
+        pool = tx.pool
         Button = pool.get('ir.model.button')
         super().on_modification(mode, records, field_names=field_names)
         Button._groups_cache.clear()
@@ -1194,7 +1194,7 @@ class ModelButtonRule(ModelSQL, ModelView):
 
     @classmethod
     def on_modification(cls, mode, records, field_names=None):
-        pool = Pool()
+        pool = tx.pool
         ModelButton = pool.get('ir.model.button')
         super().on_modification(mode, records, field_names=field_names)
         ModelButton._rules_cache.clear()
@@ -1218,12 +1218,12 @@ class ModelButtonClick(DeactivableMixin, ModelSQL, ModelView):
     @classmethod
     @without_check_access
     def register(cls, model, name, records):
-        pool = Pool()
+        pool = tx.pool
         Button = pool.get('ir.model.button')
 
         assert all(r.__class__.__name__ == model for r in records)
 
-        user = Transaction().user
+        user = tx.transaction.user
         button, = Button.search([
                 ('model.name', '=', model),
                 ('name', '=', name),
@@ -1366,7 +1366,7 @@ class ModelData(
         models = cls._has_model_cache.get(None)
         if models is None:
             table = cls.__table__()
-            cursor = Transaction().connection.cursor()
+            cursor = tx.transaction.connection.cursor()
 
             cursor.execute(*table.select(table.model, group_by=[table.model]))
             models = set(m for m, in cursor)
@@ -1484,7 +1484,7 @@ class Log(ResourceAccessMixin, ModelSQL, ModelView):
         return super().get_models() + [(None, '')]  # store deleted record
 
     def get_action(self, name):
-        pool = Pool()
+        pool = tx.pool
         Field = pool.get('ir.model.field')
         Button = pool.get('ir.model.button')
         Wizard = pool.get('ir.action.wizard')
@@ -1551,8 +1551,8 @@ class PrintModelGraph(Wizard):
 
     def do_print_(self, action):
         return action, {
-            'id': Transaction().context.get('active_id'),
-            'ids': Transaction().context.get('active_ids'),
+            'id': tx.transaction.context.get('active_id'),
+            'ids': tx.transaction.context.get('active_ids'),
             'level': self.start.level,
             'filter': self.start.filter,
             'ignore_function': self.start.ignore_function,
@@ -1565,7 +1565,7 @@ class ModelGraph(Report):
     @classmethod
     def execute(cls, ids, data):
         import pydot
-        pool = Pool()
+        pool = tx.pool
         Model = pool.get('ir.model')
         ActionReport = pool.get('ir.action.report')
 
@@ -1597,7 +1597,7 @@ class ModelGraph(Report):
         Fills a pydot graph with a models structure.
         '''
         import pydot
-        pool = Pool()
+        pool = tx.pool
         Model = pool.get('ir.model')
 
         sub_models = set()
@@ -1689,7 +1689,7 @@ class ModelWorkflowGraph(Report):
     @classmethod
     def execute(cls, ids, data):
         import pydot
-        pool = Pool()
+        pool = tx.pool
         Model = pool.get('ir.model')
         ActionReport = pool.get('ir.action.report')
 
@@ -1702,7 +1702,7 @@ class ModelWorkflowGraph(Report):
         graph = pydot.Dot()
         graph.set('center', '1')
         graph.set('ratio', 'auto')
-        direction = Transaction().context.get('language_direction', 'ltr')
+        direction = tx.transaction.context.get('language_direction', 'ltr')
         graph.set('rankdir', {'ltr': 'LR', 'rtl': 'RL'}[direction])
         cls.fill_graph(models, graph)
         data = graph.create(prog='dot', format='png')
@@ -1712,7 +1712,7 @@ class ModelWorkflowGraph(Report):
     def fill_graph(cls, models, graph):
         'Fills pydot graph with models wizard.'
         import pydot
-        pool = Pool()
+        pool = tx.pool
 
         for record in models:
             Model = pool.get(record.name)
@@ -1742,8 +1742,8 @@ class RefreshMaterialized(Wizard):
     start = StateTransition()
 
     def transition_start(self):
-        pool = Pool()
-        Model = pool.get(Transaction().context['active_model'])
+        pool = tx.pool
+        Model = pool.get(tx.transaction.context['active_model'])
         if hasattr(Model, '_table_query_refresh'):
             Model._table_query_refresh(force=True)
         return 'end'

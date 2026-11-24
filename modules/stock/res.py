@@ -1,8 +1,8 @@
 # This file is part of Tryton.  The COPYRIGHT file at the top level of
 # this repository contains the full copyright notices and license terms.
+from trytond import tx
 from trytond.model import fields
-from trytond.pool import Pool, PoolMeta
-from trytond.transaction import Transaction
+from trytond.pool import PoolMeta
 
 
 class User(metaclass=PoolMeta):
@@ -26,7 +26,7 @@ class User(metaclass=PoolMeta):
         return preferences
 
     def get_status_bar(self, name):
-        pool = Pool()
+        pool = tx.pool
         Location = pool.get('stock.location')
         status = super().get_status_bar(name)
 
@@ -37,10 +37,10 @@ class User(metaclass=PoolMeta):
 
     @classmethod
     def read(cls, ids, fields_names):
-        context = Transaction().context
-        user_id = Transaction().user
-        if user_id == 0 and 'user' in Transaction().context:
-            user_id = Transaction().context['user']
+        context = tx.transaction.context
+        user_id = tx.transaction.user
+        if user_id == 0 and 'user' in tx.transaction.context:
+            user_id = tx.transaction.context['user']
         result = super().read(ids, fields_names)
         if ('warehouse' in fields_names
                 and context.get('warehouse')

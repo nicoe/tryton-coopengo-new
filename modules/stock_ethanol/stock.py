@@ -6,9 +6,10 @@ from itertools import groupby
 from sql import Null
 from sql.conditionals import Coalesce
 
+from trytond import tx
 from trytond.model import Check, ModelSQL, fields
 from trytond.modules.company.model import CompanyValueMixin
-from trytond.pool import Pool, PoolMeta
+from trytond.pool import PoolMeta
 from trytond.pyson import Eval, Id
 
 
@@ -22,7 +23,7 @@ class Configuration(metaclass=PoolMeta):
 
     @classmethod
     def multivalue_model(cls, field):
-        pool = Pool()
+        pool = tx.pool
         if field == 'ethanol_volume_uom':
             return pool.get('stock.configuration.ethanol')
         return super().multivalue_model(field)
@@ -43,7 +44,7 @@ class ConfigurationEthanol(ModelSQL, CompanyValueMixin):
 
     @classmethod
     def default_ethanol_volume_uom(cls):
-        pool = Pool()
+        pool = tx.pool
         UoM = pool.get('product.uom')
         ModelData = pool.get('ir.model.data')
         return UoM(ModelData.get_id('product', 'uom_liter')).id
@@ -118,7 +119,7 @@ class Move(metaclass=PoolMeta):
 
     @classmethod
     def order_ethanol_by_volume(cls, tables):
-        pool = Pool()
+        pool = tx.pool
         Product = pool.get('product.product')
         Template = pool.get('product.template')
         table, _ = tables[None]
@@ -141,7 +142,7 @@ class Move(metaclass=PoolMeta):
 
     @classmethod
     def get_ethanol_volume(cls, moves, name):
-        pool = Pool()
+        pool = tx.pool
         UoM = pool.get('product.uom')
         ModelData = pool.get('ir.model.data')
 
@@ -159,7 +160,7 @@ class Move(metaclass=PoolMeta):
 
     @classmethod
     def get_ethanol_volume_unit(cls, moves, name):
-        pool = Pool()
+        pool = tx.pool
         Configuration = pool.get('stock.configuration')
         configuration = Configuration(1)
         units = {}
@@ -186,7 +187,7 @@ class Move(metaclass=PoolMeta):
 
     @fields.depends('product', methods=['on_change_with_internal_quantity'])
     def on_change_with_internal_ethanol_volume(self):
-        pool = Pool()
+        pool = tx.pool
         UoM = pool.get('product.uom')
         ModelData = pool.get('ir.model.data')
 

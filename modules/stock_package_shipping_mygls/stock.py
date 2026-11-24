@@ -5,13 +5,13 @@ from itertools import zip_longest
 
 from pypdf import PdfReader, PdfWriter
 
+from trytond import tx
 from trytond.i18n import gettext
 from trytond.model import fields
 from trytond.model.exceptions import AccessError
 from trytond.modules.stock_package_shipping.exceptions import (
     PackingValidationError)
-from trytond.pool import Pool, PoolMeta
-from trytond.transaction import Transaction
+from trytond.pool import PoolMeta
 from trytond.wizard import StateAction, StateTransition, Wizard
 
 from .api import get_client, get_request
@@ -42,7 +42,7 @@ class ShippingMyGLSMixin:
     __slots__ = ()
 
     def get_mygls_credential(self):
-        pool = Pool()
+        pool = tx.pool
         Credential = pool.get('carrier.credential.mygls')
 
         pattern = self._get_mygls_credential_pattern()
@@ -121,7 +121,7 @@ class ShipmentCreateShipping(metaclass=PoolMeta):
         return next_state
 
     def do_mygls(self, action):
-        ctx = Transaction().context
+        ctx = tx.transaction.context
         return action, {
             'model': ctx['active_model'],
             'id': ctx['active_id'],
@@ -135,7 +135,7 @@ class ShipmentCreateShippingMyGLS(Wizard):
     start = StateTransition()
 
     def transition_start(self):
-        pool = Pool()
+        pool = tx.pool
         Package = pool.get('stock.package')
 
         shipment = self.record
@@ -248,7 +248,7 @@ class ShipmentCreateShippingMyGLS(Wizard):
             }
 
     def get_service(self, code, shipment, usage=None):
-        pool = Pool()
+        pool = tx.pool
         Carrier = pool.get('carrier')
         service = {'Code': code}
         shipping_to_address = shipment.shipping_to_address
@@ -271,7 +271,7 @@ class ShipmentCreateShippingMyGLS(Wizard):
                 lang_code = shipment.shipping_to.lang.code
             else:
                 lang_code = None
-            with Transaction().set_context(language=lang_code):
+            with tx.transaction.set_context(language=lang_code):
                 carrier = Carrier(shipment.carrier.id)
             mobile = shipping_to_address.contact_mechanism_get(
                 'mobile', usage=usage)

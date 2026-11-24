@@ -2,12 +2,12 @@
 # this repository contains the full copyright notices and license terms.
 from decimal import Decimal
 
+from trytond import tx
 from trytond.model import fields
 from trytond.modules.account_product.product import (
     account_used, template_property)
-from trytond.pool import Pool, PoolMeta
+from trytond.pool import PoolMeta
 from trytond.pyson import Eval
-from trytond.transaction import Transaction
 
 account_names = [
     'account_stock', 'account_stock_in', 'account_stock_out']
@@ -55,7 +55,7 @@ class Category(metaclass=PoolMeta):
 
     @classmethod
     def __setup__(cls):
-        pool = Pool()
+        pool = tx.pool
         CategoryAccount = pool.get('product.category.account')
         super().__setup__()
         for account in [cls.account_stock_in, cls.account_stock_out]:
@@ -67,7 +67,7 @@ class Category(metaclass=PoolMeta):
 
     @classmethod
     def multivalue_model(cls, field):
-        pool = Pool()
+        pool = tx.pool
         if field in account_names:
             return pool.get('product.category.account')
         return super().multivalue_model(field)
@@ -171,22 +171,23 @@ class Product(metaclass=PoolMeta):
 
     @classmethod
     def update_cost_price(cls, costs):
-        pool = Pool()
+        pool = tx.pool
         Date = pool.get('ir.date')
         Stock = pool.get('stock.location')
         Company = pool.get('company.company')
         Move = pool.get('account.move')
         Period = pool.get('account.period')
 
-        context = Transaction().context
+        context = tx.transaction.context
         locations = Stock.search([('type', '=', 'storage')])
         company = Company(context['company'])
-        with Transaction().set_context(company=company.id):
+        with tx.transaction.set_context(company=company.id):
             stock_date_end = Date.today()
         period = Period.find(company, date=stock_date_end)
         if period.fiscalyear.account_stock_method:
             moves = []
-            with Transaction().set_context(locations=[l.id for l in locations],
+            with tx.transaction.set_context(
+                    locations=[l.id for l in locations],
                     stock_date_end=stock_date_end):
                 for cost, products in costs.items():
                     products = cls.browse(products)
@@ -203,7 +204,7 @@ class Product(metaclass=PoolMeta):
         super().update_cost_price(costs)
 
     def _update_cost_price_move(self, amount, company, period, date):
-        pool = Pool()
+        pool = tx.pool
         AccountConfiguration = pool.get('account.configuration')
         Move = pool.get('account.move')
         Line = pool.get('account.move.line')

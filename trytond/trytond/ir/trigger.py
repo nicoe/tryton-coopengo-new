@@ -7,15 +7,14 @@ from sql import Literal, Select
 from sql.aggregate import Count, Max
 from sql.functions import CurrentTimestamp
 
+from trytond import tx
 from trytond.cache import Cache
 from trytond.i18n import gettext
 from trytond.model import (
     Check, DeactivableMixin, EvalEnvironment, Index, ModelSQL, ModelView,
     fields)
 from trytond.model.exceptions import ValidationError
-from trytond.pool import Pool
 from trytond.pyson import Eval, If, PYSONDecoder, TimeDelta
-from trytond.transaction import Transaction
 
 
 class ConditionError(ValidationError):
@@ -153,7 +152,7 @@ class Trigger(DeactivableMixin, ModelSQL, ModelView):
         assert mode in ['create', 'write', 'delete', 'time'], \
             'Invalid trigger mode'
 
-        if Transaction().context.get('_no_trigger'):
+        if tx.transaction.context.get('_no_trigger'):
             return []
 
         key = (model_name, mode)
@@ -175,12 +174,12 @@ class Trigger(DeactivableMixin, ModelSQL, ModelView):
         env = {}
         env['current_date'] = datetime.datetime.today()
         env['time'] = time
-        env['context'] = Transaction().context
+        env['context'] = tx.transaction.context
         env['self'] = EvalEnvironment(record, record.__class__)
         return bool(PYSONDecoder(env).decode(self.condition))
 
     def queue_trigger_action(self, records):
-        trigger_records = Transaction().trigger_records[self.id]
+        trigger_records = tx.transaction.trigger_records[self.id]
         ids = {r.id for r in records if self.eval(r)} - trigger_records
         if ids:
             self.__class__.__queue__.trigger_action(self, list(ids))
@@ -190,12 +189,12 @@ class Trigger(DeactivableMixin, ModelSQL, ModelView):
         """
         Trigger the action define on trigger for the records
         """
-        pool = Pool()
+        pool = tx.pool
         TriggerLog = pool.get('ir.trigger.log')
         Model = pool.get(self.model.name)
         model, method = self.action.split('|')
         ActionModel = pool.get(model)
-        cursor = Transaction().connection.cursor()
+        cursor = tx.transaction.connection.cursor()
         trigger_log = TriggerLog.__table__()
 
         ids = [r.id for r in Model.browse(ids) if self.eval(r)]
@@ -263,7 +262,7 @@ class Trigger(DeactivableMixin, ModelSQL, ModelView):
         '''
         Trigger time actions
         '''
-        pool = Pool()
+        pool = tx.pool
         triggers = cls.search([
                 ('on_time_', '=', True),
                 ])

@@ -5,11 +5,11 @@ from itertools import groupby
 
 from efficient_apriori import apriori
 
+from trytond import tx
 from trytond.cache import Cache
 from trytond.model import Index, ModelSQL, ModelView, fields
-from trytond.pool import Pool, PoolMeta
+from trytond.pool import PoolMeta
 from trytond.pyson import TimeDelta
-from trytond.transaction import Transaction
 
 
 class Configuration(metaclass=PoolMeta):
@@ -70,7 +70,7 @@ class Sale(metaclass=PoolMeta):
 
     @fields.depends('lines')
     def _recommended_products_association_rule(self):
-        pool = Pool()
+        pool = tx.pool
         Rule = pool.get('sale.product.association.rule')
         if self.lines:
             products = [
@@ -146,7 +146,7 @@ class ProductAssociationRule(ModelSQL, ModelView):
     @classmethod
     def clean(cls, domain=None):
         table = cls.__table__()
-        cursor = Transaction().connection.cursor()
+        cursor = tx.transaction.connection.cursor()
         if domain:
             query = cls.search(domain, query=True)
             where = table.id.in_(query)
@@ -161,7 +161,7 @@ class ProductAssociationRule(ModelSQL, ModelView):
 
     @classmethod
     def transactions_sale(cls, domain=None):
-        pool = Pool()
+        pool = tx.pool
         Date = pool.get('ir.date')
         Sale = pool.get('sale.sale')
         SaleLine = pool.get('sale.line')
@@ -187,7 +187,7 @@ class ProductAssociationRule(ModelSQL, ModelView):
 
     @classmethod
     def compute(cls):
-        pool = Pool()
+        pool = tx.pool
         Configuration = pool.get('sale.configuration')
 
         config = Configuration(1)
@@ -275,7 +275,7 @@ class ProductAssociationRulePOS(metaclass=PoolMeta):
 
     @classmethod
     def transactions_pos(cls, domain=None):
-        pool = Pool()
+        pool = tx.pool
         Date = pool.get('ir.date')
         Sale = pool.get('sale.point.sale')
         SaleLine = pool.get('sale.point.sale.line')

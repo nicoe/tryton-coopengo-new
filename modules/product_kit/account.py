@@ -1,8 +1,8 @@
 # This file is part of Tryton.  The COPYRIGHT file at the top level of
 # this repository contains the full copyright notices and license terms.
+from trytond import tx
 from trytond.model import ModelView, Workflow
-from trytond.pool import Pool, PoolMeta
-from trytond.transaction import Transaction
+from trytond.pool import PoolMeta
 
 
 class Invoice(metaclass=PoolMeta):
@@ -12,9 +12,9 @@ class Invoice(metaclass=PoolMeta):
     @ModelView.button
     @Workflow.transition('posted')
     def post(cls, invoices):
-        pool = Pool()
+        pool = tx.pool
         Move = pool.get('stock.move')
-        transaction = Transaction()
+        transaction = tx.transaction
         context = transaction.context
         super().post(invoices)
         moves = sum(
@@ -38,7 +38,7 @@ class InvoiceLineSale(metaclass=PoolMeta):
 
     @property
     def stock_component_moves(self):
-        pool = Pool()
+        pool = tx.pool
         SaleLine = pool.get('sale.line')
         moves = super().stock_component_moves
         if isinstance(self.origin, SaleLine):
@@ -52,7 +52,7 @@ class InvoiceLinePurchase(metaclass=PoolMeta):
 
     @property
     def stock_component_moves(self):
-        pool = Pool()
+        pool = tx.pool
         PurchaseLine = pool.get('purchase.line')
         moves = super().stock_component_moves
         if isinstance(self.origin, PurchaseLine):

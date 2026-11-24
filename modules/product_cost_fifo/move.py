@@ -4,13 +4,13 @@ from decimal import Decimal
 
 from sql import Literal, operators
 
+from trytond import tx
 from trytond.i18n import gettext
 from trytond.model import Check, ModelView, Workflow, fields
 from trytond.model.exceptions import AccessError
 from trytond.modules.product import round_price
-from trytond.pool import Pool, PoolMeta
+from trytond.pool import PoolMeta
 from trytond.pyson import Eval
-from trytond.transaction import Transaction
 
 
 class Move(metaclass=PoolMeta):
@@ -78,13 +78,13 @@ class Move(metaclass=PoolMeta):
         fifo_quantity on the concerned incoming moves. Return the
         cost price for outputing the given product and quantity.
         '''
-        pool = Pool()
+        pool = tx.pool
         Uom = pool.get('product.uom')
 
         total_qty = Uom.compute_qty(
             self.unit, self.quantity, self.product.default_uom, round=False)
 
-        with Transaction().set_context(company=self.company.id):
+        with tx.transaction.set_context(company=self.company.id):
             fifo_moves = self.product.get_fifo_move(total_qty)
 
         cost_price = Decimal(0)

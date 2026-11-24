@@ -8,8 +8,8 @@ from weakref import WeakSet
 
 from trytond.modules import load_modules, register_classes
 from trytond.tools import resolve
-from trytond.server_context import ServerContext
 from trytond.transaction import Transaction
+from trytond.server_context import ServerContext
 
 __all__ = ['Pool', 'PoolMeta', 'PoolBase', 'isregisteredby']
 
@@ -83,6 +83,7 @@ class Pool(object):
         instances = cls._local.__dict__.setdefault('instances', {})
         if (instance := instances.get(database_name)) is None:
             instances[database_name] = instance = super().__new__(cls)
+            instance.database_name = database_name
             instance.ready = False
         if instance not in cls._pool_instances:
             with cls._lock:
@@ -91,11 +92,6 @@ class Pool(object):
                 cls._pool_instances.add(instance)
                 instance.ready = True
         return instance
-
-    def __init__(self, database_name=None):
-        if database_name is None:
-            database_name = Transaction().database.name
-        self.database_name = database_name
 
     @classmethod
     def register(cls, *classes, **kwargs):
@@ -416,6 +412,8 @@ class Pool(object):
 
 
 def isregisteredby(obj, module, type_='model'):
+    from trytond import tx
+
     def resolve_if_needed(cls):
         if isinstance(cls, str):
             if module in {'ir', 'res'}:
@@ -424,7 +422,7 @@ def isregisteredby(obj, module, type_='model'):
                 qualname = f'trytond.modules.{module}.{cls}'
             cls = resolve(qualname)
         return cls
-    pool = Pool()
+    pool = tx.pool
     classes = pool.classes[type_]
     return any(
         issubclass(obj, resolve_if_needed(cls)) for cls in classes[module])

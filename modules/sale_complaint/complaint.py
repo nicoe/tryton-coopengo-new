@@ -8,7 +8,7 @@ from decimal import Decimal
 from sql import Null
 from sql.functions import CharLength
 
-from trytond import backend
+from trytond import backend, tx
 from trytond.i18n import gettext
 from trytond.model import (
     ChatMixin, DeactivableMixin, Index, ModelSQL, ModelView, Workflow, fields)
@@ -17,10 +17,9 @@ from trytond.modules.company.model import (
     employee_field, reset_employee, set_employee)
 from trytond.modules.currency.fields import Monetary
 from trytond.modules.product import price_digits
-from trytond.pool import Pool, PoolMeta
+from trytond.pool import PoolMeta
 from trytond.pyson import Bool, Eval, If
 from trytond.tools import grouped_slice
-from trytond.transaction import Transaction
 
 from .exceptions import ComplaintSimilarWarning
 
@@ -226,13 +225,13 @@ class Complaint(Workflow, ModelSQL, ModelView, ChatMixin):
 
     @staticmethod
     def default_date():
-        pool = Pool()
+        pool = tx.pool
         Date = pool.get('ir.date')
         return Date.today()
 
     @staticmethod
     def default_company():
-        return Transaction().context.get('company')
+        return tx.transaction.context.get('company')
 
     @staticmethod
     def default_state():
@@ -248,7 +247,7 @@ class Complaint(Workflow, ModelSQL, ModelView, ChatMixin):
 
     @fields.depends('origin', 'customer')
     def on_change_origin(self):
-        pool = Pool()
+        pool = tx.pool
         Sale = pool.get('sale.sale')
         SaleLine = pool.get('sale.line')
         Invoice = pool.get('account.invoice')
@@ -287,7 +286,7 @@ class Complaint(Workflow, ModelSQL, ModelView, ChatMixin):
 
     @classmethod
     def preprocess_values(cls, mode, values):
-        pool = Pool()
+        pool = tx.pool
         Configuration = pool.get('sale.configuration')
         values = super().preprocess_values(mode, values)
         if mode == 'create' and not values.get('number'):
@@ -351,9 +350,9 @@ class Complaint(Workflow, ModelSQL, ModelView, ChatMixin):
     @Workflow.transition('approved')
     @set_employee('approved_by')
     def approve(cls, complaints):
-        pool = Pool()
+        pool = tx.pool
         Configuration = pool.get('sale.configuration')
-        transaction = Transaction()
+        transaction = tx.transaction
         context = transaction.context
         config = Configuration(1)
         with transaction.set_context(
@@ -372,7 +371,7 @@ class Complaint(Workflow, ModelSQL, ModelView, ChatMixin):
     @ModelView.button
     @Workflow.transition('done')
     def process(cls, complaints):
-        pool = Pool()
+        pool = tx.pool
         Action = pool.get('sale.complaint.action')
         results = defaultdict(list)
         actions = defaultdict(list)
@@ -391,7 +390,7 @@ class Complaint(Workflow, ModelSQL, ModelView, ChatMixin):
 
     @classmethod
     def _check_similar(cls, complaints):
-        pool = Pool()
+        pool = tx.pool
         Warning = pool.get('res.user.warning')
         for sub_complaints in grouped_slice(
                 complaints, backend.MAX_QUERY_PARAMS // 10):
@@ -418,7 +417,7 @@ class Complaint(Workflow, ModelSQL, ModelView, ChatMixin):
                                 complaint=complaint.rec_name))
 
     def _similar_domain(self):
-        pool = Pool()
+        pool = tx.pool
         Sale = pool.get('sale.sale')
         SaleLine = pool.get('sale.line')
         Invoice = pool.get('account.invoice')
@@ -588,7 +587,7 @@ class Action(ModelSQL, ModelView):
 
     @classmethod
     def get_complaint_states(cls):
-        pool = Pool()
+        pool = tx.pool
         Complaint = pool.get('sale.complaint')
         return Complaint.fields_get(['state'])['state']['selection']
 
@@ -609,7 +608,7 @@ class Action(ModelSQL, ModelView):
 
     @classmethod
     def get_result(cls):
-        pool = Pool()
+        pool = tx.pool
         Model = pool.get('ir.model')
         get_name = Model.get_name
         models = cls._get_result()
@@ -628,7 +627,7 @@ class Action(ModelSQL, ModelView):
         return getattr(self, 'do_%s' % self.action)()
 
     def do_sale_return(self):
-        pool = Pool()
+        pool = tx.pool
         Sale = pool.get('sale.sale')
         Line = pool.get('sale.line')
 
@@ -676,7 +675,7 @@ class Action(ModelSQL, ModelView):
         return return_sale
 
     def do_credit_note(self):
-        pool = Pool()
+        pool = tx.pool
         Invoice = pool.get('account.invoice')
         Line = pool.get('account.invoice.line')
 
@@ -703,7 +702,7 @@ class Action(ModelSQL, ModelView):
                     line2qty = {invoice_line: self.quantity}
                 if self.unit_price is not None:
                     line2price = {invoice_line: self.unit_price}
-            with Transaction().set_context(_account_invoice_correction=True):
+            with tx.transaction.set_context(_account_invoice_correction=True):
                 credit_note, = Invoice.copy([invoice], default={
                         'lines': [],
                         'taxes': [],
@@ -804,7 +803,7 @@ class _Action_Line:
 
     @classmethod
     def get_complaint_states(cls):
-        pool = Pool()
+        pool = tx.pool
         Complaint = pool.get('sale.complaint')
         return Complaint.fields_get(['state'])['state']['selection']
 
@@ -932,11 +931,11 @@ class Action_PromotionCoupon(metaclass=PoolMeta):
         return super()._get_result() + ['sale.promotion.coupon.number']
 
     def do_promotion_coupon(self):
-        pool = Pool()
+        pool = tx.pool
         PromotionCouponNumber = pool.get('sale.promotion.coupon.number')
         Date = pool.get('ir.date')
 
-        with Transaction().set_context(company=self.company.id):
+        with tx.transaction.set_context(company=self.company.id):
             today = Date.today()
 
         return PromotionCouponNumber(

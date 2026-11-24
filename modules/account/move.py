@@ -11,18 +11,17 @@ from sql.conditionals import Case, Coalesce
 from sql.functions import Abs, CharLength, Round
 from sql.operators import Exists
 
-from trytond import backend
+from trytond import backend, tx
 from trytond.i18n import gettext
 from trytond.model import (
     Check, DeactivableMixin, Index, ModelSQL, ModelView, dualmethod, fields)
 from trytond.model.exceptions import AccessError
 from trytond.modules.currency.fields import Monetary
-from trytond.pool import Pool
 from trytond.pyson import Bool, Eval, If, PYSONEncoder
 from trytond.report import Report
 from trytond.rpc import RPC
 from trytond.tools import firstline, sqlite_apply_types
-from trytond.transaction import Transaction, check_access
+from trytond.transaction import check_access
 from trytond.wizard import (
     Button, StateAction, StateTransition, StateView, Wizard)
 
@@ -64,7 +63,7 @@ class DescriptionOriginMixin:
 
     @classmethod
     def search_description_used(cls, name, clause):
-        pool = Pool()
+        pool = tx.pool
         operator = clause[1]
         if operator.startswith('!') or operator.startswith('not '):
             bool_op, bool_desc_op, desc_op = 'AND', 'OR', '='
@@ -174,11 +173,11 @@ class Move(DescriptionOriginMixin, ModelSQL, ModelView):
 
     @staticmethod
     def default_company():
-        return Transaction().context.get('company')
+        return tx.transaction.context.get('company')
 
     @fields.depends('company', 'period', 'date')
     def on_change_company(self):
-        pool = Pool()
+        pool = tx.pool
         Period = pool.get('account.period')
         if self.company:
             if self.period and self.period.company != self.company:
@@ -193,7 +192,7 @@ class Move(DescriptionOriginMixin, ModelSQL, ModelView):
 
     @classmethod
     def default_period(cls):
-        Period = Pool().get('account.period')
+        Period = tx.pool.get('account.period')
         company = cls.default_company()
         try:
             period = Period.find(company)
@@ -207,7 +206,7 @@ class Move(DescriptionOriginMixin, ModelSQL, ModelView):
 
     @classmethod
     def default_date(cls):
-        pool = Pool()
+        pool = tx.pool
         Period = pool.get('account.period')
         Date = pool.get('ir.date')
         today = Date.today()
@@ -225,9 +224,9 @@ class Move(DescriptionOriginMixin, ModelSQL, ModelView):
 
     @fields.depends('date', 'period', 'company', 'lines')
     def on_change_date(self):
-        pool = Pool()
+        pool = tx.pool
         Period = pool.get('account.period')
-        context = Transaction().context
+        context = tx.transaction.context
         if self.date:
             company = self.company or context.get('company')
             if (not self.period
@@ -244,13 +243,13 @@ class Move(DescriptionOriginMixin, ModelSQL, ModelView):
     @fields.depends(
         'period', 'date', 'company', 'journal', methods=['on_change_date'])
     def on_change_period(self):
-        pool = Pool()
+        pool = tx.pool
         Date = pool.get('ir.date')
         Line = pool.get('account.move.line')
-        context = Transaction().context
+        context = tx.transaction.context
         company_id = (
             self.company.id if self.company else context.get('company'))
-        with Transaction().set_context(company=company_id):
+        with tx.transaction.set_context(company=company_id):
             today = Date.today()
         if self.period:
             start_date = self.period.start_date
@@ -282,7 +281,7 @@ class Move(DescriptionOriginMixin, ModelSQL, ModelView):
 
     @classmethod
     def get_origin(cls):
-        Model = Pool().get('ir.model')
+        Model = tx.pool.get('ir.model')
         get_name = Model.get_name
         models = cls._get_origin()
         return [(None, '')] + [(m, get_name(m)) for m in models]
@@ -302,7 +301,7 @@ class Move(DescriptionOriginMixin, ModelSQL, ModelView):
 
     @classmethod
     def copy(cls, moves, default=None):
-        pool = Pool()
+        pool = tx.pool
         Date = pool.get('ir.date')
         Period = pool.get('account.period')
         Warning = pool.get('res.user.warning')
@@ -327,7 +326,7 @@ class Move(DescriptionOriginMixin, ModelSQL, ModelView):
 
         def default_period(origin):
             if not _check_period(origin):
-                with Transaction().set_context(company=origin['company']):
+                with tx.transaction.set_context(company=origin['company']):
                     today = Date.today()
                 period = Period.find(origin['company'], date=today)
                 return period.id
@@ -336,7 +335,7 @@ class Move(DescriptionOriginMixin, ModelSQL, ModelView):
 
         def default_date(origin):
             if not _check_period(origin):
-                with Transaction().set_context(company=origin['company']):
+                with tx.transaction.set_context(company=origin['company']):
                     return Date.today()
             else:
                 return origin['date']
@@ -353,10 +352,10 @@ class Move(DescriptionOriginMixin, ModelSQL, ModelView):
         '''
         Validate balanced move
         '''
-        pool = Pool()
+        pool = tx.pool
         MoveLine = pool.get('account.move.line')
         line = MoveLine.__table__()
-        transaction = Transaction()
+        transaction = tx.transaction
         cursor = transaction.connection.cursor()
 
         for company, moves in groupby(moves, key=lambda m: m.company):
@@ -390,15 +389,15 @@ class Move(DescriptionOriginMixin, ModelSQL, ModelView):
                     where=line.move.in_(draft_move_query)
                     & (line.state != 'draft')))
 
-        Transaction().counter += 1
-        for cache in Transaction().cache.values():
+        tx.transaction.counter += 1
+        for cache in tx.transaction.cache.values():
             if MoveLine.__name__ in cache:
                 cache_cls = cache[MoveLine.__name__]
                 cache_cls.clear()
 
     def _cancel_default(self, reversal=False):
         'Return default dictionary to cancel move'
-        pool = Pool()
+        pool = tx.pool
         Date = pool.get('ir.date')
         Period = pool.get('account.period')
         Warning = pool.get('res.user.warning')
@@ -412,7 +411,7 @@ class Move(DescriptionOriginMixin, ModelSQL, ModelView):
                 raise CancelWarning(key,
                     gettext('account.msg_move_cancel_closed_period',
                         move=self.rec_name))
-            with Transaction().set_context(company=self.company.id):
+            with tx.transaction.set_context(company=self.company.id):
                 date = Date.today()
             period = Period.find(self.company, date=date)
             default.update({
@@ -447,17 +446,17 @@ class Move(DescriptionOriginMixin, ModelSQL, ModelView):
     @dualmethod
     @ModelView.button
     def post(cls, moves):
-        pool = Pool()
+        pool = tx.pool
         Date = pool.get('ir.date')
         Line = pool.get('account.move.line')
         move = cls.__table__()
         line = Line.__table__()
-        cursor = Transaction().connection.cursor()
+        cursor = tx.transaction.connection.cursor()
 
         to_reconcile = []
 
         for company, c_moves in groupby(moves, lambda m: m.company):
-            with Transaction().set_context(company=company.id):
+            with tx.transaction.set_context(company=company.id):
                 today = Date.today()
             currency = company.currency
             c_moves = list(c_moves)
@@ -539,7 +538,7 @@ class MoveContext(ModelView):
 
     @classmethod
     def default_company(cls):
-        return Transaction().context.get('company')
+        return tx.transaction.context.get('company')
 
 
 class Reconciliation(ModelSQL, ModelView):
@@ -586,11 +585,11 @@ class Reconciliation(ModelSQL, ModelView):
 
     @classmethod
     def default_company(cls):
-        return Transaction().context.get('company')
+        return tx.transaction.context.get('company')
 
     @classmethod
     def preprocess_values(cls, mode, values):
-        pool = Pool()
+        pool = tx.pool
         Configuration = pool.get('account.configuration')
         values = super().preprocess_values(mode, values)
         if mode == 'create' and not values.get('number'):
@@ -605,7 +604,7 @@ class Reconciliation(ModelSQL, ModelView):
     @classmethod
     def check_modification(
             cls, mode, reconciliations, values=None, external=False):
-        pool = Pool()
+        pool = tx.pool
         Warning = pool.get('res.user.warning')
 
         super().check_modification(
@@ -644,7 +643,7 @@ class Reconciliation(ModelSQL, ModelView):
 
     @classmethod
     def check_lines(cls, reconciliations):
-        Lang = Pool().get('ir.lang')
+        Lang = tx.pool.get('ir.lang')
         for reconciliation in reconciliations:
             debit = Decimal(0)
             credit = Decimal(0)
@@ -699,12 +698,12 @@ class MoveLineMixin:
 
     @classmethod
     def get_move_origin(cls):
-        Move = Pool().get('account.move')
+        Move = tx.pool.get('account.move')
         return Move.get_origin()
 
     @classmethod
     def get_move_states(cls):
-        pool = Pool()
+        pool = tx.pool
         Move = pool.get('account.move')
         return Move.fields_get(['state'])['state']['selection']
 
@@ -721,7 +720,7 @@ class MoveLineMixin:
 
     @classmethod
     def set_move_field(cls, lines, name, value):
-        pool = Pool()
+        pool = tx.pool
         Move = pool.get('account.move')
         if name.startswith('move_'):
             name = name[5:]
@@ -743,7 +742,7 @@ class MoveLineMixin:
     @staticmethod
     def _order_move_field(name):
         def order_field(cls, tables):
-            pool = Pool()
+            pool = tx.pool
             Move = pool.get('account.move')
             field = Move._fields[name]
             table, _ = tables[None]
@@ -777,7 +776,7 @@ class MoveLineMixin:
 
     @classmethod
     def domain_payable_receivable_date(cls, domain, tables):
-        pool = Pool()
+        pool = tx.pool
         Move = pool.get('account.move')
         table, _ = tables[None]
         move = tables.get('move')
@@ -795,7 +794,7 @@ class MoveLineMixin:
 
     @classmethod
     def order_payable_receivable_date(cls, tables):
-        pool = Pool()
+        pool = tx.pool
         Move = pool.get('account.move')
         table, _ = tables[None]
         move = tables.get('move')
@@ -810,12 +809,12 @@ class MoveLineMixin:
 
     @classmethod
     def get_payable_receivable_balance(cls, lines, name):
-        pool = Pool()
+        pool = tx.pool
         Account = pool.get('account.account')
         AccountType = pool.get('account.account.type')
         Move = pool.get('account.move')
 
-        transaction = Transaction()
+        transaction = tx.transaction
         context = transaction.context
         cursor = transaction.connection.cursor()
 
@@ -888,7 +887,7 @@ class MoveLineMixin:
         return balances
 
     def get_rec_name(self, name):
-        pool = Pool()
+        pool = tx.pool
         Lang = pool.get('ir.lang')
         lang = Lang.get()
         amount = lang.currency(self.amount, self.amount_currency)
@@ -1132,10 +1131,10 @@ class Line(DescriptionOriginMixin, MoveLineMixin, ModelSQL, ModelView):
         or the starting date of the period
         or today
         '''
-        pool = Pool()
+        pool = tx.pool
         Period = pool.get('account.period')
         Date = pool.get('ir.date')
-        context = Transaction().context
+        context = tx.transaction.context
 
         date = Date.today()
         lines = cls.search([
@@ -1159,7 +1158,7 @@ class Line(DescriptionOriginMixin, MoveLineMixin, ModelSQL, ModelView):
 
     @classmethod
     def default_move(cls):
-        transaction = Transaction()
+        transaction = tx.transaction
         context = transaction.context
         if context.get('journal') and context.get('period'):
             lines = cls.search([
@@ -1187,7 +1186,7 @@ class Line(DescriptionOriginMixin, MoveLineMixin, ModelSQL, ModelView):
 
     @classmethod
     def default_company(cls):
-        return Transaction().context.get('company')
+        return tx.transaction.context.get('company')
 
     @staticmethod
     def default_state():
@@ -1216,7 +1215,7 @@ class Line(DescriptionOriginMixin, MoveLineMixin, ModelSQL, ModelView):
 
     @classmethod
     def get_origin(cls):
-        Model = Pool().get('ir.model')
+        Model = tx.pool.get('ir.model')
         get_name = Model.get_name
         models = cls._get_origin()
         return [(None, '')] + [(m, get_name(m)) for m in models]
@@ -1284,7 +1283,7 @@ class Line(DescriptionOriginMixin, MoveLineMixin, ModelSQL, ModelView):
 
     @classmethod
     def order_maturity_date(self, tables):
-        pool = Pool()
+        pool = tx.pool
         Move = pool.get('account.move')
         table, _ = tables[None]
         if 'move' not in tables:
@@ -1336,14 +1335,14 @@ class Line(DescriptionOriginMixin, MoveLineMixin, ModelSQL, ModelView):
         depending of the context.
         table is the SQL instance of account.move.line table
         '''
-        pool = Pool()
+        pool = tx.pool
         FiscalYear = pool.get('account.fiscalyear')
         Move = pool.get('account.move')
         Period = pool.get('account.period')
         move = Move.__table__()
         period = Period.__table__()
         fiscalyear = FiscalYear.__table__()
-        context = Transaction().context
+        context = tx.transaction.context
         company = context.get('company')
 
         fiscalyear_ids = []
@@ -1434,7 +1433,7 @@ class Line(DescriptionOriginMixin, MoveLineMixin, ModelSQL, ModelView):
         Check if the lines can be modified or created for the journal - period
         and if there is no journal - period, create it
         '''
-        JournalPeriod = Pool().get('account.journal.period')
+        JournalPeriod = tx.pool.get('account.journal.period')
         journal_periods = JournalPeriod.search([
                 ('journal', '=', journal.id),
                 ('period', '=', period.id),
@@ -1454,7 +1453,7 @@ class Line(DescriptionOriginMixin, MoveLineMixin, ModelSQL, ModelView):
 
     @classmethod
     def check_modification(cls, mode, lines, values=None, external=False):
-        pool = Pool()
+        pool = tx.pool
         Move = pool.get('account.move')
 
         super().check_modification(
@@ -1496,7 +1495,7 @@ class Line(DescriptionOriginMixin, MoveLineMixin, ModelSQL, ModelView):
 
     @classmethod
     def on_delete(cls, lines):
-        pool = Pool()
+        pool = tx.pool
         Move = pool.get('account.move')
         callback = super().on_delete(lines)
         moves = Move.browse({l.move for l in lines})
@@ -1507,7 +1506,7 @@ class Line(DescriptionOriginMixin, MoveLineMixin, ModelSQL, ModelView):
     def view_attributes(cls):
         attributes = super().view_attributes()
         view_ids = cls._view_reconciliation_muted()
-        if Transaction().context.get('view_id') in view_ids:
+        if tx.transaction.context.get('view_id') in view_ids:
             attributes.append(
                 ('/tree', 'visual',
                     If(Bool(Eval('reconciliation')), 'muted', '')))
@@ -1515,14 +1514,14 @@ class Line(DescriptionOriginMixin, MoveLineMixin, ModelSQL, ModelView):
 
     @classmethod
     def _view_reconciliation_muted(cls):
-        pool = Pool()
+        pool = tx.pool
         ModelData = pool.get('ir.model.data')
         return {ModelData.get_id(
                 'account', 'move_line_view_list_payable_receivable')}
 
     @classmethod
     def create(cls, vlist):
-        pool = Pool()
+        pool = tx.pool
         Move = pool.get('account.move')
 
         def move_fields(move_name):
@@ -1534,7 +1533,7 @@ class Line(DescriptionOriginMixin, MoveLineMixin, ModelSQL, ModelView):
                     yield fname
 
         moves = {}
-        context = Transaction().context
+        context = tx.transaction.context
         vlist = [x.copy() for x in vlist]
         for vals in vlist:
             if not vals.get('move'):
@@ -1567,13 +1566,13 @@ class Line(DescriptionOriginMixin, MoveLineMixin, ModelSQL, ModelView):
 
     @classmethod
     def view_toolbar_get(cls):
-        pool = Pool()
+        pool = tx.pool
         Template = pool.get('account.move.template')
 
         toolbar = super().view_toolbar_get()
 
         # Add a wizard entry for each templates
-        context = Transaction().context
+        context = tx.transaction.context
         company = context.get('company')
         journal = context.get('journal')
         period = context.get('period')
@@ -1603,7 +1602,7 @@ class Line(DescriptionOriginMixin, MoveLineMixin, ModelSQL, ModelView):
         Reconcile each list of lines together.
         The writeoff keys are: date, method and description.
         """
-        pool = Pool()
+        pool = tx.pool
         Reconciliation = pool.get('account.move.reconciliation')
         Move = pool.get('account.move')
         Lang = pool.get('ir.lang')
@@ -1693,14 +1692,14 @@ class Line(DescriptionOriginMixin, MoveLineMixin, ModelSQL, ModelView):
     def _get_writeoff_move(
             cls, reconcile_account, reconcile_party, amount, currency,
             writeoff, date=None, description=None):
-        pool = Pool()
+        pool = tx.pool
         Currency = pool.get('currency.currency')
         Date = pool.get('ir.date')
         Period = pool.get('account.period')
         Move = pool.get('account.move')
         company = reconcile_account.company
         if not date:
-            with Transaction().set_context(company=company.id):
+            with tx.transaction.set_context(company=company.id):
                 date = Date.today()
         period = Period.find(reconcile_account.company, date=date)
         if amount >= 0:
@@ -1718,7 +1717,7 @@ class Line(DescriptionOriginMixin, MoveLineMixin, ModelSQL, ModelView):
         if currency != company.currency:
             amount_second_currency = amount
             second_currency = currency
-            with Transaction().set_context(date=date):
+            with tx.transaction.set_context(date=date):
                 amount = Currency.compute(
                     currency, amount, company.currency)
         else:
@@ -1754,7 +1753,7 @@ class Line(DescriptionOriginMixin, MoveLineMixin, ModelSQL, ModelView):
         line.debit = amount if amount > 0 else 0
         line.credit = -amount if amount < 0 else 0
         if account.second_currency:
-            with Transaction().set_context(date=date):
+            with tx.transaction.set_context(date=date):
                 line.amount_second_currency = Currency.compute(
                     company.currency, amount,
                     reconcile_account.second_currency).copy_sign(
@@ -1765,7 +1764,7 @@ class Line(DescriptionOriginMixin, MoveLineMixin, ModelSQL, ModelView):
 
     @classmethod
     def _get_exchange_move(cls, account, party, amount, date=None):
-        pool = Pool()
+        pool = tx.pool
         Configuration = pool.get('account.configuration')
         Date = pool.get('ir.date')
         Move = pool.get('account.move')
@@ -1774,7 +1773,7 @@ class Line(DescriptionOriginMixin, MoveLineMixin, ModelSQL, ModelView):
         configuration = Configuration(1)
         company = account.company
         if not date:
-            with Transaction().set_context(company=company.id):
+            with tx.transaction.set_context(company=company.id):
                 date = Date.today()
 
         period_id = Period.find(company.id, date=date)
@@ -1843,7 +1842,7 @@ class Line(DescriptionOriginMixin, MoveLineMixin, ModelSQL, ModelView):
             else:
                 return 0
 
-        with Transaction().set_context(_record_cache_size=max(len(lines), 1)):
+        with tx.transaction.set_context(_record_cache_size=max(len(lines), 1)):
             lines = cls.browse(sorted(lines, key=cls._reconciliation_sort_key))
         debit, credit = [], []
         remaining = -amount
@@ -1877,9 +1876,9 @@ class Line(DescriptionOriginMixin, MoveLineMixin, ModelSQL, ModelView):
 
     @classmethod
     def reconcile_automatic(cls):
-        pool = Pool()
+        pool = tx.pool
         Reconcile = pool.get('account.reconcile', type='wizard')
-        transaction = Transaction()
+        transaction = tx.transaction
         context = transaction.context
 
         company_id = context.get('company')
@@ -1916,19 +1915,19 @@ class LineReceivablePayableContext(ModelView):
 
     @classmethod
     def default_company(cls):
-        return Transaction().context.get('company')
+        return tx.transaction.context.get('company')
 
     @classmethod
     def default_reconciled(cls):
-        return Transaction().context.get('reconciled', False)
+        return tx.transaction.context.get('reconciled', False)
 
     @classmethod
     def default_receivable(cls):
-        return Transaction().context.get('receivable', True)
+        return tx.transaction.context.get('receivable', True)
 
     @classmethod
     def default_payable(cls):
-        return Transaction().context.get('payable', True)
+        return tx.transaction.context.get('payable', True)
 
 
 class WriteOff(DeactivableMixin, ModelSQL, ModelView):
@@ -1963,7 +1962,7 @@ class WriteOff(DeactivableMixin, ModelSQL, ModelView):
 
     @classmethod
     def default_company(cls):
-        return Transaction().context.get('company')
+        return tx.transaction.context.get('company')
 
 
 class OpenJournalAsk(ModelView):
@@ -1982,11 +1981,11 @@ class OpenJournalAsk(ModelView):
 
     @classmethod
     def default_company(cls):
-        return Transaction().context.get('company')
+        return tx.transaction.context.get('company')
 
     @classmethod
     def default_period(cls):
-        pool = Pool()
+        pool = tx.pool
         Period = pool.get('account.period')
         if company := cls.default_company():
             try:
@@ -2026,7 +2025,7 @@ class OpenJournal(Wizard):
         return {}
 
     def do_open_(self, action):
-        JournalPeriod = Pool().get('account.journal.period')
+        JournalPeriod = tx.pool.get('account.journal.period')
 
         if (self.model
                 and self.model.__name__ == 'account.journal.period'
@@ -2072,9 +2071,9 @@ class OpenAccount(Wizard):
     open_ = StateAction('account.act_move_line_form')
 
     def do_open_(self, action):
-        pool = Pool()
+        pool = tx.pool
         FiscalYear = pool.get('account.fiscalyear')
-        context = Transaction().context
+        context = tx.transaction.context
 
         company_id = self.record.company.id if self.record else -1
         date = context.get('date')
@@ -2101,16 +2100,16 @@ class OpenAccount(Wizard):
             ('account', '=', self.record.id if self.record else None),
             ('state', '=', 'valid'),
             ]
-        if Transaction().context.get('posted'):
+        if tx.transaction.context.get('posted'):
             action['pyson_domain'].append(('move.state', '=', 'posted'))
-        if Transaction().context.get('date'):
+        if tx.transaction.context.get('date'):
             action['pyson_domain'].append(('move.date', '<=',
-                    Transaction().context['date']))
+                    tx.transaction.context['date']))
         if self.record:
             action['name'] += ' (%s)' % self.record.rec_name
         action['pyson_domain'] = PYSONEncoder().encode(action['pyson_domain'])
         action['pyson_context'] = PYSONEncoder().encode({
-            'fiscalyear': Transaction().context.get('fiscalyear'),
+            'fiscalyear': tx.transaction.context.get('fiscalyear'),
         })
         return action, {}
 
@@ -2131,7 +2130,7 @@ class ReconcileLinesWriteOff(ModelView):
 
     @staticmethod
     def default_date():
-        Date = Pool().get('ir.date')
+        Date = tx.pool.get('ir.date')
         return Date.today()
 
 
@@ -2147,7 +2146,7 @@ class ReconcileLines(Wizard):
 
     @classmethod
     def check_access(cls, models=None):
-        transaction = Transaction()
+        transaction = tx.transaction
         if transaction.user:
             context = transaction.context
             models = set() if models is None else models.copy()
@@ -2215,7 +2214,7 @@ class UnreconcileLines(Wizard):
 
     @classmethod
     def check_access(cls, models=None):
-        transaction = Transaction()
+        transaction = tx.transaction
         if transaction.user:
             context = transaction.context
             models = set() if models is None else models.copy()
@@ -2234,7 +2233,7 @@ class UnreconcileLines(Wizard):
 
     @classmethod
     def make_unreconciliation(cls, lines):
-        pool = Pool()
+        pool = tx.pool
         Reconciliation = pool.get('account.move.reconciliation')
 
         reconciliations = [x.reconciliation for x in lines if x.reconciliation]
@@ -2262,7 +2261,7 @@ class Reconcile(Wizard):
 
     @classmethod
     def accounts_to_reconcile(cls, company=None, with_rule=False):
-        pool = Pool()
+        pool = tx.pool
         Rule = pool.get('ir.rule')
         Line = pool.get('account.move.line')
         line = Line.__table__()
@@ -2270,7 +2269,7 @@ class Reconcile(Wizard):
         AccountType = pool.get('account.account.type')
         account = Account.__table__()
         account_type = AccountType.__table__()
-        transaction = Transaction()
+        transaction = tx.transaction
         cursor = transaction.connection.cursor()
 
         balance = line.debit - line.credit
@@ -2311,11 +2310,11 @@ class Reconcile(Wizard):
 
     @classmethod
     def parties_to_reconcile(cls, account):
-        pool = Pool()
+        pool = tx.pool
         Party = pool.get('party.party')
         Line = pool.get('account.move.line')
         line = Line.__table__()
-        transaction = Transaction()
+        transaction = tx.transaction
         cursor = transaction.connection.cursor()
 
         query = (line
@@ -2331,11 +2330,11 @@ class Reconcile(Wizard):
 
     @classmethod
     def currencies_to_reconcile(cls, account, party, _balanced=False):
-        pool = Pool()
+        pool = tx.pool
         Currency = pool.get('currency.currency')
         Line = pool.get('account.move.line')
         line = Line.__table__()
-        transaction = Transaction()
+        transaction = tx.transaction
         cursor = transaction.connection.cursor()
 
         balance = Case(
@@ -2365,7 +2364,7 @@ class Reconcile(Wizard):
 
     @classmethod
     def to_reconcile(cls, account, party, currency):
-        pool = Pool()
+        pool = tx.pool
         Line = pool.get('account.move.line')
         return Line.search([
                 ('account', '=', account),
@@ -2443,7 +2442,7 @@ class Reconcile(Wizard):
 
     @check_access
     def transition_next_(self, first=False):
-        pool = Pool()
+        pool = tx.pool
         Line = pool.get('account.move.line')
 
         if first:
@@ -2483,7 +2482,7 @@ class Reconcile(Wizard):
             return 'show'
 
     def default_show(self, fields):
-        pool = Pool()
+        pool = tx.pool
         Date = pool.get('ir.date')
 
         defaults = {}
@@ -2497,13 +2496,13 @@ class Reconcile(Wizard):
             self.show.currency.id if self.show.currency else None)
         defaults['lines'] = list(map(int, self._default_lines()))
         defaults['write_off_amount'] = None
-        with Transaction().set_context(company=self.show.account.company.id):
+        with tx.transaction.set_context(company=self.show.account.company.id):
             defaults['date'] = Date.today()
         return defaults
 
     def _default_lines(self):
         'Return the larger list of lines which can be reconciled'
-        pool = Pool()
+        pool = tx.pool
         Line = pool.get('account.move.line')
 
         if self.model and self.model.__name__ == 'account.move.line':
@@ -2527,7 +2526,7 @@ class Reconcile(Wizard):
             return lines
 
     def transition_reconcile(self):
-        pool = Pool()
+        pool = tx.pool
         Line = pool.get('account.move.line')
 
         if self.show.lines:
@@ -2644,12 +2643,12 @@ class CancelMoves(Wizard):
         return default
 
     def transition_cancel(self):
-        pool = Pool()
+        pool = tx.pool
         Line = pool.get('account.move.line')
         Move = pool.get('account.move')
         Warning = pool.get('res.user.warning')
         Unreconcile = pool.get('account.move.unreconcile_lines', type='wizard')
-        transaction = Transaction()
+        transaction = tx.transaction
 
         moves = self.records
         moves_w_delegation = {
@@ -2723,7 +2722,7 @@ class GroupLines(Wizard):
 
     @classmethod
     def group_lines(cls, lines, journal, date=None):
-        pool = Pool()
+        pool = tx.pool
         Line = pool.get('account.move.line')
 
         grouping = cls.grouping(lines)
@@ -2791,7 +2790,7 @@ class GroupLines(Wizard):
 
     @classmethod
     def get_move(cls, lines, grouping, journal, date=None):
-        pool = Pool()
+        pool = tx.pool
         Date = pool.get('ir.date')
         Move = pool.get('account.move')
         Period = pool.get('account.period')
@@ -2799,7 +2798,7 @@ class GroupLines(Wizard):
 
         company = grouping['company']
         if not date:
-            with Transaction().set_context(company=company.id):
+            with tx.transaction.set_context(company=company.id):
                 date = Date.today()
         period = Period.find(company, date=date)
 
@@ -2869,7 +2868,7 @@ class GroupLines(Wizard):
 
     @classmethod
     def _counterpart_line(cls, line):
-        pool = Pool()
+        pool = tx.pool
         Line = pool.get('account.move.line')
 
         counterpart = Line()
@@ -3032,7 +3031,7 @@ class RescheduleLines(Wizard):
 
     @classmethod
     def reschedule_lines(cls, lines, journal, terms):
-        pool = Pool()
+        pool = tx.pool
         Lang = pool.get('ir.lang')
         Line = pool.get('account.move.line')
 
@@ -3063,7 +3062,7 @@ class RescheduleLines(Wizard):
     def get_reschedule_move(
             cls, amount, balance, journal, terms, account, date=None,
             **line_values):
-        pool = Pool()
+        pool = tx.pool
         Date = pool.get('ir.date')
         Line = pool.get('account.move.line')
         Move = pool.get('account.move')
@@ -3071,7 +3070,7 @@ class RescheduleLines(Wizard):
 
         company = account.company
         if not date:
-            with Transaction().set_context(company=company.id):
+            with tx.transaction.set_context(company=company.id):
                 date = Date.today()
         period = Period.find(company, date=date)
 
@@ -3234,7 +3233,7 @@ class DelegateLines(Wizard):
 
     @classmethod
     def delegate_lines(cls, lines, party, journal, date=None):
-        pool = Pool()
+        pool = tx.pool
         Line = pool.get('account.move.line')
 
         move, counterpart, delegated = cls.get_move(
@@ -3247,7 +3246,7 @@ class DelegateLines(Wizard):
 
     @classmethod
     def get_move(cls, lines, party, journal, date=None):
-        pool = Pool()
+        pool = tx.pool
         Date = pool.get('ir.date')
         Move = pool.get('account.move')
         Period = pool.get('account.period')
@@ -3265,7 +3264,7 @@ class DelegateLines(Wizard):
                 gettext('account.msg_delegate_line_same_origins'))
 
         if not date:
-            with Transaction().set_context(company=company.id):
+            with tx.transaction.set_context(company=company.id):
                 date = Date.today()
         period = Period.find(company, date=date)
 
@@ -3293,7 +3292,7 @@ class DelegateLines(Wizard):
 
     @classmethod
     def get_move_line(cls, line):
-        pool = Pool()
+        pool = tx.pool
         Line = pool.get('account.move.line')
 
         new = Line()
@@ -3322,9 +3321,9 @@ class GeneralJournal(Report):
 
     @classmethod
     def get_context(cls, records, header, data):
-        pool = Pool()
+        pool = tx.pool
         Company = pool.get('company.company')
-        context = Transaction().context
+        context = tx.transaction.context
         report_context = super().get_context(records, header, data)
         report_context['company'] = Company(context['company'])
         return report_context

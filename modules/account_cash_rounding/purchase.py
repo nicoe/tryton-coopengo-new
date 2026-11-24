@@ -1,9 +1,10 @@
 # This file is part of Tryton.  The COPYRIGHT file at the top level of
 # this repository contains the full copyright notices and license terms.
+
+from trytond import tx
 from trytond.model import fields
-from trytond.pool import Pool, PoolMeta
+from trytond.pool import PoolMeta
 from trytond.pyson import Eval
-from trytond.transaction import Transaction
 
 
 class Purchase(metaclass=PoolMeta):
@@ -17,7 +18,7 @@ class Purchase(metaclass=PoolMeta):
 
     @fields.depends('party')
     def on_change_party(self):
-        cursor = Transaction().connection.cursor()
+        cursor = tx.transaction.connection.cursor()
         table = self.__table__()
         super().on_change_party()
         if self.party:
@@ -56,12 +57,12 @@ class Purchase(metaclass=PoolMeta):
     def _cash_round_total_amount(self, amount):
         from trytond.modules.account_invoice.exceptions import (
             PaymentTermComputeError)
-        pool = Pool()
+        pool = tx.pool
         Date = pool.get('ir.date')
         if self.currency:
             amounts = [amount]
             if self.payment_term and self.company:
-                with Transaction().set_context(company=self.company.id):
+                with tx.transaction.set_context(company=self.company.id):
                     today = Date.today()
                 try:
                     term_lines = self.payment_term.compute(

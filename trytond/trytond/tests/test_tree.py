@@ -3,9 +3,9 @@
 
 from collections import defaultdict
 
+from trytond import tx
 from trytond.model import sum_tree
 from trytond.model.exceptions import DomainValidationError, RecursionError
-from trytond.pool import Pool
 from trytond.tests.test_tryton import (
     TestCase, activate_module, with_transaction)
 
@@ -19,7 +19,7 @@ class TreeTestCaseMixin:
         activate_module('tests')
 
     def create(self):
-        pool = Pool()
+        pool = tx.pool
         Model = pool.get(self.model_name)
 
         new_records = [None, None, None]
@@ -41,7 +41,7 @@ class TreeTestCaseMixin:
         raise NotImplementedError
 
     def change_parent(self, parent=None, restore=False):
-        pool = Pool()
+        pool = tx.pool
         Model = pool.get(self.model_name)
 
         records = Model.search([
@@ -82,7 +82,7 @@ class TreeTestCaseMixin:
     @with_transaction()
     def test_active(self):
         "Test active"
-        pool = Pool()
+        pool = tx.pool
         Model = pool.get(self.model_name)
 
         self.create()
@@ -124,7 +124,7 @@ class TreeTestCaseMixin:
     @with_transaction()
     def test_delete(self):
         "Test delete"
-        pool = Pool()
+        pool = tx.pool
         Model = pool.get(self.model_name)
 
         self.create()
@@ -146,7 +146,7 @@ class TreeTestCaseMixin:
     @with_transaction()
     def test_write_multiple_parents(self):
         "Test write multiple parents"
-        pool = Pool()
+        pool = tx.pool
         Model = pool.get(self.model_name)
 
         record1 = Model(name="Root")
@@ -184,7 +184,7 @@ class TreeMixinTestCase(TestCase):
     @with_transaction()
     def test_name_domain(self):
         "Test name domain"
-        pool = Pool()
+        pool = tx.pool
         Tree = pool.get('test.tree')
 
         record = Tree(name="foo / bar")
@@ -195,7 +195,7 @@ class TreeMixinTestCase(TestCase):
     @with_transaction()
     def test_name_domain_wildcard(self):
         "Test name domain on tree with wildcard"
-        pool = Pool()
+        pool = tx.pool
         Tree = pool.get('test.tree_wildcard')
 
         record = Tree(name="test 10%")
@@ -204,7 +204,7 @@ class TreeMixinTestCase(TestCase):
     @with_transaction()
     def test_rec_name(self):
         "Test rec_name"
-        pool = Pool()
+        pool = tx.pool
         Tree = pool.get('test.tree')
 
         parent = Tree(name="parent")
@@ -217,7 +217,7 @@ class TreeMixinTestCase(TestCase):
     @with_transaction()
     def test_on_change_with_rec_name(self):
         "Test on_change_with_rec_name"
-        pool = Pool()
+        pool = tx.pool
         Tree = pool.get('test.tree')
 
         parent = Tree(name="parent")
@@ -230,7 +230,7 @@ class TreeMixinTestCase(TestCase):
     @with_transaction()
     def test_search_rec_name_equals(self):
         "Test search_rec_name equals"
-        pool = Pool()
+        pool = tx.pool
         Tree = pool.get('test.tree')
 
         parent = Tree(name="parent")
@@ -245,7 +245,7 @@ class TreeMixinTestCase(TestCase):
     @with_transaction()
     def test_search_rec_name_equals_toplevel(self):
         "Test search_rec_name equals top-level"
-        pool = Pool()
+        pool = tx.pool
         Tree = pool.get('test.tree')
 
         parent = Tree(name="parent")
@@ -260,7 +260,7 @@ class TreeMixinTestCase(TestCase):
     @with_transaction()
     def test_search_rec_name_equals_none(self):
         "Test search_rec_name equals"
-        pool = Pool()
+        pool = tx.pool
         Tree = pool.get('test.tree')
 
         parent = Tree(name="parent")
@@ -275,7 +275,7 @@ class TreeMixinTestCase(TestCase):
     @with_transaction()
     def test_search_rec_name_non_equals(self):
         "Test search_rec_name non equals"
-        pool = Pool()
+        pool = tx.pool
         Tree = pool.get('test.tree')
 
         parent = Tree(name="parent")
@@ -290,7 +290,7 @@ class TreeMixinTestCase(TestCase):
     @with_transaction()
     def test_search_rec_name_non_equals_toplevel(self):
         "Test search_rec_name non equals top-level"
-        pool = Pool()
+        pool = tx.pool
         Tree = pool.get('test.tree')
 
         parent = Tree(name="parent")
@@ -305,7 +305,7 @@ class TreeMixinTestCase(TestCase):
     @with_transaction()
     def test_search_rec_name_non_equals_none(self):
         "Test search_rec_name equals"
-        pool = Pool()
+        pool = tx.pool
         Tree = pool.get('test.tree')
 
         parent = Tree(name="parent")
@@ -320,7 +320,7 @@ class TreeMixinTestCase(TestCase):
     @with_transaction()
     def test_search_rec_name_in(self):
         "Test search_rec_name in"
-        pool = Pool()
+        pool = tx.pool
         Tree = pool.get('test.tree')
 
         parent = Tree(name="parent")
@@ -335,7 +335,7 @@ class TreeMixinTestCase(TestCase):
     @with_transaction()
     def test_search_rec_name_in_toplevel(self):
         "Test search_rec_name in top-level"
-        pool = Pool()
+        pool = tx.pool
         Tree = pool.get('test.tree')
 
         parent = Tree(name="parent")
@@ -350,7 +350,7 @@ class TreeMixinTestCase(TestCase):
     @with_transaction()
     def test_search_rec_name_like(self):
         "Test search_rec_name like"
-        pool = Pool()
+        pool = tx.pool
         Tree = pool.get('test.tree')
 
         parent = Tree(name="parent")
@@ -367,7 +367,7 @@ class TreeMixinTestCase(TestCase):
     @with_transaction()
     def test_search_rec_name_like_toplevel(self):
         "Test search_rec_name like top-level"
-        pool = Pool()
+        pool = tx.pool
         Tree = pool.get('test.tree')
 
         parent = Tree(name="parent")
@@ -384,7 +384,7 @@ class TreeMixinTestCase(TestCase):
     @with_transaction()
     def test_search_rec_name_like_lowlevel(self):
         "Test search_rec_name like low-level"
-        pool = Pool()
+        pool = tx.pool
         Tree = pool.get('test.tree')
 
         parent = Tree(name="parent")
@@ -401,7 +401,7 @@ class TreeMixinTestCase(TestCase):
     @with_transaction()
     def test_check_recursion(self):
         "Test check_recursion"
-        pool = Pool()
+        pool = tx.pool
         Tree = pool.get('test.tree')
 
         parent = Tree(name="parent")
@@ -418,7 +418,7 @@ class TreeMixinTestCase(TestCase):
     @with_transaction()
     def test_check_recursion_polytree(self):
         "Test check_recursion on polytree"
-        pool = Pool()
+        pool = tx.pool
         Polytree = pool.get('test.polytree')
 
         parent1 = Polytree(name="parent1")
@@ -445,7 +445,7 @@ class TreeTestCase(TestCase):
 
     @with_transaction()
     def test_sum_tree(self):
-        pool = Pool()
+        pool = tx.pool
         Model = pool.get('test.tree')
         records = [
             Model(1, parent=None),

@@ -4,11 +4,10 @@
 import datetime as dt
 from decimal import Decimal
 
+from trytond import tx
 from trytond.model.exceptions import ImportDataError
-from trytond.pool import Pool
 from trytond.tests.test_tryton import (
     TestCase, activate_module, with_transaction)
-from trytond.transaction import Transaction
 
 
 class ImportDataTestCase(TestCase):
@@ -22,7 +21,7 @@ class ImportDataTestCase(TestCase):
     @with_transaction()
     def test_missing_values(self):
         "Test error is raised when missing values"
-        pool = Pool()
+        pool = tx.pool
         Model = pool.get('test.import_data')
 
         with self.assertRaisesRegex(
@@ -36,7 +35,7 @@ class ImportDataTestCase(TestCase):
     @with_transaction()
     def test_boolean(self):
         'Test boolean'
-        pool = Pool()
+        pool = tx.pool
         Boolean = pool.get('test.import_data.boolean')
 
         for value in ['True', '1', 'False', '0', '']:
@@ -47,7 +46,7 @@ class ImportDataTestCase(TestCase):
     @with_transaction()
     def test_boolean_many_rows(self):
         "Test boolean many rows"
-        pool = Pool()
+        pool = tx.pool
         Boolean = pool.get('test.import_data.boolean')
 
         self.assertEqual(
@@ -56,7 +55,7 @@ class ImportDataTestCase(TestCase):
     @with_transaction()
     def test_boolean_invalid(self):
         "Test boolean invalid value"
-        pool = Pool()
+        pool = tx.pool
         Boolean = pool.get('test.import_data.boolean')
 
         with self.assertRaisesRegex(
@@ -66,7 +65,7 @@ class ImportDataTestCase(TestCase):
     @with_transaction()
     def test_integer(self):
         'Test integer'
-        pool = Pool()
+        pool = tx.pool
         Integer = pool.get('test.import_data.integer')
 
         for value in ['1', '0', 0, 1, '-1', '', None]:
@@ -77,7 +76,7 @@ class ImportDataTestCase(TestCase):
     @with_transaction()
     def test_integer_many_rows(self):
         "Test integer many rows"
-        pool = Pool()
+        pool = tx.pool
         Integer = pool.get('test.import_data.integer')
 
         self.assertEqual(
@@ -86,7 +85,7 @@ class ImportDataTestCase(TestCase):
     @with_transaction()
     def test_integer_invalid(self):
         "Test integer invalid value"
-        pool = Pool()
+        pool = tx.pool
         Integer = pool.get('test.import_data.integer')
 
         for value in ['1.1', '-1.1', 'foo']:
@@ -98,7 +97,7 @@ class ImportDataTestCase(TestCase):
     @with_transaction()
     def test_float(self):
         'Test float'
-        pool = Pool()
+        pool = tx.pool
         Float = pool.get('test.import_data.float')
 
         for value in [
@@ -110,7 +109,7 @@ class ImportDataTestCase(TestCase):
     @with_transaction()
     def test_float_invalid(self):
         "Test float invalid value"
-        pool = Pool()
+        pool = tx.pool
         Float = pool.get('test.import_data.float')
 
         with self.assertRaisesRegex(
@@ -120,7 +119,7 @@ class ImportDataTestCase(TestCase):
     @with_transaction()
     def test_numeric(self):
         'Test numeric'
-        pool = Pool()
+        pool = tx.pool
         Numeric = pool.get('test.import_data.numeric')
 
         for value in [
@@ -132,7 +131,7 @@ class ImportDataTestCase(TestCase):
 
     @with_transaction()
     def test_numeric_invalid(self):
-        pool = Pool()
+        pool = tx.pool
         Numeric = pool.get('test.import_data.numeric')
 
         with self.assertRaisesRegex(
@@ -142,7 +141,7 @@ class ImportDataTestCase(TestCase):
     @with_transaction()
     def test_char(self):
         'Test char'
-        pool = Pool()
+        pool = tx.pool
         Char = pool.get('test.import_data.char')
 
         for value in ['test', '']:
@@ -153,7 +152,7 @@ class ImportDataTestCase(TestCase):
     @with_transaction()
     def test_char_many_rows(self):
         "Test char many rows"
-        pool = Pool()
+        pool = tx.pool
         Char = pool.get('test.import_data.char')
 
         self.assertEqual(
@@ -162,7 +161,7 @@ class ImportDataTestCase(TestCase):
     @with_transaction()
     def test_translate(self):
         "Test translate"
-        pool = Pool()
+        pool = tx.pool
         Translate = pool.get('test.import_data.translate')
 
         self.assertEqual(
@@ -171,12 +170,12 @@ class ImportDataTestCase(TestCase):
                 [['foo', 'bar'], ['', '']]),
             2)
 
-        with Transaction().set_context(language='en'):
+        with tx.transaction.set_context(language='en'):
             record1, record2 = Translate.search([])
             self.assertEqual(record1.translate, 'foo')
             self.assertEqual(record2.translate, '')
 
-        with Transaction().set_context(language='en'):
+        with tx.transaction.set_context(language='en'):
             record1, record2 = Translate.search([])
             self.assertEqual(record1.translate, 'foo')
             self.assertEqual(record2.translate, '')
@@ -184,7 +183,7 @@ class ImportDataTestCase(TestCase):
     @with_transaction()
     def test_text(self):
         'Test text'
-        pool = Pool()
+        pool = tx.pool
         Text = pool.get('test.import_data.text')
 
         for value in ['test', '']:
@@ -195,7 +194,7 @@ class ImportDataTestCase(TestCase):
     @with_transaction()
     def test_text_many_rows(self):
         "Test text many rows"
-        pool = Pool()
+        pool = tx.pool
         Text = pool.get('test.import_data.text')
 
         self.assertEqual(
@@ -204,7 +203,7 @@ class ImportDataTestCase(TestCase):
     @with_transaction()
     def test_date(self):
         'Test date'
-        pool = Pool()
+        pool = tx.pool
         Date = pool.get('test.import_data.date')
 
         for value in ['2010-01-01', dt.date(2019, 3, 13), '']:
@@ -215,7 +214,7 @@ class ImportDataTestCase(TestCase):
     @with_transaction()
     def test_date_many_rows(self):
         "Test date many rows"
-        pool = Pool()
+        pool = tx.pool
         Date = pool.get('test.import_data.date')
 
         self.assertEqual(
@@ -224,7 +223,7 @@ class ImportDataTestCase(TestCase):
     @with_transaction()
     def test_date_invalid(self):
         "Test date invalid value"
-        pool = Pool()
+        pool = tx.pool
         Date = pool.get('test.import_data.date')
 
         with self.assertRaisesRegex(
@@ -234,7 +233,7 @@ class ImportDataTestCase(TestCase):
     @with_transaction()
     def test_datetime(self):
         'Test datetime'
-        pool = Pool()
+        pool = tx.pool
         Datetime = pool.get('test.import_data.datetime')
 
         for value in [
@@ -246,7 +245,7 @@ class ImportDataTestCase(TestCase):
     @with_transaction()
     def test_datetime_many_rows(self):
         "Test datetime many rows"
-        pool = Pool()
+        pool = tx.pool
         Datetime = pool.get('test.import_data.datetime')
 
         self.assertEqual(
@@ -257,7 +256,7 @@ class ImportDataTestCase(TestCase):
     @with_transaction()
     def test_datetime_invalid(self):
         "Test datetime invalid value"
-        pool = Pool()
+        pool = tx.pool
         Datetime = pool.get('test.import_data.datetime')
 
         with self.assertRaisesRegex(
@@ -267,7 +266,7 @@ class ImportDataTestCase(TestCase):
     @with_transaction()
     def test_timedelta(self):
         'Test timedelta'
-        pool = Pool()
+        pool = tx.pool
         Timedelta = pool.get('test.import_data.timedelta')
 
         for value in [
@@ -282,7 +281,7 @@ class ImportDataTestCase(TestCase):
     @with_transaction()
     def test_timedelta_invalid(self):
         'Test timedelta'
-        pool = Pool()
+        pool = tx.pool
         Timedelta = pool.get('test.import_data.timedelta')
 
         with self.assertRaisesRegex(
@@ -292,7 +291,7 @@ class ImportDataTestCase(TestCase):
     @with_transaction()
     def test_selection(self):
         'Test selection'
-        pool = Pool()
+        pool = tx.pool
         Selection = pool.get('test.import_data.selection')
 
         for value in ['select1', '']:
@@ -303,7 +302,7 @@ class ImportDataTestCase(TestCase):
     @with_transaction()
     def test_selection_many_rows(self):
         'Test selection many rows'
-        pool = Pool()
+        pool = tx.pool
         Selection = pool.get('test.import_data.selection')
 
         self.assertEqual(
@@ -313,7 +312,7 @@ class ImportDataTestCase(TestCase):
     @with_transaction()
     def test_multiselection(self):
         'Test multiselection'
-        pool = Pool()
+        pool = tx.pool
         MultiSelection = pool.get('test.import_data.multiselection')
 
         for value in ['select1', 'select1,select2', '']:
@@ -325,7 +324,7 @@ class ImportDataTestCase(TestCase):
     @with_transaction()
     def test_multiselection_many_rows(self):
         'Test multiselection many rows'
-        pool = Pool()
+        pool = tx.pool
         MultiSelection = pool.get('test.import_data.multiselection')
 
         self.assertEqual(
@@ -335,7 +334,7 @@ class ImportDataTestCase(TestCase):
     @with_transaction()
     def test_many2one(self):
         'Test many2one'
-        pool = Pool()
+        pool = tx.pool
         Many2one = pool.get('test.import_data.many2one')
         Target = pool.get('test.import_data.many2one.target')
 
@@ -349,7 +348,7 @@ class ImportDataTestCase(TestCase):
     @with_transaction()
     def test_many2one_many_rows(self):
         "Test many2one many rows"
-        pool = Pool()
+        pool = tx.pool
         Many2one = pool.get('test.import_data.many2one')
         Target = pool.get('test.import_data.many2one.target')
 
@@ -361,7 +360,7 @@ class ImportDataTestCase(TestCase):
     @with_transaction()
     def test_many2one_invalid(self):
         "Test many2one invalid value"
-        pool = Pool()
+        pool = tx.pool
         Many2one = pool.get('test.import_data.many2one')
 
         for value in ['foo', 'Duplicate']:
@@ -373,7 +372,7 @@ class ImportDataTestCase(TestCase):
     @with_transaction()
     def test_many2many(self):
         'Test many2many'
-        pool = Pool()
+        pool = tx.pool
         Many2many = pool.get('test.import_data.many2many')
         Target = pool.get('test.import_data.many2many.target')
 
@@ -393,7 +392,7 @@ class ImportDataTestCase(TestCase):
     @with_transaction()
     def test_many2many_many_rows(self):
         "Test many2many many rows"
-        pool = Pool()
+        pool = tx.pool
         Many2many = pool.get('test.import_data.many2many')
         Target = pool.get('test.import_data.many2many.target')
 
@@ -409,7 +408,7 @@ class ImportDataTestCase(TestCase):
     @with_transaction()
     def test_many2many_invalid(self):
         "Test many2many invalid value"
-        pool = Pool()
+        pool = tx.pool
         Many2many = pool.get('test.import_data.many2many')
 
         for value in ['foo', 'Test 1,foo', 'Duplicate', 'Test 1,Duplicate']:
@@ -421,7 +420,7 @@ class ImportDataTestCase(TestCase):
     @with_transaction()
     def test_one2many(self):
         'Test one2many'
-        pool = Pool()
+        pool = tx.pool
         One2many = pool.get('test.import_data.one2many')
 
         self.assertEqual(One2many.import_data(
@@ -430,7 +429,7 @@ class ImportDataTestCase(TestCase):
     @with_transaction()
     def test_one2many_many_targets(self):
         "Test one2many with many targets"
-        pool = Pool()
+        pool = tx.pool
         One2many = pool.get('test.import_data.one2many')
 
         self.assertEqual(One2many.import_data(
@@ -440,7 +439,7 @@ class ImportDataTestCase(TestCase):
     @with_transaction()
     def test_one2many_many_rows(self):
         "Test one2many many rows"
-        pool = Pool()
+        pool = tx.pool
         One2many = pool.get('test.import_data.one2many')
 
         self.assertEqual(One2many.import_data(
@@ -453,7 +452,7 @@ class ImportDataTestCase(TestCase):
     @with_transaction()
     def test_many_one2many(self):
         "Test many one2many"
-        pool = Pool()
+        pool = tx.pool
         One2many = pool.get('test.import_data.one2manies')
 
         self.assertEqual(One2many.import_data(
@@ -469,7 +468,7 @@ class ImportDataTestCase(TestCase):
     @with_transaction()
     def test_many_one2many_empty_last(self):
         "Test many one2many with empty last"
-        pool = Pool()
+        pool = tx.pool
         One2many = pool.get('test.import_data.one2manies')
 
         self.assertEqual(One2many.import_data(
@@ -485,7 +484,7 @@ class ImportDataTestCase(TestCase):
     @with_transaction()
     def test_many_one2many_multiple_empty(self):
         "Test many one2many with multiple empty"
-        pool = Pool()
+        pool = tx.pool
         One2many = pool.get('test.import_data.one2manies')
 
         self.assertEqual(One2many.import_data(
@@ -502,7 +501,7 @@ class ImportDataTestCase(TestCase):
     @with_transaction()
     def test_reference(self):
         'Test reference'
-        pool = Pool()
+        pool = tx.pool
         Reference = pool.get('test.import_data.reference')
         Selection = pool.get('test.import_data.reference.selection')
 
@@ -517,7 +516,7 @@ class ImportDataTestCase(TestCase):
     @with_transaction()
     def test_reference_empty(self):
         "Test reference empty"
-        pool = Pool()
+        pool = tx.pool
         Reference = pool.get('test.import_data.reference')
 
         self.assertEqual(Reference.import_data(['reference'],
@@ -528,7 +527,7 @@ class ImportDataTestCase(TestCase):
     @with_transaction()
     def test_reference_many_rows(self):
         "Test reference many rows"
-        pool = Pool()
+        pool = tx.pool
         Reference = pool.get('test.import_data.reference')
         Selection = pool.get('test.import_data.reference.selection')
 
@@ -544,7 +543,7 @@ class ImportDataTestCase(TestCase):
     @with_transaction()
     def test_reference_invalid(self):
         "Test reference invalid value"
-        pool = Pool()
+        pool = tx.pool
         Reference = pool.get('test.import_data.reference')
 
         for value in [
@@ -559,7 +558,7 @@ class ImportDataTestCase(TestCase):
     @with_transaction()
     def test_binary_bytes(self):
         "Test binary bytes"
-        pool = Pool()
+        pool = tx.pool
         Binary = pool.get('test.import_data.binary')
 
         self.assertEqual(Binary.import_data(['data'], [[b'data']]), 1)
@@ -569,7 +568,7 @@ class ImportDataTestCase(TestCase):
     @with_transaction()
     def test_binary_base64(self):
         "Test binary base64"
-        pool = Pool()
+        pool = tx.pool
         Binary = pool.get('test.import_data.binary')
 
         self.assertEqual(Binary.import_data(['data'], [['ZGF0YQ==']]), 1)
@@ -579,7 +578,7 @@ class ImportDataTestCase(TestCase):
     @with_transaction()
     def test_update_id(self):
         "Test update with ID"
-        pool = Pool()
+        pool = tx.pool
         Char = pool.get('test.import_data.update')
         record = Char(name="foo")
         record.save()
@@ -593,7 +592,7 @@ class ImportDataTestCase(TestCase):
     @with_transaction()
     def test_update_rec_name(self):
         "Test update with rec_name"
-        pool = Pool()
+        pool = tx.pool
         Char = pool.get('test.import_data.update')
         record = Char(name="foo")
         record.save()
@@ -607,7 +606,7 @@ class ImportDataTestCase(TestCase):
     @with_transaction()
     def test_update_many2many(self):
         "Test update many2many"
-        pool = Pool()
+        pool = tx.pool
         Many2many = pool.get('test.import_data.many2many')
         Target = pool.get('test.import_data.many2many.target')
 
@@ -626,7 +625,7 @@ class ImportDataTestCase(TestCase):
     @with_transaction()
     def test_update_one2many(self):
         "Test update one2many"
-        pool = Pool()
+        pool = tx.pool
         One2many = pool.get('test.import_data.one2many')
         Target = pool.get('test.import_data.one2many.target')
         record = One2many(name="test", one2many=[

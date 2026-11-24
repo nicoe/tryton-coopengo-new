@@ -7,13 +7,12 @@ from sql import Null
 from sql.aggregate import BoolAnd, Min
 from sql.conditionals import Coalesce
 
-from trytond import backend
+from trytond import backend, tx
 from trytond.i18n import gettext
 from trytond.model import ModelView, Workflow, fields
 from trytond.modules.account.exceptions import AccountMissing
-from trytond.pool import Pool, PoolMeta
+from trytond.pool import PoolMeta
 from trytond.pyson import Bool, Eval, If, TimeDelta
-from trytond.transaction import Transaction
 from trytond.wizard import Button, StateTransition, StateView, Wizard
 
 
@@ -47,14 +46,14 @@ class Journal(metaclass=PoolMeta):
 
     @classmethod
     def cron_post_clearing_moves(cls, date=None):
-        pool = Pool()
+        pool = tx.pool
         Date = pool.get('ir.date')
         Move = pool.get('account.move')
         if date is None:
             date = Date.today()
         moves = []
         journals = cls.search([
-                ('company', '=', Transaction().context.get('company')),
+                ('company', '=', tx.transaction.context.get('company')),
                 ('clearing_posting_delay', '!=', None),
                 ])
         for journal in journals:
@@ -72,7 +71,7 @@ class Journal(metaclass=PoolMeta):
 def cancel_clearing_move(func):
     @wraps(func)
     def wrapper(cls, payments, *args, **kwargs):
-        pool = Pool()
+        pool = tx.pool
         Move = pool.get('account.move')
         Line = pool.get('account.move.line')
         Reconciliation = pool.get('account.move.reconciliation')
@@ -213,7 +212,7 @@ class Payment(metaclass=PoolMeta):
         super().on_change_party()
         if self.kind == 'receivable':
             if self.party:
-                with Transaction().set_context(date=self.date):
+                with tx.transaction.set_context(date=self.date):
                     self.account = self.party.account_receivable_used
             else:
                 self.account = None
@@ -234,7 +233,7 @@ class Payment(metaclass=PoolMeta):
 
     @classmethod
     def _reconcile_lines_from_payments(cls, payments):
-        pool = Pool()
+        pool = tx.pool
         Line = pool.get('account.move.line')
         to_reconcile = []
         for payment in payments:
@@ -251,7 +250,7 @@ class Payment(metaclass=PoolMeta):
 
     @property
     def clearing_account(self):
-        transaction = Transaction()
+        transaction = tx.transaction
         context = transaction.context
         with transaction.set_context(date=context.get('clearing_date')):
             if self.line:
@@ -297,7 +296,7 @@ class Payment(metaclass=PoolMeta):
 
     @classmethod
     def set_clearing_move(cls, payments):
-        pool = Pool()
+        pool = tx.pool
         Move = pool.get('account.move')
         moves = []
         for payment in payments:
@@ -310,7 +309,7 @@ class Payment(metaclass=PoolMeta):
         cls.save(payments)
 
     def _get_clearing_move(self, date=None):
-        pool = Pool()
+        pool = tx.pool
         Move = pool.get('account.move')
         Line = pool.get('account.move.line')
         Currency = pool.get('currency.currency')
@@ -324,15 +323,15 @@ class Payment(metaclass=PoolMeta):
             return self.clearing_move
 
         if date is None:
-            date = Transaction().context.get('clearing_date')
+            date = tx.transaction.context.get('clearing_date')
         if date is None:
-            with Transaction().set_context(company=self.company.id):
+            with tx.transaction.set_context(company=self.company.id):
                 date = Date.today()
         period = Period.find(self.company, date=date)
 
         local_currency = self.journal.currency == self.company.currency
         if not local_currency:
-            with Transaction().set_context(date=self.date):
+            with tx.transaction.set_context(date=self.date):
                 local_amount = Currency.compute(
                     self.journal.currency, self.amount, self.company.currency)
         else:
@@ -399,7 +398,7 @@ class Payment(metaclass=PoolMeta):
 
     @classmethod
     def reconcile_clearing(cls, payments):
-        pool = Pool()
+        pool = tx.pool
         MoveLine = pool.get('account.move.line')
         Group = pool.get('account.payment.group')
         to_reconcile = []
@@ -452,10 +451,10 @@ class Group(metaclass=PoolMeta):
 
     @classmethod
     def get_reconciled(cls, groups, name):
-        pool = Pool()
+        pool = tx.pool
         Payment = pool.get('account.payment')
         payment = Payment.__table__()
-        cursor = Transaction().connection.cursor()
+        cursor = tx.transaction.connection.cursor()
         result = defaultdict(lambda: None)
         column = Coalesce(payment.clearing_reconciled, False)
         if backend.name == 'sqlite':
@@ -472,7 +471,7 @@ class Group(metaclass=PoolMeta):
 
     @classmethod
     def search_reconciled(cls, name, clause):
-        pool = Pool()
+        pool = tx.pool
         Payment = pool.get('account.payment')
         payment = Payment.__table__()
 
@@ -499,7 +498,7 @@ class Group(metaclass=PoolMeta):
 
     @classmethod
     def reconcile_clearing(cls, groups):
-        pool = Pool()
+        pool = tx.pool
         MoveLine = pool.get('account.move.line')
         to_reconcile = []
         for group in groups:
@@ -528,7 +527,7 @@ class Succeed(Wizard):
     succeed = StateTransition()
 
     def transition_succeed(self):
-        with Transaction().set_context(clearing_date=self.start.date):
+        with tx.transaction.set_context(clearing_date=self.start.date):
             self.model.succeed(self.records)
         return 'end'
 
@@ -539,6 +538,6 @@ class SucceedStart(ModelView):
 
     @classmethod
     def default_date(cls):
-        pool = Pool()
+        pool = tx.pool
         Date = pool.get('ir.date')
         return Date.today()

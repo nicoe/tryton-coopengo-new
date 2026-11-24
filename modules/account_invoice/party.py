@@ -1,9 +1,10 @@
 # This file is part of Tryton.  The COPYRIGHT file at the top level of
 # this repository contains the full copyright notices and license terms.
+from trytond import tx
 from trytond.i18n import gettext
 from trytond.model import ModelSQL, ValueMixin, fields
 from trytond.modules.party.exceptions import EraseError
-from trytond.pool import Pool, PoolMeta
+from trytond.pool import PoolMeta
 
 customer_payment_term = fields.Many2One(
     'account.invoice.payment_term', "Customer Payment Term",
@@ -39,14 +40,14 @@ class Party(metaclass=PoolMeta):
 
     @classmethod
     def multivalue_model(cls, field):
-        pool = Pool()
+        pool = tx.pool
         if field in {'customer_payment_term', 'supplier_payment_term'}:
             return pool.get('party.party.payment_term')
         return super().multivalue_model(field)
 
     @classmethod
     def default_customer_payment_term(cls, **pattern):
-        pool = Pool()
+        pool = tx.pool
         Configuration = pool.get('account.configuration')
         config = Configuration(1)
         payment_term = config.get_multivalue(
@@ -78,7 +79,7 @@ class Erase(metaclass=PoolMeta):
     __name__ = 'party.erase'
 
     def check_erase_company(self, party, company):
-        pool = Pool()
+        pool = tx.pool
         Invoice = pool.get('account.invoice')
         super().check_erase_company(party, company)
 

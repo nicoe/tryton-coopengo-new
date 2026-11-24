@@ -5,11 +5,10 @@ import mimetypes
 from base64 import urlsafe_b64decode
 from functools import partial, wraps
 
+from trytond import tx
 from trytond.config import config
 from trytond.model.exceptions import AccessError
-from trytond.pool import Pool
 from trytond.tools import is_instance_method
-from trytond.transaction import Transaction
 from trytond.wsgi import app
 
 from .jsonrpc import JSONDecoder, JSONEncoder, json
@@ -24,7 +23,7 @@ _request_timeout = config.getint('request', 'timeout', default=0)
 def rest(func):
     @wraps(func)
     def wrapper(request, pool, *args, **kwargs):
-        transaction = Transaction()
+        transaction = tx.transaction
         context_header = request.headers.get('X-Tryton-Context')
         if context_header:
             context = json.loads(
@@ -61,7 +60,7 @@ def get_usages(request):
 
 
 def _get_fields(Model, request):
-    pool = Pool()
+    pool = tx.pool
     ModelAccess = pool.get('ir.model.access')
     ModelFieldAccess = pool.get('ir.model.field.access')
     model_check = partial(

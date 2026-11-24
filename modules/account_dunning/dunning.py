@@ -5,13 +5,13 @@ from itertools import groupby
 
 from sql import Literal
 
+from trytond import tx
 from trytond.model import (
     ChatMixin, Index, Model, ModelSQL, ModelView, Unique, fields,
     sequence_ordered)
 from trytond.modules.currency.fields import Monetary
-from trytond.pool import Pool
 from trytond.pyson import Eval
-from trytond.transaction import Transaction, check_access
+from trytond.transaction import check_access
 from trytond.wizard import (
     Button, StateAction, StateTransition, StateView, Wizard)
 
@@ -142,22 +142,22 @@ class Dunning(ModelSQL, ModelView, ChatMixin):
 
     @staticmethod
     def default_company():
-        return Transaction().context.get('company')
+        return tx.transaction.context.get('company')
 
     @staticmethod
     def default_state():
         return 'draft'
 
     def get_age(self, name):
-        pool = Pool()
+        pool = tx.pool
         Date = pool.get('ir.date')
         if self.date:
-            with Transaction().set_context(company=self.company.id):
+            with tx.transaction.set_context(company=self.company.id):
                 return Date.today() - self.date
 
     @classmethod
     def order_age(cls, tables):
-        pool = Pool()
+        pool = tx.pool
         Date = pool.get('ir.date')
         table, _ = tables[None]
         return [Literal(Date.today()) - table.date]
@@ -269,14 +269,14 @@ class Dunning(ModelSQL, ModelView, ChatMixin):
             else:
                 to_write.extend((dunnings, {
                             'state': 'final',
-                            'date': Pool().get('ir.date').today(),
+                            'date': tx.pool.get('ir.date').today(),
                             }))
         if to_write:
             cls.write(*to_write)
 
     @classmethod
     def generate_dunnings(cls, date=None):
-        pool = Pool()
+        pool = tx.pool
         Date = pool.get('ir.date')
         MoveLine = pool.get('account.move.line')
 
@@ -321,10 +321,10 @@ class Dunning(ModelSQL, ModelView, ChatMixin):
 
     @classmethod
     def process(cls, dunnings):
-        pool = Pool()
+        pool = tx.pool
         Date = pool.get('ir.date')
         for company, c_dunnings in groupby(dunnings, key=lambda d: d.company):
-            with Transaction().set_context(company=company.id):
+            with tx.transaction.set_context(company=company.id):
                 today = Date.today()
             cls.write([d for d in c_dunnings
                     if not d.blocked and d.state == 'draft'], {
@@ -345,7 +345,7 @@ class CreateDunningStart(ModelView):
 
     @staticmethod
     def default_date():
-        Date = Pool().get('ir.date')
+        Date = tx.pool.get('ir.date')
         return Date.today()
 
 
@@ -359,7 +359,7 @@ class CreateDunning(Wizard):
     create_ = StateAction('account_dunning.act_dunning_form')
 
     def do_create_(self, action):
-        pool = Pool()
+        pool = tx.pool
         Dunning = pool.get('account.dunning')
         Dunning.generate_dunnings(date=self.start.date)
         return action, {}

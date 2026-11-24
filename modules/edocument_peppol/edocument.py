@@ -5,12 +5,11 @@ from sql.conditionals import NullIf
 from sql.operators import Equal
 
 import trytond.config as config
+from trytond import tx
 from trytond.model import (
     Exclude, MatchMixin, ModelSQL, ModelView, Workflow, dualmethod, fields,
     sequence_ordered)
-from trytond.pool import Pool
 from trytond.pyson import Eval, If
-from trytond.transaction import Transaction
 
 from .exceptions import PeppolServiceError
 
@@ -164,7 +163,7 @@ class Peppol(Workflow, ModelSQL, ModelView):
 
     @classmethod
     def default_company(cls):
-        return Transaction().context.get('company')
+        return tx.transaction.context.get('company')
 
     @classmethod
     def default_state(cls):
@@ -180,7 +179,7 @@ class Peppol(Workflow, ModelSQL, ModelView):
     @ModelView.button
     @Workflow.transition('submitted')
     def submit(cls, documents):
-        pool = Pool()
+        pool = tx.pool
         Service = pool.get('edocument.peppol.service')
         for document in documents:
             if not document.service:
@@ -196,7 +195,7 @@ class Peppol(Workflow, ModelSQL, ModelView):
             }
 
     def render(self):
-        pool = Pool()
+        pool = tx.pool
         Invoice = pool.get('edocument.ubl.invoice')
         assert self.direction == 'out'
         if self.type == 'bis-billing-3':
@@ -217,7 +216,7 @@ class Peppol(Workflow, ModelSQL, ModelView):
                 document._process()
 
     def _process(self):
-        pool = Pool()
+        pool = tx.pool
         Invoice = pool.get('edocument.ubl.invoice')
         if self.state != 'processing':
             return
@@ -302,7 +301,7 @@ class PeppolService(sequence_ordered(), MatchMixin, ModelSQL, ModelView):
 
     @classmethod
     def default_company(cls):
-        return Transaction().context.get('company')
+        return tx.transaction.context.get('company')
 
     @classmethod
     def get_service(cls, document):
@@ -320,7 +319,7 @@ class PeppolService(sequence_ordered(), MatchMixin, ModelSQL, ModelView):
 
     @classmethod
     def get_peppol_types(cls):
-        pool = Pool()
+        pool = tx.pool
         Peppol = pool.get('edocument.peppol')
         return [
             (v, l) for v, l in Peppol.fields_get(['type'])['type']['selection']

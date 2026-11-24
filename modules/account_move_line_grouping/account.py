@@ -5,12 +5,12 @@ from sql.aggregate import BoolAnd, BoolOr, Min, Sum
 from sql.conditionals import Coalesce
 from sql.functions import FirstValue
 
+from trytond import tx
 from trytond.model import ModelSQL, ModelView, fields
 from trytond.modules.account import MoveLineMixin
 from trytond.modules.currency.fields import Monetary
-from trytond.pool import Pool, PoolMeta
+from trytond.pool import PoolMeta
 from trytond.pyson import Bool, Eval, If
-from trytond.transaction import Transaction
 
 
 class Move(metaclass=PoolMeta):
@@ -28,7 +28,7 @@ class MoveLine(metaclass=PoolMeta):
 
     @classmethod
     def _view_reconciliation_muted(cls):
-        pool = Pool()
+        pool = tx.pool
         ModelData = pool.get('ir.model.data')
         muted = super()._view_reconciliation_muted()
         muted.add(ModelData.get_id(
@@ -140,7 +140,7 @@ class MoveLineGroup(MoveLineMixin, ModelSQL, ModelView):
 
     @classmethod
     def table_query(cls):
-        pool = Pool()
+        pool = tx.pool
         Line = pool.get('account.move.line')
         line = Line.__table__()
 
@@ -166,7 +166,7 @@ class MoveLineGroup(MoveLineMixin, ModelSQL, ModelView):
 
     @classmethod
     def _aggregated_columns(cls, line):
-        context = Transaction().context
+        context = tx.transaction.context
         if not context.get('reconciled', True):
             filter_ = line.reconciliation == Null
         else:
@@ -185,7 +185,7 @@ class MoveLineGroup(MoveLineMixin, ModelSQL, ModelView):
 
     @classmethod
     def get_states(cls):
-        pool = Pool()
+        pool = tx.pool
         Line = pool.get('account.move.line')
         return Line.fields_get(['state'])['state']['selection']
 
@@ -201,7 +201,7 @@ class MoveLineGroup(MoveLineMixin, ModelSQL, ModelView):
     def view_attributes(cls):
         attributes = super().view_attributes()
         view_ids = cls._view_reconciliation_muted()
-        if Transaction().context.get('view_id') in view_ids:
+        if tx.transaction.context.get('view_id') in view_ids:
             attributes.append(
                 ('/tree', 'visual',
                     If(Bool(Eval('reconciliation')), 'muted', '')))
@@ -209,7 +209,7 @@ class MoveLineGroup(MoveLineMixin, ModelSQL, ModelView):
 
     @classmethod
     def _view_reconciliation_muted(cls):
-        pool = Pool()
+        pool = tx.pool
         ModelData = pool.get('ir.model.data')
         return {ModelData.get_id(
                 'account_move_line_grouping',
@@ -224,7 +224,7 @@ class MoveLineGroup_MoveLine(ModelSQL):
 
     @classmethod
     def table_query(cls):
-        pool = Pool()
+        pool = tx.pool
         Line = pool.get('account.move.line')
         LineGroup = pool.get('account.move.line.group')
         line = Line.__table__()
@@ -246,10 +246,10 @@ class OpenAccount(metaclass=PoolMeta):
     _readonly = True
 
     def do_open_(self, action):
-        pool = Pool()
+        pool = tx.pool
         Action = pool.get('ir.action')
         ModelData = pool.get('ir.model.data')
-        context = Transaction().context
+        context = tx.transaction.context
         if context.get('action_id') == ModelData.get_id(
                 'account_move_line_grouping', 'act_open_account'):
             action_id = Action.get_action_id(

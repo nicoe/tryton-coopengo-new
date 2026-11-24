@@ -4,15 +4,14 @@ from decimal import Decimal
 
 from simpleeval import simple_eval
 
+from trytond import tx
 from trytond.i18n import gettext
 from trytond.model import (
     DeactivableMixin, MatchMixin, ModelSQL, ModelView, fields,
     sequence_ordered)
 from trytond.modules.product import round_price
-from trytond.pool import Pool
 from trytond.tools.decimal_ import DecimalNull as Null
 from trytond.tools.decimal_ import decistmt
-from trytond.transaction import Transaction
 
 from .exceptions import FormulaError
 
@@ -52,7 +51,7 @@ class PriceList(DeactivableMixin, ModelSQL, ModelView):
 
     @staticmethod
     def default_company():
-        return Transaction().context.get('company')
+        return tx.transaction.context.get('company')
 
     @staticmethod
     def default_tax_included():
@@ -93,7 +92,7 @@ class PriceList(DeactivableMixin, ModelSQL, ModelView):
         return {}
 
     def compute(self, product, quantity, uom, pattern=None):
-        Uom = Pool().get('product.uom')
+        Uom = tx.pool.get('product.uom')
 
         def parents(categories):
             for category in categories:

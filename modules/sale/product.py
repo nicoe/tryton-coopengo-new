@@ -4,12 +4,12 @@ import datetime
 
 from sql import Null
 
+from trytond import tx
 from trytond.model import ModelSQL, ModelView, ValueMixin, fields
 from trytond.modules.currency.fields import Monetary
 from trytond.modules.product import price_digits, round_price
-from trytond.pool import Pool, PoolMeta
+from trytond.pool import PoolMeta
 from trytond.pyson import Eval, TimeDelta
-from trytond.transaction import Transaction
 
 default_lead_time = fields.TimeDelta(
     "Default Lead Time",
@@ -63,7 +63,7 @@ class Template(metaclass=PoolMeta):
 
     @classmethod
     def multivalue_model(cls, field):
-        pool = Pool()
+        pool = tx.pool
         if field == 'lead_time':
             return pool.get('product.lead_time')
         return super().multivalue_model(field)
@@ -103,14 +103,14 @@ class ProductLeadTime(ModelSQL, ValueMixin):
 
     @classmethod
     def __register__(cls, module_name):
-        pool = Pool()
+        pool = tx.pool
         Template = pool.get('product.template')
         template = Template.__table__()
         table = cls.__table__()
 
         super().__register__(module_name)
 
-        cursor = Transaction().connection.cursor()
+        cursor = tx.transaction.connection.cursor()
         template_h = Template.__table_handler__(module_name)
         if template_h.column_exist('lead_time'):
             cursor.execute(*table.insert(
@@ -129,7 +129,7 @@ class Product(metaclass=PoolMeta):
 
     @classmethod
     def get_sale_price_uom(cls, products, name):
-        quantity = Transaction().context.get('quantity') or 0
+        quantity = tx.transaction.context.get('quantity') or 0
         return cls.get_sale_price(products, quantity=quantity)
 
     def _get_sale_unit_price(self, quantity=0):
@@ -143,13 +143,13 @@ class Product(metaclass=PoolMeta):
             uom: the unit of measure or the sale uom of the product
             currency: the currency id for the returned price
         '''
-        pool = Pool()
+        pool = tx.pool
         Uom = pool.get('product.uom')
         Company = pool.get('company.company')
         Currency = pool.get('currency.currency')
         Date = pool.get('ir.date')
 
-        context = Transaction().context
+        context = tx.transaction.context
         prices = {}
 
         assert len(products) == len(set(products)), "Duplicate products"
@@ -177,7 +177,7 @@ class Product(metaclass=PoolMeta):
                         product.default_uom, unit_price, product.sale_uom)
             if currency and company and unit_price is not None:
                 if company.currency != currency:
-                    with Transaction().set_context(date=date):
+                    with tx.transaction.set_context(date=date):
                         unit_price = Currency.compute(
                             company.currency, unit_price,
                             currency, round=False)
@@ -188,10 +188,10 @@ class Product(metaclass=PoolMeta):
 
     @property
     def lead_time_used(self):
-        pool = Pool()
+        pool = tx.pool
         Configuration = pool.get('product.configuration')
         if self.lead_time is None:
-            with Transaction().set_context(self._context):
+            with tx.transaction.set_context(self._context):
                 config = Configuration(1)
                 return config.get_multivalue('default_lead_time')
         else:
@@ -201,10 +201,10 @@ class Product(metaclass=PoolMeta):
         '''
         Compute the shipping date at the given date
         '''
-        Date = Pool().get('ir.date')
+        Date = tx.pool.get('ir.date')
 
         if not date:
-            with Transaction().set_context(context=self._context):
+            with tx.transaction.set_context(context=self._context):
                 date = Date.today()
 
         lead_time = self.lead_time_used
@@ -236,9 +236,9 @@ class SaleContext(ModelView):
 
     @classmethod
     def default_locations(cls):
-        pool = Pool()
+        pool = tx.pool
         Location = pool.get('stock.location')
-        context = Transaction().context
+        context = tx.transaction.context
         locations = context.get('locations')
         if locations is None:
             locations = []
@@ -249,13 +249,13 @@ class SaleContext(ModelView):
 
     @classmethod
     def default_company(cls):
-        return Transaction().context.get('company')
+        return tx.transaction.context.get('company')
 
     @classmethod
     def default_currency(cls):
-        pool = Pool()
+        pool = tx.pool
         Company = pool.get('company.company')
-        context = Transaction().context
+        context = tx.transaction.context
         currency = context.get('currency')
         if currency is None:
             company_id = cls.default_company()
@@ -266,15 +266,15 @@ class SaleContext(ModelView):
 
     @classmethod
     def default_customer(cls):
-        return Transaction().context.get('customer')
+        return tx.transaction.context.get('customer')
 
     @classmethod
     def default_sale_date(cls):
-        return Transaction().context.get('sale_date')
+        return tx.transaction.context.get('sale_date')
 
     @classmethod
     def default_quantity(cls):
-        return Transaction().context.get('quantity')
+        return tx.transaction.context.get('quantity')
 
     @fields.depends('sale_date')
     def on_change_with_stock_date_end(self, name=None):

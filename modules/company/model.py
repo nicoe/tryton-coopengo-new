@@ -2,10 +2,9 @@
 # repository contains the full copyright notices and license terms.
 import functools
 
+from trytond import tx
 from trytond.model import MultiValueMixin, ValueMixin, fields
-from trytond.pool import Pool
 from trytond.pyson import Eval
-from trytond.transaction import Transaction
 
 __all__ = ['CompanyMultiValueMixin', 'CompanyValueMixin',
     'set_employee', 'reset_employee', 'employee_field']
@@ -26,14 +25,16 @@ class CompanyMultiValueMixin(MultiValueMixin):
     def get_multivalue(self, name, **pattern):
         Value = self.multivalue_model(name)
         if issubclass(Value, CompanyValueMixin):
-            pattern.setdefault('company', Transaction().context.get('company'))
+            pattern.setdefault(
+                'company', tx.transaction.context.get('company'))
         return super().get_multivalue(
             name, **pattern)
 
     def set_multivalue(self, name, value, save=True, **pattern):
         Value = self.multivalue_model(name)
         if issubclass(Value, CompanyValueMixin):
-            pattern.setdefault('company', Transaction().context.get('company'))
+            pattern.setdefault(
+                'company', tx.transaction.context.get('company'))
         return super().set_multivalue(
             name, value, save=save, **pattern)
 
@@ -58,9 +59,9 @@ def set_employee(field, company='company', when='after'):
     def decorator(func):
         @functools.wraps(func)
         def wrapper(cls, records, *args, **kwargs):
-            pool = Pool()
+            pool = tx.pool
             User = pool.get('res.user')
-            user = User(Transaction().user)
+            user = User(tx.transaction.user)
 
             if when == 'after':
                 result = func(cls, records, *args, **kwargs)

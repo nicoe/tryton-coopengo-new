@@ -10,11 +10,11 @@ except ImportError:
     from http import client as HTTPStatus
 
 import trytond.config as config
+from trytond import tx
 from trytond.protocols.dispatcher import register_authentication_service
 from trytond.protocols.wrappers import (
     Response, abort, add_auth_cookies, allow_null_origin, exceptions, redirect,
     with_pool, with_transaction)
-from trytond.transaction import Transaction
 from trytond.url import http_host
 from trytond.wsgi import app
 
@@ -165,7 +165,7 @@ def acs(request, pool, identity):
         logger.warning(
             "SSO access denied: login=%s, identity=%s", login, identity)
         abort(HTTPStatus.FORBIDDEN, "SSO access denied")
-    with Transaction().set_user(user_id):
+    with tx.transaction.set_user(user_id):
         session = Session.new()
 
     allow_subscribe = config.getboolean(

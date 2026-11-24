@@ -20,11 +20,11 @@ from werkzeug.utils import redirect, send_file
 from werkzeug.wrappers import Request as BaseRequest
 from werkzeug.wrappers import Response as BaseResponse
 
-from trytond import backend, config, security
+from trytond import backend, config, security, tx
 from trytond.exceptions import RateLimitException, UserError, UserWarning
 from trytond.pool import Pool
 from trytond.tools import cached_property
-from trytond.transaction import Transaction, TransactionError, check_access
+from trytond.transaction import TransactionError, check_access
 
 __all__ = [
     'HTTPStatus',
@@ -294,14 +294,14 @@ def with_pool(func):
     def wrapper(request, database_name, *args, **kwargs):
         database_list = Pool.database_list()
         if database_name not in database_list:
-            with Transaction().start(None, 0, readonly=True) as transaction:
+            with tx.transaction.start(None, 0, readonly=True) as transaction:
                 hostname = config.get_hostname(request.host)
                 databases = dict(transaction.database.list(hostname=hostname))
                 if database_name not in databases:
                     abort(HTTPStatus.NOT_FOUND)
         pool = Pool(database_name)
         if database_name not in database_list:
-            with Transaction().start(database_name, 0, readonly=True):
+            with tx.transaction.start(database_name, 0, readonly=True):
                 pool.init()
 
         try:
@@ -358,7 +358,7 @@ def with_transaction(readonly=None, user=0, context=None, timeout=None):
             while True:
                 if count:
                     time.sleep(0.02 * count)
-                with Transaction().start(
+                with tx.transaction.start(
                         pool.database_name, user_, readonly=readonly_,
                         context=context_, timeout=timeout,
                         **transaction_extras) as transaction:
@@ -394,7 +394,7 @@ def user_application(name, json=True):
     def decorator(func):
         @wraps(func)
         def wrapper(request, *args, **kwargs):
-            pool = Pool()
+            pool = tx.pool
             UserApplication = pool.get('res.user.application')
 
             authorization = request.authorization
@@ -414,7 +414,7 @@ def user_application(name, json=True):
             application = UserApplication.check(token, name)
             if not application:
                 abort(HTTPStatus.UNAUTHORIZED)
-            transaction = Transaction()
+            transaction = tx.transaction
             # TODO language
             with transaction.set_user(application.user.id), \
                     check_access():

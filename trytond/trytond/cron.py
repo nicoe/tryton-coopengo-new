@@ -11,8 +11,8 @@ from pathlib import Path
 
 import trytond.commandline as commandline
 import trytond.config as config
+from trytond import tx
 from trytond.pool import Pool
-from trytond.transaction import Transaction
 
 __all__ = ['run']
 logger = logging.getLogger(__name__)
@@ -65,7 +65,7 @@ def initializer(options, worker=True):
     for database_name in options.database_names:
         pool = Pool(database_name)
         if database_name not in database_list:
-            with Transaction().start(database_name, 0, readonly=True):
+            with tx.transaction.start(database_name, 0, readonly=True):
                 pool.init()
         pools.append(pool)
     return pools
@@ -75,7 +75,7 @@ def run_cron(database_name):
     database_list = Pool.database_list()
     pool = Pool(database_name)
     if database_name not in database_list:
-        with Transaction().start(database_name, 0, readonly=True):
+        with tx.transaction.start(database_name, 0, readonly=True):
             pool.init()
     Cron = pool.get('ir.cron')
     Cron.run(database_name)

@@ -6,11 +6,11 @@ from itertools import groupby
 
 from sql import Literal
 
+from trytond import tx
 from trytond.model import Check, Index, ModelSQL, ModelView, dualmethod, fields
 from trytond.modules.currency.fields import Monetary
-from trytond.pool import Pool, PoolMeta
+from trytond.pool import PoolMeta
 from trytond.pyson import Eval, If, PYSONEncoder
-from trytond.transaction import Transaction
 from trytond.wizard import StateAction, Wizard
 
 
@@ -58,7 +58,7 @@ class Line(ModelSQL, ModelView):
 
     @staticmethod
     def default_date():
-        Date = Pool().get('ir.date')
+        Date = tx.pool.get('ir.date')
         return Date.today()
 
     @staticmethod
@@ -98,15 +98,15 @@ class Line(ModelSQL, ModelView):
         table is the SQL instance of the analytic_account_line table.
         '''
         clause = Literal(True)
-        if Transaction().context.get('start_date'):
-            clause &= table.date >= Transaction().context['start_date']
-        if Transaction().context.get('end_date'):
-            clause &= table.date <= Transaction().context['end_date']
+        if tx.transaction.context.get('start_date'):
+            clause &= table.date >= tx.transaction.context['start_date']
+        if tx.transaction.context.get('end_date'):
+            clause &= table.date <= tx.transaction.context['end_date']
         return clause
 
     @classmethod
     def on_modification(cls, mode, lines, field_names=None):
-        pool = Pool()
+        pool = tx.pool
         MoveLine = pool.get('account.move.line')
         super().on_modification(mode, lines, field_names=field_names)
         if mode in {'create', 'write'}:
@@ -116,7 +116,7 @@ class Line(ModelSQL, ModelView):
 
     @classmethod
     def on_delete(cls, lines):
-        pool = Pool()
+        pool = tx.pool
         MoveLine = pool.get('account.move.line')
         callback = super().on_delete(lines)
         move_lines = MoveLine.browse({l.move_line for l in lines})
@@ -134,7 +134,7 @@ class Move(metaclass=PoolMeta):
     @dualmethod
     @ModelView.button
     def post(cls, moves):
-        pool = Pool()
+        pool = tx.pool
         MoveLine = pool.get('account.move.line')
         super().post(moves)
         lines = [l for m in moves for l in m.lines]
@@ -193,7 +193,7 @@ class MoveLine(metaclass=PoolMeta):
     @property
     def must_have_analytic(self):
         "If the line must have analytic lines set"
-        pool = Pool()
+        pool = tx.pool
         FiscalYear = pool.get('account.fiscalyear')
         if self.account.type:
             return self.account.type.statement == 'income' and not (
@@ -204,7 +204,7 @@ class MoveLine(metaclass=PoolMeta):
 
     @classmethod
     def apply_rule(cls, lines):
-        pool = Pool()
+        pool = tx.pool
         Rule = pool.get('analytic_account.rule')
 
         rules = Rule.search([])
@@ -228,7 +228,7 @@ class MoveLine(metaclass=PoolMeta):
 
     @classmethod
     def set_analytic_state(cls, lines):
-        pool = Pool()
+        pool = tx.pool
         AnalyticAccount = pool.get('analytic_account.account')
 
         roots = AnalyticAccount.search([
@@ -280,13 +280,13 @@ class OpenAccount(Wizard):
         action['pyson_domain'] = [
             ('account', '=', self.record.id if self.record else None),
             ]
-        if Transaction().context.get('start_date'):
+        if tx.transaction.context.get('start_date'):
             action['pyson_domain'].append(
-                ('date', '>=', Transaction().context['start_date'])
+                ('date', '>=', tx.transaction.context['start_date'])
                 )
-        if Transaction().context.get('end_date'):
+        if tx.transaction.context.get('end_date'):
             action['pyson_domain'].append(
-                ('date', '<=', Transaction().context['end_date'])
+                ('date', '<=', tx.transaction.context['end_date'])
                 )
         if self.record:
             action['name'] += ' (%s)' % self.record.rec_name

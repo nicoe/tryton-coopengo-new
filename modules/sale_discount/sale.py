@@ -2,10 +2,11 @@
 # this repository contains the full copyright notices and license terms.
 from decimal import Decimal
 
+from trytond import tx
 from trytond.model import fields
 from trytond.modules.currency.fields import Monetary
 from trytond.modules.product import price_digits, round_price
-from trytond.pool import Pool, PoolMeta
+from trytond.pool import PoolMeta
 from trytond.pyson import Eval
 
 
@@ -55,7 +56,7 @@ class Line(metaclass=PoolMeta):
 
     @fields.depends('product', 'unit')
     def compute_base_price(self):
-        pool = Pool()
+        pool = tx.pool
         Uom = pool.get('product.uom')
         if (self.product
                 and (price := self.product.list_price_used) is not None):
@@ -126,7 +127,7 @@ class Line(metaclass=PoolMeta):
         methods=[
             'on_change_with_discount_rate', 'on_change_with_discount_amount'])
     def on_change_with_discount(self, name=None):
-        pool = Pool()
+        pool = tx.pool
         Lang = pool.get('ir.lang')
         lang = Lang.get()
         rate = self.on_change_with_discount_rate()

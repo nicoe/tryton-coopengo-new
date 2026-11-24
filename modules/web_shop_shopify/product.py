@@ -7,13 +7,13 @@ from urllib.parse import urljoin
 from sql.conditionals import NullIf
 from sql.operators import Equal
 
+from trytond import tx
 from trytond.i18n import gettext
 from trytond.model import Exclude, ModelSQL, ModelView, fields
 from trytond.modules.product.exceptions import TemplateValidationError
-from trytond.pool import Pool, PoolMeta
+from trytond.pool import PoolMeta
 from trytond.pyson import Bool, Eval, If
 from trytond.tools import slugify
-from trytond.transaction import Transaction
 
 from . import graphql
 from .common import IdentifiersMixin, IdentifiersUpdateMixin, id2gid
@@ -132,7 +132,7 @@ class Template(IdentifiersMixin, metaclass=PoolMeta):
 
     @classmethod
     def get_shopify_identifier_to_update(cls, templates):
-        pool = Pool()
+        pool = tx.pool
         Product = pool.get('product.product')
         products = [p for t in templates for p in t.products]
         return (super().get_shopify_identifier_to_update(templates)
@@ -270,14 +270,14 @@ class Product(IdentifiersMixin, metaclass=PoolMeta):
 
     @classmethod
     def get_shopify_identifier_to_update(cls, records):
-        pool = Pool()
+        pool = tx.pool
         InventoryItem = pool.get('product.shopify_inventory_item')
         items = InventoryItem.browse(records)
         return (super().get_shopify_identifier_to_update(records)
             + sum((list(i.shopify_identifiers) for i in items), []))
 
     def set_shopify_identifier(self, web_shop, identifier=None):
-        pool = Pool()
+        pool = tx.pool
         InventoryItem = pool.get('product.shopify_inventory_item')
         if not identifier:
             inventory_item = InventoryItem(self.id)
@@ -352,7 +352,7 @@ class Product(IdentifiersMixin, metaclass=PoolMeta):
         return {}
 
     def shopify_price(self, price, tax, taxes_included=True):
-        pool = Pool()
+        pool = tx.pool
         Uom = pool.get('product.uom')
         if price is None or tax is None:
             return None
@@ -372,7 +372,7 @@ class Product(IdentifiersMixin, metaclass=PoolMeta):
 
     @property
     def shopify_quantity(self):
-        pool = Pool()
+        pool = tx.pool
         Uom = pool.get('product.uom')
         quantity = self.forecast_quantity
         if quantity < 0:
@@ -416,13 +416,13 @@ class ShopifyInventoryItem(IdentifiersMixin, ModelSQL, ModelView):
 
     @classmethod
     def table_query(cls):
-        return Pool().get('product.product').__table__()
+        return tx.pool.get('product.product').__table__()
 
     def get_product(self, name):
         return self.id
 
     def get_shopify(self, shop, shop_weight_unit=None):
-        pool = Pool()
+        pool = tx.pool
         SaleLine = pool.get('sale.line')
         ModelData = pool.get('ir.model.data')
         Uom = pool.get('product.uom')
@@ -464,11 +464,11 @@ class ShopifyInventoryItem_Customs(metaclass=PoolMeta):
     __name__ = 'product.shopify_inventory_item'
 
     def get_shopify(self, shop, shop_weight_unit=None):
-        pool = Pool()
+        pool = tx.pool
         Date = pool.get('ir.date')
         inventory_item = super().get_shopify(
             shop, shop_weight_unit=shop_weight_unit)
-        with Transaction().set_context(company=shop.company.id):
+        with tx.transaction.set_context(company=shop.company.id):
             today = Date.today()
         inventory_item['countryCodeOfOrigin'] = (
             self.product.country_of_origin.code
@@ -502,7 +502,7 @@ class Product_TariffCode(IdentifiersUpdateMixin, metaclass=PoolMeta):
 
     @classmethod
     def get_shopify_identifier_to_update(cls, records):
-        pool = Pool()
+        pool = tx.pool
         Template = pool.get('product.template')
         Category = pool.get('product.category')
         templates = set()
@@ -607,7 +607,7 @@ class AttributeSet(IdentifiersUpdateMixin, metaclass=PoolMeta):
 
     @classmethod
     def get_shopify_identifier_to_update(cls, sets):
-        pool = Pool()
+        pool = tx.pool
         Template = pool.get('product.template')
         templates = Template.search([
                 ('attribute_set', 'in', sets),
@@ -632,7 +632,7 @@ class Attribute(IdentifiersUpdateMixin, metaclass=PoolMeta):
 
     @classmethod
     def get_shopify_identifier_to_update(cls, attributes):
-        pool = Pool()
+        pool = tx.pool
         Set = pool.get('product.attribute.set')
         sets = Set.browse(sum((a.sets for a in attributes), ()))
         return Set.get_shopify_identifier_to_update(sets)
@@ -708,7 +708,7 @@ class Image(IdentifiersMixin, metaclass=PoolMeta):
 
     @classmethod
     def on_write(cls, images, values):
-        pool = Pool()
+        pool = tx.pool
         Identifier = pool.get('web.shop.shopify_identifier')
         callback = super().on_write(images, values)
         if values.keys() & {'image', 'template', 'web_shop'}:

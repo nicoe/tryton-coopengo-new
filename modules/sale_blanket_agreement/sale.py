@@ -8,15 +8,15 @@ from itertools import groupby
 from sql import Null
 from sql.functions import CharLength
 
+from trytond import tx
 from trytond.i18n import gettext
 from trytond.model import (
     ChatMixin, Index, ModelSQL, ModelView, Workflow, fields)
 from trytond.modules.currency.fields import Monetary
 from trytond.modules.product import price_digits, round_price
 from trytond.modules.product.exceptions import UOMValidationError
-from trytond.pool import Pool, PoolMeta
+from trytond.pool import PoolMeta
 from trytond.pyson import Bool, Date, Eval, Id, If
-from trytond.transaction import Transaction
 from trytond.wizard import Button, StateAction, StateView, Wizard
 
 from .exceptions import (
@@ -27,7 +27,7 @@ def blanket_agreement_quantity_warning():
     def decorator(func):
         @functools.wraps(func)
         def wrapper(cls, sales, *args, **kwargs):
-            pool = Pool()
+            pool = tx.pool
             Warning = pool.get('res.user.warning')
             Lang = pool.get('ir.lang')
             for sale in sales:
@@ -73,7 +73,7 @@ class Configuration(metaclass=PoolMeta):
 
     @classmethod
     def multivalue_model(cls, field):
-        pool = Pool()
+        pool = tx.pool
         if field == 'blanket_agreement_sequence':
             return pool.get('sale.configuration.sequence')
         return super().multivalue_model(field)
@@ -98,7 +98,7 @@ class ConfigurationSequence(metaclass=PoolMeta):
 
     @classmethod
     def default_blanket_agreement_sequence(cls):
-        pool = Pool()
+        pool = tx.pool
         ModelData = pool.get('ir.model.data')
         try:
             return ModelData.get_id(
@@ -245,7 +245,7 @@ class BlanketAgreement(Workflow, ModelSQL, ModelView, ChatMixin):
 
     @classmethod
     def default_company(cls):
-        return Transaction().context.get('company')
+        return tx.transaction.context.get('company')
 
     @classmethod
     def order_number(cls, tables):
@@ -256,7 +256,7 @@ class BlanketAgreement(Workflow, ModelSQL, ModelView, ChatMixin):
 
     @classmethod
     def default_currency(cls, **pattern):
-        pool = Pool()
+        pool = tx.pool
         Company = pool.get('company.company')
         company = pattern.get('company')
         if not company:
@@ -332,7 +332,7 @@ class BlanketAgreement(Workflow, ModelSQL, ModelView, ChatMixin):
         '''
         Fill the number field with the blanket agreement sequence
         '''
-        pool = Pool()
+        pool = tx.pool
         Config = pool.get('sale.configuration')
 
         config = Config(1)
@@ -349,11 +349,11 @@ class BlanketAgreement(Workflow, ModelSQL, ModelView, ChatMixin):
 
     @classmethod
     def set_date(cls, agreements, field):
-        pool = Pool()
+        pool = tx.pool
         Date = pool.get('ir.date')
         for company, agreements in groupby(
                 agreements, key=lambda p: p.company):
-            with Transaction().set_context(company=company.id):
+            with tx.transaction.set_context(company=company.id):
                 today = Date.today()
             cls.write([a for a in agreements if not getattr(a, field)], {
                     field: today,
@@ -371,7 +371,7 @@ class BlanketAgreement(Workflow, ModelSQL, ModelView, ChatMixin):
             ]
 
     def get_sale(self, lines=None):
-        pool = Pool()
+        pool = tx.pool
         Sale = pool.get('sale.sale')
         sale = Sale(
             company=self.company,
@@ -418,7 +418,7 @@ class BlanketAgreement(Workflow, ModelSQL, ModelView, ChatMixin):
     @ModelView.button
     @Workflow.transition('closed')
     def close(cls, agreements):
-        pool = Pool()
+        pool = tx.pool
         Warning = pool.get('res.user.warning')
         Date = pool.get('ir.date')
         today = Date.today()
@@ -572,7 +572,7 @@ class BlanketAgreementLine(ModelSQL, ModelView):
 
     @classmethod
     def get_sale_blanket_agreement_states(cls):
-        pool = Pool()
+        pool = tx.pool
         Agreement = pool.get('sale.blanket_agreement')
         return Agreement.fields_get(['state'])['state']['selection']
 
@@ -587,7 +587,7 @@ class BlanketAgreementLine(ModelSQL, ModelView):
             return self.blanket_agreement.company
 
     def get_sale_line(self, sale):
-        pool = Pool()
+        pool = tx.pool
         SaleLine = pool.get('sale.line')
         sale_line = SaleLine(
             sale=sale,
@@ -606,7 +606,7 @@ class BlanketAgreementLine(ModelSQL, ModelView):
             sale_line.on_change_quantity()
 
     def get_rec_name(self, name):
-        pool = Pool()
+        pool = tx.pool
         Lang = pool.get('ir.lang')
         lang = Lang.get()
         name = f'{self.product.rec_name}s @ {self.blanket_agreement.rec_name}'
@@ -636,7 +636,7 @@ class BlanketAgreementLine(ModelSQL, ModelView):
         return self.unit.category == sale_line.product_uom_category
 
     def remainig_quantity_for_sale(self, line, round=True):
-        pool = Pool()
+        pool = tx.pool
         Uom = pool.get('product.uom')
         if (self.remaining_quantity is not None
                 and self.unit.category == line.unit.category):
@@ -729,7 +729,7 @@ class Line(metaclass=PoolMeta):
         'blanket_agreement_line', '_parent_blanket_agreement_line.unit',
         '_parent_blanket_agreement_line.unit_price', 'unit')
     def compute_unit_price(self):
-        pool = Pool()
+        pool = tx.pool
         Uom = pool.get('product.uom')
         unit_price = super().compute_unit_price()
         line = self.blanket_agreement_line
@@ -749,7 +749,7 @@ class Line(metaclass=PoolMeta):
         '_parent_blanket_agreement_line.remaining_quantity',
         methods=['compute_unit_price', 'on_change_quantity'])
     def on_change_blanket_agreement_line(self):
-        pool = Pool()
+        pool = tx.pool
         Uom = pool.get('product.uom')
         if self.blanket_agreement_line:
             line = self.blanket_agreement_line
@@ -778,7 +778,7 @@ class Line(metaclass=PoolMeta):
             return self.product == self.blanket_agreement_line.product
 
     def quantity_for_blanket_agreement(self, line, round=True):
-        pool = Pool()
+        pool = tx.pool
         Uom = pool.get('product.uom')
         if self.unit.category == line.unit.category:
             quantity = (

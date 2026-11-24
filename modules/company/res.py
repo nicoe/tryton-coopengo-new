@@ -1,11 +1,11 @@
 # This file is part of Tryton.  The COPYRIGHT file at the top level of
 # this repository contains the full copyright notices and license terms.
 
+from trytond import tx
 from trytond.cache import Cache
 from trytond.model import ModelSQL, fields
-from trytond.pool import Pool, PoolMeta
+from trytond.pool import PoolMeta
 from trytond.pyson import Eval
-from trytond.transaction import Transaction
 
 
 class UserCompany(ModelSQL):
@@ -19,7 +19,7 @@ class UserCompany(ModelSQL):
 
     @classmethod
     def on_modification(cls, mode, records, field_names=None):
-        pool = Pool()
+        pool = tx.pool
         User = pool.get('res.user')
         super().on_modification(mode, records, field_names=field_names)
         User._get_companies_cache.clear()
@@ -34,7 +34,7 @@ class UserEmployee(ModelSQL):
 
     @classmethod
     def on_modification(cls, mode, records, field_names=None):
-        pool = Pool()
+        pool = tx.pool
         User = pool.get('res.user')
         super().on_modification(mode, records, field_names=field_names)
         User._get_employees_cache.clear()
@@ -90,7 +90,7 @@ class User(metaclass=PoolMeta):
 
     @classmethod
     def default_companies(cls):
-        pool = Pool()
+        pool = tx.pool
         Company = pool.get('company.company')
         companies = Company.search([])
         if len(companies) == 1:
@@ -164,7 +164,7 @@ class User(metaclass=PoolMeta):
         '''
         Return an ordered tuple of company ids for the user
         '''
-        transaction = Transaction()
+        transaction = tx.transaction
         user_id = transaction.user
         companies = cls._get_companies_cache.get(user_id)
         if companies is not None:
@@ -183,7 +183,7 @@ class User(metaclass=PoolMeta):
         '''
         Return an ordered tuple of employee ids for the user
         '''
-        transaction = Transaction()
+        transaction = tx.transaction
         user_id = transaction.user
         employees = cls._get_employees_cache.get(user_id)
         if employees is not None:
@@ -200,16 +200,16 @@ class User(metaclass=PoolMeta):
 
     @classmethod
     def read(cls, ids, fields_names):
-        user_id = Transaction().user
-        if user_id == 0 and 'user' in Transaction().context:
-            user_id = Transaction().context['user']
+        user_id = tx.transaction.user
+        if user_id == 0 and 'user' in tx.transaction.context:
+            user_id = tx.transaction.context['user']
         result = super().read(ids, fields_names)
         if (fields_names
                 and ((
                         'company' in fields_names
-                        and 'company' in Transaction().context)
+                        and 'company' in tx.transaction.context)
                     or ('employee' in fields_names
-                        and 'employee' in Transaction().context))):
+                        and 'employee' in tx.transaction.context))):
             values = None
             if int(user_id) in ids:
                 for vals in result:
@@ -218,28 +218,28 @@ class User(metaclass=PoolMeta):
                         break
             if values:
                 if ('company' in fields_names
-                        and 'company' in Transaction().context):
+                        and 'company' in tx.transaction.context):
                     companies = values.get('companies')
                     if not companies:
                         companies = cls.read([user_id],
                             ['companies'])[0]['companies']
-                    company_id = Transaction().context['company']
+                    company_id = tx.transaction.context['company']
                     if ((company_id and company_id in companies)
                             or not company_id
-                            or Transaction().user == 0):
+                            or tx.transaction.user == 0):
                         values['company'] = company_id
                     else:
                         values['company'] = None
                 if ('employee' in fields_names
-                        and 'employee' in Transaction().context):
+                        and 'employee' in tx.transaction.context):
                     employees = values.get('employees')
                     if not employees:
                         employees = cls.read([user_id],
                             ['employees'])[0]['employees']
-                    employee_id = Transaction().context['employee']
+                    employee_id = tx.transaction.context['employee']
                     if ((employee_id and employee_id in employees)
                             or not employee_id
-                            or Transaction().user == 0):
+                            or tx.transaction.user == 0):
                         values['employee'] = employee_id
                     else:
                         values['employee'] = None

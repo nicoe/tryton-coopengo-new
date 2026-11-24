@@ -3,12 +3,12 @@
 
 from itertools import groupby
 
+from trytond import tx
 from trytond.i18n import gettext
 from trytond.model import ModelView, Workflow, fields
 from trytond.modules.product import round_price
-from trytond.pool import Pool, PoolMeta
+from trytond.pool import PoolMeta
 from trytond.pyson import Bool, Eval, If
-from trytond.transaction import Transaction
 
 from .exceptions import PurchaseWarning
 
@@ -114,7 +114,7 @@ class Production(metaclass=PoolMeta):
         help="The lines to add to the production cost.")
 
     def get_cost(self, name):
-        pool = Pool()
+        pool = tx.pool
         Currency = pool.get('currency.currency')
         cost = super().get_cost(name)
         for line in self.purchase_lines:
@@ -128,7 +128,7 @@ class Production(metaclass=PoolMeta):
     @ModelView.button
     @Workflow.transition('draft')
     def draft(cls, productions):
-        pool = Pool()
+        pool = tx.pool
         PurchaseLine = pool.get('purchase.line')
         super().draft(productions)
         PurchaseLine.delete([l for p in productions for l in p.purchase_lines
@@ -138,7 +138,7 @@ class Production(metaclass=PoolMeta):
     @ModelView.button
     @Workflow.transition('cancelled')
     def cancel(cls, productions):
-        pool = Pool()
+        pool = tx.pool
         PurchaseLine = pool.get('purchase.line')
         super().cancel(productions)
         PurchaseLine.delete([l for p in productions for l in p.purchase_lines
@@ -148,7 +148,7 @@ class Production(metaclass=PoolMeta):
     @ModelView.button
     @Workflow.transition('waiting')
     def wait(cls, productions):
-        pool = Pool()
+        pool = tx.pool
         Purchase = pool.get('purchase.purchase')
         PurchaseLine = pool.get('purchase.line')
         Date = pool.get('ir.date')
@@ -168,7 +168,7 @@ class Production(metaclass=PoolMeta):
         for key, grouped in groupby(productions, key=cls._group_purchase_key):
             productions = list(grouped)
             key = dict(key)
-            with Transaction().set_context(company=key['company'].id):
+            with tx.transaction.set_context(company=key['company'].id):
                 today = Date.today()
             try:
                 purchase_date = min(p.planned_start_date or p.planned_date
@@ -205,7 +205,7 @@ class Production(metaclass=PoolMeta):
             )
 
     def _get_purchase_line(self, purchase):
-        pool = Pool()
+        pool = tx.pool
         Line = pool.get('purchase.line')
         line = Line()
         line.product = self.routing.supplier_service
@@ -223,7 +223,7 @@ class Production(metaclass=PoolMeta):
     @ModelView.button
     @Workflow.transition('done')
     def do(cls, productions):
-        pool = Pool()
+        pool = tx.pool
         Warning = pool.get('res.user.warning')
 
         def pending_purchase(production):

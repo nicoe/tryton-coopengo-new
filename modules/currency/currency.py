@@ -9,14 +9,13 @@ from dateutil.relativedelta import relativedelta
 from sql import Window
 from sql.functions import NthValue
 
+from trytond import tx
 from trytond.i18n import gettext
 from trytond.model import (
     DeactivableMixin, DigitsMixin, Index, ModelSQL, ModelView, SymbolMixin,
     Unique, fields)
-from trytond.pool import Pool
 from trytond.pyson import Eval, If
 from trytond.rpc import RPC
-from trytond.transaction import Transaction
 
 from .ecb import RatesNotAvailableError, get_rates
 from .exceptions import RateError
@@ -125,11 +124,11 @@ class Currency(
         '''
         Return the rate at the date from the context or the current date
         '''
-        Rate = Pool().get('currency.currency.rate')
-        Date = Pool().get('ir.date')
+        Rate = tx.pool.get('currency.currency.rate')
+        Date = tx.pool.get('ir.date')
 
         res = {}
-        date = Transaction().context.get('date', Date.today())
+        date = tx.transaction.context.get('date', Date.today())
         for currency in currencies:
             rates = Rate.search([
                     ('currency', '=', currency.id),
@@ -179,8 +178,8 @@ class Currency(
         Return the amount to the new currency
         Use the rate of the date of the context or the current date
         '''
-        Date = Pool().get('ir.date')
-        Lang = Pool().get('ir.lang')
+        Date = tx.pool.get('ir.date')
+        Lang = tx.pool.get('ir.lang')
         from_currency = cls(int(from_currency))
         to_currency = cls(int(to_currency))
 
@@ -190,7 +189,7 @@ class Currency(
             else:
                 return amount
         if (not from_currency.rate) or (not to_currency.rate):
-            date = Transaction().context.get('date', Date.today())
+            date = tx.transaction.context.get('date', Date.today())
             if not from_currency.rate:
                 name = from_currency.name
             else:
@@ -209,7 +208,7 @@ class Currency(
     @classmethod
     def currency_rate_sql(cls):
         "Return a SQL query with currency, rate, start_date and end_date"
-        pool = Pool()
+        pool = tx.pool
         Rate = pool.get('currency.currency.rate')
 
         rate = Rate.__table__()
@@ -230,7 +229,7 @@ class Currency(
         return query
 
     def get_symbol(self, sign, symbol=None):
-        pool = Pool()
+        pool = tx.pool
         Lang = pool.get('ir.lang')
         lang = Lang.get()
         symbol, position = super().get_symbol(sign, symbol=symbol)
@@ -284,11 +283,11 @@ class CurrencyRate(ModelSQL, ModelView):
 
     @staticmethod
     def default_date():
-        Date = Pool().get('ir.date')
+        Date = tx.pool.get('ir.date')
         return Date.today()
 
     def get_rec_name(self, name):
-        return Pool().get('ir.lang').get().strftime(self.date)
+        return tx.pool.get('ir.lang').get().strftime(self.date)
 
 
 class CronFetchError(Exception):
@@ -349,7 +348,7 @@ class Cron(ModelSQL, ModelView):
 
     @classmethod
     def default_last_update(cls):
-        pool = Pool()
+        pool = tx.pool
         Date = pool.get('ir.date')
         return Date.today()
 
@@ -360,7 +359,7 @@ class Cron(ModelSQL, ModelView):
 
     @classmethod
     def update(cls, crons=None):
-        pool = Pool()
+        pool = tx.pool
         Rate = pool.get('currency.currency.rate')
         if crons is None:
             crons = cls.search([])
@@ -390,7 +389,7 @@ class Cron(ModelSQL, ModelView):
         return self.last_update + self.delta()
 
     def limit_update(self):
-        pool = Pool()
+        pool = tx.pool
         Date = pool.get('ir.date')
         return Date.today()
 
@@ -406,7 +405,7 @@ class Cron(ModelSQL, ModelView):
         return delta
 
     def _rates(self, date, rounding=None):
-        pool = Pool()
+        pool = tx.pool
         Rate = pool.get('currency.currency.rate')
         values = getattr(self, 'fetch_%s' % self.source)(date)
 

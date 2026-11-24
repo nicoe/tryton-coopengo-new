@@ -3,10 +3,9 @@
 
 from collections import defaultdict
 
+from trytond import tx
 from trytond.cache import Cache
 from trytond.model import ModelSQL, ModelView, fields
-from trytond.pool import Pool
-from trytond.transaction import Transaction
 
 from .lang import get_parent_language as get_parent
 from .translation import INTERNAL_LANG
@@ -21,9 +20,9 @@ class Message(ModelSQL, ModelView):
 
     @classmethod
     def gettext(cls, *args, **variables):
-        pool = Pool()
+        pool = tx.pool
         ModelData = pool.get('ir.model.data')
-        context = Transaction().context
+        context = tx.transaction.context
         module, message_id, language = args
         fuzzy = bool(context.get('fuzzy_translation', False))
 
@@ -41,10 +40,10 @@ class Message(ModelSQL, ModelView):
 
     @classmethod
     def ngettext(cls, *args, **variables):
-        pool = Pool()
+        pool = tx.pool
         ModelData = pool.get('ir.model.data')
         Lang = pool.get('ir.lang')
-        context = Transaction().context
+        context = tx.transaction.context
         module, message_id, n, language = args
         fuzzy = bool(context.get('fuzzy_translation', False))
 
@@ -71,7 +70,7 @@ class Message(ModelSQL, ModelView):
         return text if not variables else text % variables
 
     def _get_translation(self, language, fuzzy=False):
-        pool = Pool()
+        pool = tx.pool
         Translation = pool.get('ir.translation')
         if fuzzy:
             fuzzy_clause = []
@@ -92,7 +91,7 @@ class Message(ModelSQL, ModelView):
 
     @classmethod
     def on_modification(cls, mode, messages, field_names=None):
-        pool = Pool()
+        pool = tx.pool
         Translation = pool.get('ir.translation')
         super().on_modification(mode, messages, field_names=field_names)
         if mode in {'create', 'write'}:
@@ -105,7 +104,7 @@ class Message(ModelSQL, ModelView):
 
     @classmethod
     def _set_translations(cls, messages):
-        pool = Pool()
+        pool = tx.pool
         Translation = pool.get('ir.translation')
 
         id2translations = {}

@@ -2,7 +2,8 @@
 # this repository contains the full copyright notices and license terms.
 from datetime import timedelta
 
-from trytond.pool import Pool, PoolMeta
+from trytond import tx
+from trytond.pool import PoolMeta
 
 
 class Product(metaclass=PoolMeta):
@@ -10,6 +11,6 @@ class Product(metaclass=PoolMeta):
 
     def get_supply_period(self):
         'Return the supply period for the product'
-        pool = Pool()
+        pool = tx.pool
         Configuration = pool.get('production.configuration')
         return Configuration(1).supply_period or timedelta(0)

@@ -5,10 +5,10 @@ from collections import defaultdict
 from itertools import groupby
 from operator import attrgetter
 
+from trytond import tx
 from trytond.model import fields
-from trytond.pool import Pool, PoolMeta
+from trytond.pool import PoolMeta
 from trytond.pyson import Eval
-from trytond.transaction import Transaction
 
 
 class Sale(metaclass=PoolMeta):
@@ -24,7 +24,7 @@ class Sale(metaclass=PoolMeta):
 
     @classmethod
     def _process_fulfillment(cls, sales):
-        pool = Pool()
+        pool = tx.pool
         Product = pool.get('product.product')
 
         product_quantities = defaultdict(float)
@@ -36,7 +36,7 @@ class Sale(metaclass=PoolMeta):
                 l.product for s in sub_sales for l in s.lines
                 if l.product and l.product.supply_on_sale == 'stock_first'}
             locations = [warehouse.id]
-            with Transaction().set_context(
+            with tx.transaction.set_context(
                     company=company.id, locations=locations,
                     stock_assign=True,
                     stock_date_end=None):
@@ -53,7 +53,7 @@ class Sale(metaclass=PoolMeta):
 
     @classmethod
     def _process_supply(cls, sales, product_quantities):
-        pool = Pool()
+        pool = tx.pool
         Line = pool.get('sale.line')
         PurchaseRequest = pool.get('purchase.request')
 
@@ -81,7 +81,7 @@ class Sale(metaclass=PoolMeta):
 
     @classmethod
     def _update_moves_from_supply(cls, sales):
-        pool = Pool()
+        pool = tx.pool
         Shipment = pool.get('stock.shipment.out')
         Move = pool.get('stock.move')
 
@@ -215,7 +215,7 @@ class Line(metaclass=PoolMeta):
     def get_purchase_request(self, product_quantities):
         """Return purchase request for the sale line
         depending on the product quantities"""
-        pool = Pool()
+        pool = tx.pool
         Uom = pool.get('product.uom')
         Request = pool.get('purchase.request')
 
@@ -261,7 +261,7 @@ class Line(metaclass=PoolMeta):
         Assign supplied move
         The quantities will be updated according to assigned quantities.
         '''
-        pool = Pool()
+        pool = tx.pool
         Move = pool.get('stock.move')
         ShipmentOut = pool.get('stock.shipment.out')
 

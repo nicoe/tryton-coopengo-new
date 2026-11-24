@@ -1,19 +1,19 @@
 # This file is part of Tryton.  The COPYRIGHT file at the top level of
 # this repository contains the full copyright notices and license terms.
+from trytond import tx
 from trytond.model import (
     MatchMixin, ModelSQL, ModelView, fields, sequence_ordered)
-from trytond.pool import Pool, PoolMeta
+from trytond.pool import PoolMeta
 from trytond.pyson import Eval, Get
-from trytond.transaction import Transaction
 
 
 class Configuration(metaclass=PoolMeta):
     __name__ = 'account.configuration'
 
     def get_multivalue(self, name, **pattern):
-        pool = Pool()
+        pool = tx.pool
         AccountRule = pool.get('account.account.rule')
-        transaction = Transaction()
+        transaction = tx.transaction
         context = transaction.context
         value = super().get_multivalue(name, **pattern)
         account2type = {
@@ -85,7 +85,7 @@ class AccountRule(sequence_ordered(), MatchMixin, ModelSQL, ModelView):
 
     @classmethod
     def default_company(cls):
-        return Transaction().context.get('company')
+        return tx.transaction.context.get('company')
 
     @classmethod
     def default_return_(cls):
@@ -93,9 +93,9 @@ class AccountRule(sequence_ordered(), MatchMixin, ModelSQL, ModelView):
 
     @classmethod
     def apply(cls, origin_account=None):
-        pool = Pool()
+        pool = tx.pool
         Date = pool.get('ir.date')
-        context = Transaction().context
+        context = tx.transaction.context
         today = Date.today()
         pattern = {
             'origin_account': origin_account.id if origin_account else None,
@@ -141,7 +141,7 @@ class InvoiceLine(metaclass=PoolMeta):
 
     @fields.depends('taxes', 'quantity')
     def on_change_product(self):
-        transaction = Transaction()
+        transaction = tx.transaction
         context = transaction.context
         with transaction.set_context(return_=(self.quantity or 0) < 0):
             super().on_change_product()

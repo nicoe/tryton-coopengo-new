@@ -4,14 +4,14 @@ from decimal import Decimal
 
 from sql import Null
 
+from trytond import tx
 from trytond.i18n import gettext
 from trytond.model import ModelView, Workflow, fields
 from trytond.modules.product import price_digits, round_price
 from trytond.modules.sale.exceptions import (
     SaleConfirmError, SaleQuotationError)
-from trytond.pool import Pool, PoolMeta
+from trytond.pool import PoolMeta
 from trytond.pyson import Eval, If
-from trytond.transaction import Transaction
 
 sale_shipment_cost_method = fields.Selection(
         'get_sale_shipment_cost_methods', "Sale Shipment Cost Method")
@@ -20,7 +20,7 @@ sale_shipment_cost_method = fields.Selection(
 def get_sale_methods(field_name):
     @classmethod
     def func(cls):
-        pool = Pool()
+        pool = tx.pool
         Sale = pool.get('sale.sale')
         return Sale.fields_get([field_name])[field_name]['selection']
     return func
@@ -33,7 +33,7 @@ class Configuration(metaclass=PoolMeta):
 
     @classmethod
     def multivalue_model(cls, field):
-        pool = Pool()
+        pool = tx.pool
         if field == 'sale_shipment_cost_method':
             return pool.get('sale.configuration.sale_method')
         return super().multivalue_model(field)
@@ -92,7 +92,7 @@ class Sale(metaclass=PoolMeta):
 
     @classmethod
     def __register__(cls, module):
-        cursor = Transaction().connection.cursor()
+        cursor = tx.transaction.connection.cursor()
         table = cls.__table__()
 
         super().__register__(module)
@@ -107,7 +107,7 @@ class Sale(metaclass=PoolMeta):
 
     @classmethod
     def default_shipment_cost_method(cls, **pattern):
-        Config = Pool().get('sale.configuration')
+        Config = tx.pool.get('sale.configuration')
         config = Config(1)
         return config.get_multivalue(
             'sale_shipment_cost_method', **pattern)
@@ -137,7 +137,7 @@ class Sale(metaclass=PoolMeta):
         'warehouse', 'shipment_address',
         methods=['_get_carrier_selection_pattern'])
     def on_change_with_available_carriers(self, name=None):
-        pool = Pool()
+        pool = tx.pool
         CarrierSelection = pool.get('carrier.selection')
 
         if (self.warehouse
@@ -215,7 +215,7 @@ class Sale(metaclass=PoolMeta):
     @ModelView.button
     @Workflow.transition('quotation')
     def quote(cls, sales):
-        pool = Pool()
+        pool = tx.pool
         Line = pool.get('sale.line')
         removed = []
         for sale in sales:
@@ -239,12 +239,12 @@ class Sale(metaclass=PoolMeta):
     @classmethod
     @ModelView.button
     def process(cls, sales):
-        with Transaction().set_context(_shipment_cost_invoiced=list()):
+        with tx.transaction.set_context(_shipment_cost_invoiced=list()):
             super().process(sales)
 
     @classmethod
     def _process_invoice_fulfillment_states(cls, sales):
-        pool = Pool()
+        pool = tx.pool
         ShipmentOut = pool.get('stock.shipment.out')
         ShipmentCostSale = pool.get('stock.shipment.cost_sale')
 
@@ -279,7 +279,7 @@ class Sale(metaclass=PoolMeta):
 
     def _get_shipment_costs(self):
         "Yield shipment costs"
-        pool = Pool()
+        pool = tx.pool
         ShipmentCostSale = pool.get('stock.shipment.cost_sale')
         cost = self.shipment_cost_amount
         shipments = self._cost_shipments
@@ -299,19 +299,20 @@ class Sale(metaclass=PoolMeta):
         return {}
 
     def compute_shipment_cost(self, carrier):
-        pool = Pool()
+        pool = tx.pool
         Date = pool.get('ir.date')
         Currency = pool.get('currency.currency')
         movable = any(
             line.quantity >= 0 for line in self.lines if line.movable)
         if movable:
-            with Transaction().set_context(self._get_carrier_context(carrier)):
+            with tx.transaction.set_context(
+                    self._get_carrier_context(carrier)):
                 cost, currency_id = carrier.get_sale_price()
             if cost is not None:
-                with Transaction().set_context(company=self.company.id):
+                with tx.transaction.set_context(company=self.company.id):
                     today = Date.today()
                 date = self.sale_date or today
-                with Transaction().set_context(date=date):
+                with tx.transaction.set_context(date=date):
                     return Currency.compute(
                         Currency(currency_id),
                         cost, self.currency, round=False)
@@ -336,7 +337,7 @@ class Sale(metaclass=PoolMeta):
         return removed
 
     def get_shipment_cost_line(self, carrier, cost, unit_price=None):
-        pool = Pool()
+        pool = tx.pool
         SaleLine = pool.get('sale.line')
 
         product = carrier.carrier_product
@@ -366,7 +367,7 @@ class Sale(metaclass=PoolMeta):
         return cost_line
 
     def _get_shipment_grouping_fields(self, shipment):
-        pool = Pool()
+        pool = tx.pool
         ShipmentOut = pool.get('stock.shipment.out')
         fields = super()._get_shipment_grouping_fields(shipment)
         fields.add('carrier')
@@ -383,7 +384,7 @@ class Sale(metaclass=PoolMeta):
         return cost
 
     def _get_shipment_sale(self, Shipment, key):
-        pool = Pool()
+        pool = tx.pool
         ShipmentOut = pool.get('stock.shipment.out')
         shipment = super()._get_shipment_sale(Shipment, key)
         if isinstance(shipment, ShipmentOut):
@@ -425,7 +426,7 @@ class Line(metaclass=PoolMeta):
         return unit_price
 
     def get_invoice_line(self):
-        context = Transaction().context
+        context = tx.transaction.context
         shipment_cost_invoiced = context.get('_shipment_cost_invoiced')
         lines = super().get_invoice_line()
         if (self.shipment_cost is not None
@@ -474,7 +475,7 @@ class HandleInvoiceException(metaclass=PoolMeta):
     __name__ = 'sale.handle.invoice.exception'
 
     def transition_handle(self):
-        pool = Pool()
+        pool = tx.pool
         Shipment = pool.get('stock.shipment.out')
         shipment_cost_recreated = set()
         for invoice in self.ask.domain_invoices:
@@ -494,7 +495,7 @@ class ReturnSale(metaclass=PoolMeta):
     __name__ = 'sale.return_sale'
 
     def do_return_(self, action):
-        pool = Pool()
+        pool = tx.pool
         Sale = pool.get('sale.sale')
         SaleLine = pool.get('sale.line')
         action, data = super().do_return_(action)

@@ -1,11 +1,11 @@
 # This file is part of Tryton.  The COPYRIGHT file at the top level of
 # this repository contains the full copyright notices and license terms.
+from trytond import tx
 from trytond.model import ModelSQL
 from trytond.model import ModelStorage as ModelStorage_
 from trytond.model import fields
 from trytond.pool import Pool
 from trytond.pyson import Eval, If
-from trytond.transaction import Transaction
 
 
 class ModelStorage(ModelSQL):
@@ -61,7 +61,7 @@ class ModelStorageContext(ModelSQL):
     context = fields.Function(fields.Dict(None, 'Context'), 'get_context')
 
     def get_context(self, name):
-        return Transaction().context
+        return tx.transaction.context
 
 
 class ModelStoragePYSONDomain(ModelSQL):
@@ -119,11 +119,11 @@ class ModelStorageRelationDomainTarget(ModelSQL):
         fields.Boolean("Valid"), 'get_valid', searcher='search_valid')
 
     def get_valid(self, name):
-        return Transaction().context.get('valid')
+        return tx.transaction.context.get('valid')
 
     @classmethod
     def search_valid(cls, name, domain):
-        if Transaction().context.get('valid') == domain[2]:
+        if tx.transaction.context.get('valid') == domain[2]:
             return []
         else:
             return [('id', '=', -1)]

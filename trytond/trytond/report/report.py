@@ -26,13 +26,14 @@ from genshi.filters import Translator
 from genshi.template.text import TextTemplate
 
 import trytond.config as config
+from trytond import tx
 from trytond.exceptions import UserError
 from trytond.i18n import gettext, ngettext
 from trytond.model.exceptions import AccessError
-from trytond.pool import Pool, PoolBase
+from trytond.pool import PoolBase
 from trytond.rpc import RPC
 from trytond.tools import slugify
-from trytond.transaction import Transaction, check_access
+from trytond.transaction import check_access
 from trytond.url import URLMixin
 
 try:
@@ -163,13 +164,13 @@ class Report(URLMixin, PoolBase):
 
     @classmethod
     def check_access(cls, action, model, ids):
-        pool = Pool()
+        pool = tx.pool
         ActionReport = pool.get('ir.action.report')
         User = pool.get('res.user')
         Group = pool.get('res.group')
         ModelAccess = pool.get('ir.model.access')
 
-        if Transaction().user == 0:
+        if tx.transaction.user == 0:
             return
 
         with check_access():
@@ -207,9 +208,9 @@ class Report(URLMixin, PoolBase):
             a boolean to direct print,
             the report name (with or without the record names)
         '''
-        pool = Pool()
+        pool = tx.pool
         ActionReport = pool.get('ir.action.report')
-        context = Transaction().context
+        context = tx.transaction.context
         ids = list(map(int, ids))
 
         action_id = data.get('action_id')
@@ -309,17 +310,17 @@ class Report(URLMixin, PoolBase):
     def _execute(cls, records, header, data, action):
         # Ensure to restore original context
         # set_lang may modify it
-        with Transaction().set_context(Transaction().context):
+        with tx.transaction.set_context(tx.transaction.context):
             report_context = cls.get_context(records, header, data)
             return cls.convert(action, cls.render(action, report_context))
 
     @classmethod
     def _get_records(cls, ids, model, data):
-        pool = Pool()
+        pool = tx.pool
         Model = pool.get(model)
         Config = pool.get('ir.configuration')
         Lang = pool.get('ir.lang')
-        context = Transaction().context
+        context = tx.transaction.context
 
         class TranslateModel(object):
             _languages = {}
@@ -327,7 +328,7 @@ class Report(URLMixin, PoolBase):
 
             def __init__(self, id):
                 self.id = id
-                self._language = Transaction().language
+                self._language = tx.transaction.language
 
             def set_lang(self, language=None):
                 if isinstance(language, Lang):
@@ -338,7 +339,7 @@ class Report(URLMixin, PoolBase):
 
             def __getattr__(self, name):
                 if self._language not in TranslateModel._languages:
-                    with Transaction().set_context(
+                    with tx.transaction.set_context(
                             context=context, language=self._language):
                         records = Model.browse(ids)
                     id2record = dict((r.id, r) for r in records)
@@ -358,15 +359,15 @@ class Report(URLMixin, PoolBase):
 
     @classmethod
     def get_context(cls, records, header, data):
-        pool = Pool()
+        pool = tx.pool
         User = pool.get('res.user')
         Lang = pool.get('ir.lang')
 
         report_context = {}
         report_context['header'] = header
         report_context['data'] = data
-        report_context['context'] = Transaction().context
-        report_context['user'] = User(Transaction().user)
+        report_context['context'] = tx.transaction.context
+        report_context['user'] = User(tx.transaction.user)
         report_context['records'] = records
         report_context['objects'] = records
         report_context['record'] = records[0] if records else None
@@ -385,7 +386,7 @@ class Report(URLMixin, PoolBase):
         def set_lang(language=None):
             if isinstance(language, Lang):
                 language = language.code
-            Transaction().set_context(language=language)
+            tx.transaction.set_context(language=language)
         report_context['set_lang'] = set_lang
         report_context['msg_gettext'] = gettext
         report_context['msg_ngettext'] = ngettext
@@ -400,7 +401,7 @@ class Report(URLMixin, PoolBase):
         # https://support.coopengo.com/issues/20664
         return
         if report.translatable:
-            pool = Pool()
+            pool = tx.pool
             Translation = pool.get('ir.translation')
             translate = TranslateFactory(cls.__name__, Translation)
             translator = Translator(translate)
@@ -535,7 +536,7 @@ class Report(URLMixin, PoolBase):
     @classmethod
     def convert_api(cls, report, data, timeout):
         # AKE: support printing via external api
-        User = Pool().get('res.user')
+        User = tx.pool.get('res.user')
         input_format = report.template_extension
         output_format = report.extension or report.template_extension
 
@@ -563,13 +564,13 @@ class Report(URLMixin, PoolBase):
                     time.sleep(0.1)
                     continue
                 report.conversion_failure(oext)
-                user = User(Transaction().user)
+                user = User(tx.transaction.user)
                 logger.error(e.message + ' User: %s' % user.name or '')
                 raise
 
     @classmethod
     def format_date(cls, value, lang=None, format=None):
-        pool = Pool()
+        pool = tx.pool
         Lang = pool.get('ir.lang')
         if lang is None:
             lang = Lang.get()
@@ -577,7 +578,7 @@ class Report(URLMixin, PoolBase):
 
     @classmethod
     def format_datetime(cls, value, lang=None, format=None, timezone=None):
-        pool = Pool()
+        pool = tx.pool
         Lang = pool.get('ir.lang')
         if lang is None:
             lang = Lang.get()
@@ -591,7 +592,7 @@ class Report(URLMixin, PoolBase):
 
     @classmethod
     def format_timedelta(cls, value, converter=None, lang=None):
-        pool = Pool()
+        pool = tx.pool
         Lang = pool.get('ir.lang')
         if lang is None:
             lang = Lang.get()
@@ -636,7 +637,7 @@ class Report(URLMixin, PoolBase):
     def format_currency(
             cls, value, lang, currency, symbol=True, grouping=True,
             digits=None):
-        pool = Pool()
+        pool = tx.pool
         Lang = pool.get('ir.lang')
         if lang is None:
             lang = Lang.get()
@@ -646,7 +647,7 @@ class Report(URLMixin, PoolBase):
     @classmethod
     def format_number(
             cls, value, lang, digits=None, grouping=True, monetary=None):
-        pool = Pool()
+        pool = tx.pool
         Lang = pool.get('ir.lang')
         if lang is None:
             lang = Lang.get()
@@ -656,7 +657,7 @@ class Report(URLMixin, PoolBase):
     @classmethod
     def format_number_symbol(
             cls, value, lang, symbol, digits=None, grouping=True):
-        pool = Pool()
+        pool = tx.pool
         Lang = pool.get('ir.lang')
         if lang is None:
             lang = Lang.get()
@@ -678,7 +679,7 @@ class Report(URLMixin, PoolBase):
 
 def get_email(report, record, languages):
     "Return email.mime and title from the report execution"
-    pool = Pool()
+    pool = tx.pool
     ActionReport = pool.get('ir.action.report')
     report_id = None
     if inspect.isclass(report) and issubclass(report, Report):
@@ -694,7 +695,7 @@ def get_email(report, record, languages):
     msg = EmailMessage()
     header_factory = msg.policy.header_factory
     for alternative, language in enumerate(languages):
-        with Transaction().set_context(
+        with tx.transaction.set_context(
                 language=language.code, with_rec_name=False):
             ext, content, _, title = Report_.execute(
                 [record.id], {

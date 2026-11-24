@@ -8,9 +8,10 @@ try:
 except ImportError:
     phonenumbers = None
 
+from trytond import tx
 from trytond.i18n import gettext
 from trytond.model import fields
-from trytond.pool import Pool, PoolMeta
+from trytond.pool import PoolMeta
 from trytond.pyson import Eval
 from trytond.tools import remove_forbidden_chars
 
@@ -58,7 +59,7 @@ class Address(metaclass=PoolMeta):
         return address
 
     def set_vsf(self, data, for_party=None):
-        pool = Pool()
+        pool = tx.pool
         Country = pool.get('country.country')
         Subdivision = pool.get('country.subdivision')
         ContactMechanism = pool.get('party.contact_mechanism')
@@ -121,7 +122,7 @@ class Identifier(metaclass=PoolMeta):
     __name__ = 'party.identifier'
 
     def set_vsf_tax_identifier(self, code):
-        pool = Pool()
+        pool = tx.pool
         Party = pool.get('party.party')
         for type in Party.tax_identifier_types():
             module = get_cc_module(*type.split('_', 1))

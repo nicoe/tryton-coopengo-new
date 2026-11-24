@@ -1,9 +1,9 @@
 # This file is part of Tryton.  The COPYRIGHT file at the top level of
 # this repository contains the full copyright notices and license terms.
 
+from trytond import tx
 from trytond.model.exceptions import (
     DomainValidationError, RequiredValidationError, SizeValidationError)
-from trytond.pool import Pool
 from trytond.tests.test_tryton import (
     TestCase, activate_module, with_transaction)
 
@@ -399,7 +399,7 @@ class CommonTestCaseMixin:
     @with_transaction()
     def test_write_not_readd(self):
         "Test write many2many do not re-add existing"
-        pool = Pool()
+        pool = tx.pool
         Many2Many = self.Many2Many()
         Relation = pool.get(Many2Many.targets.relation_name)
         many2many, = Many2Many.create([{
@@ -425,18 +425,18 @@ class FieldMany2ManyTestCase(TestCase, CommonTestCaseMixin):
         activate_module('tests')
 
     def Many2Many(self):
-        return Pool().get('test.many2many')
+        return tx.pool.get('test.many2many')
 
     def Many2ManyTarget(self):
-        return Pool().get('test.many2many.target')
+        return tx.pool.get('test.many2many.target')
 
     def Many2ManyActive(self):
-        return Pool().get('test.many2many_active')
+        return tx.pool.get('test.many2many_active')
 
     @with_transaction()
     def test_create_required_with_value(self):
         "Test create many2many required with value"
-        Many2Many = Pool().get('test.many2many_required')
+        Many2Many = tx.pool.get('test.many2many_required')
 
         many2many, = Many2Many.create([{
                     'targets': [
@@ -451,7 +451,7 @@ class FieldMany2ManyTestCase(TestCase, CommonTestCaseMixin):
     @with_transaction()
     def test_create_required_without_value(self):
         "Test create many2many required without value"
-        Many2Many = Pool().get('test.many2many_required')
+        Many2Many = tx.pool.get('test.many2many_required')
 
         with self.assertRaises(RequiredValidationError):
             Many2Many.create([{}])
@@ -459,7 +459,7 @@ class FieldMany2ManyTestCase(TestCase, CommonTestCaseMixin):
     @with_transaction()
     def test_create_size_valid(self):
         "Test create many2many size valid"
-        Many2Many = Pool().get('test.many2many_size')
+        Many2Many = tx.pool.get('test.many2many_size')
 
         many2many, = Many2Many.create([{
                     'targets': [
@@ -472,7 +472,7 @@ class FieldMany2ManyTestCase(TestCase, CommonTestCaseMixin):
     @with_transaction()
     def test_create_size_invalid(self):
         "Test create many2many size invalid"
-        Many2Many = Pool().get('test.many2many_size')
+        Many2Many = tx.pool.get('test.many2many_size')
 
         with self.assertRaises(SizeValidationError):
             Many2Many.create([{
@@ -484,7 +484,7 @@ class FieldMany2ManyTestCase(TestCase, CommonTestCaseMixin):
     @with_transaction()
     def test_create_with_domain_valid(self):
         "Test create many2many with valid domain"
-        pool = Pool()
+        pool = tx.pool
         Many2Many = pool.get('test.many2many_domain')
 
         many2many, = Many2Many.create([{
@@ -498,7 +498,7 @@ class FieldMany2ManyTestCase(TestCase, CommonTestCaseMixin):
     @with_transaction()
     def test_create_with_domain_invalid(self):
         "Test create many2many with invalid domain"
-        pool = Pool()
+        pool = tx.pool
         Many2Many = pool.get('test.many2many_domain')
 
         with self.assertRaisesRegex(
@@ -514,7 +514,7 @@ class FieldMany2ManyTestCase(TestCase, CommonTestCaseMixin):
     @with_transaction()
     def test_create_filter(self):
         "Test create many2many with filter"
-        Many2Many = Pool().get('test.many2many_filter')
+        Many2Many = tx.pool.get('test.many2many_filter')
 
         filtered, = Many2Many.create([{
                     'targets': [
@@ -528,7 +528,7 @@ class FieldMany2ManyTestCase(TestCase, CommonTestCaseMixin):
     @with_transaction()
     def test_create_filter_domain(self):
         "Test create many2many with filter and domain"
-        Many2Many = Pool().get('test.many2many_filter_domain')
+        Many2Many = tx.pool.get('test.many2many_filter_domain')
 
         filtered, = Many2Many.create([{
                     'targets': [
@@ -542,7 +542,7 @@ class FieldMany2ManyTestCase(TestCase, CommonTestCaseMixin):
     @with_transaction()
     def test_search_non_equals_filter(self):
         "Test search many2many non equals with filter"
-        Many2Many = Pool().get('test.many2many_filter')
+        Many2Many = tx.pool.get('test.many2many_filter')
         many2many, = Many2Many.create([{
                     'targets': [('create', [{'value': -1}])],
                     }])
@@ -557,7 +557,7 @@ class FieldMany2ManyTestCase(TestCase, CommonTestCaseMixin):
     @with_transaction()
     def test_search_join_filter(self):
         "Test search many2many join with filter"
-        Many2Many = Pool().get('test.many2many_filter')
+        Many2Many = tx.pool.get('test.many2many_filter')
         many2many, = Many2Many.create([{
                     'targets': [('create', [{'value': -1}])],
                     }])
@@ -594,7 +594,7 @@ class FieldMany2ManyTestCase(TestCase, CommonTestCaseMixin):
     @with_transaction()
     def test_search_child_of_root1(self):
         "Test search many2many child of root1"
-        Many2Many = Pool().get('test.many2many_tree')
+        Many2Many = tx.pool.get('test.many2many_tree')
         self.create_tree(Many2Many)
 
         result = Many2Many.search([
@@ -610,7 +610,7 @@ class FieldMany2ManyTestCase(TestCase, CommonTestCaseMixin):
     @with_transaction()
     def test_search_not_child_of_root1(self):
         "Test search many2many not child of root1"
-        Many2Many = Pool().get('test.many2many_tree')
+        Many2Many = tx.pool.get('test.many2many_tree')
         self.create_tree(Many2Many)
 
         result = Many2Many.search([
@@ -626,7 +626,7 @@ class FieldMany2ManyTestCase(TestCase, CommonTestCaseMixin):
     @with_transaction()
     def test_search_child_of_second1(self):
         "Test search many2many child of second1"
-        Many2Many = Pool().get('test.many2many_tree')
+        Many2Many = tx.pool.get('test.many2many_tree')
         self.create_tree(Many2Many)
 
         result = Many2Many.search([
@@ -638,7 +638,7 @@ class FieldMany2ManyTestCase(TestCase, CommonTestCaseMixin):
     @with_transaction()
     def test_search_not_child_of_second1(self):
         "Test search many2many not child of second1"
-        Many2Many = Pool().get('test.many2many_tree')
+        Many2Many = tx.pool.get('test.many2many_tree')
         self.create_tree(Many2Many)
 
         result = Many2Many.search([
@@ -654,7 +654,7 @@ class FieldMany2ManyTestCase(TestCase, CommonTestCaseMixin):
     @with_transaction()
     def test_search_child_of_empty(self):
         "Test search many2many child of empty"
-        Many2Many = Pool().get('test.many2many_tree')
+        Many2Many = tx.pool.get('test.many2many_tree')
         self.create_tree(Many2Many)
 
         result = Many2Many.search([
@@ -666,7 +666,7 @@ class FieldMany2ManyTestCase(TestCase, CommonTestCaseMixin):
     @with_transaction()
     def test_search_not_child_of_empty(self):
         "Test search many2many not child of empty"
-        Many2Many = Pool().get('test.many2many_tree')
+        Many2Many = tx.pool.get('test.many2many_tree')
         self.create_tree(Many2Many)
 
         result = Many2Many.search([
@@ -682,7 +682,7 @@ class FieldMany2ManyTestCase(TestCase, CommonTestCaseMixin):
     @with_transaction()
     def test_search_parent_of_root1(self):
         "Test search many2many parent of root1"
-        Many2Many = Pool().get('test.many2many_tree')
+        Many2Many = tx.pool.get('test.many2many_tree')
         self.create_tree(Many2Many)
 
         result = Many2Many.search([
@@ -694,7 +694,7 @@ class FieldMany2ManyTestCase(TestCase, CommonTestCaseMixin):
     @with_transaction()
     def test_search_not_parent_of_root1(self):
         "Test search many2many not parent of root1"
-        Many2Many = Pool().get('test.many2many_tree')
+        Many2Many = tx.pool.get('test.many2many_tree')
         self.create_tree(Many2Many)
 
         result = Many2Many.search([
@@ -710,7 +710,7 @@ class FieldMany2ManyTestCase(TestCase, CommonTestCaseMixin):
     @with_transaction()
     def test_search_parent_of_second4(self):
         "Test search many2many parent of second4"
-        Many2Many = Pool().get('test.many2many_tree')
+        Many2Many = tx.pool.get('test.many2many_tree')
         self.create_tree(Many2Many)
 
         result = Many2Many.search([
@@ -724,7 +724,7 @@ class FieldMany2ManyTestCase(TestCase, CommonTestCaseMixin):
     @with_transaction()
     def test_search_not_parent_of_second4(self):
         "Test search many2many not parent of second4"
-        Many2Many = Pool().get('test.many2many_tree')
+        Many2Many = tx.pool.get('test.many2many_tree')
         self.create_tree(Many2Many)
 
         result = Many2Many.search([
@@ -740,7 +740,7 @@ class FieldMany2ManyTestCase(TestCase, CommonTestCaseMixin):
     @with_transaction()
     def test_search_parent_of_empty(self):
         "Test search many2many parent of empty"
-        Many2Many = Pool().get('test.many2many_tree')
+        Many2Many = tx.pool.get('test.many2many_tree')
         self.create_tree(Many2Many)
 
         result = Many2Many.search([
@@ -752,7 +752,7 @@ class FieldMany2ManyTestCase(TestCase, CommonTestCaseMixin):
     @with_transaction()
     def test_search_not_parent_of_empty(self):
         "Test search many2many not parent of empty"
-        Many2Many = Pool().get('test.many2many_tree')
+        Many2Many = tx.pool.get('test.many2many_tree')
         self.create_tree(Many2Many)
 
         result = Many2Many.search([
@@ -768,7 +768,7 @@ class FieldMany2ManyTestCase(TestCase, CommonTestCaseMixin):
     @with_transaction()
     def test_context_attribute(self):
         "Test context on many2many attribute"
-        pool = Pool()
+        pool = tx.pool
         Many2Many = pool.get('test.many2many_context')
 
         record, = Many2Many.create([{
@@ -780,7 +780,7 @@ class FieldMany2ManyTestCase(TestCase, CommonTestCaseMixin):
     @with_transaction()
     def test_context_read(self):
         "Test context on many2many read"
-        pool = Pool()
+        pool = tx.pool
         Many2Many = pool.get('test.many2many_context')
 
         record, = Many2Many.create([{
@@ -793,7 +793,7 @@ class FieldMany2ManyTestCase(TestCase, CommonTestCaseMixin):
     @with_transaction()
     def test_context_set(self):
         "Test context on many2many set"
-        pool = Pool()
+        pool = tx.pool
         Many2Many = pool.get('test.many2many_context')
         Target = pool.get('test.many2many_context.target')
 
@@ -805,7 +805,7 @@ class FieldMany2ManyTestCase(TestCase, CommonTestCaseMixin):
     @with_transaction()
     def test_read_order(self):
         "Test read on many2many respect the order specified"
-        pool = Pool()
+        pool = tx.pool
         Many2Many = pool.get('test.many2many_order')
         Target = pool.get('test.many2many_order.target')
         Relation = pool.get('test.many2many_order.relation')
@@ -835,10 +835,10 @@ class FieldMany2ManyReferenceTestCase(TestCase, CommonTestCaseMixin):
         activate_module('tests')
 
     def Many2Many(self):
-        return Pool().get('test.many2many_reference')
+        return tx.pool.get('test.many2many_reference')
 
     def Many2ManyTarget(self):
-        return Pool().get('test.many2many_reference.target')
+        return tx.pool.get('test.many2many_reference.target')
 
     def Many2ManyActive(self):
-        return Pool().get('test.many2many_reference.active')
+        return tx.pool.get('test.many2many_reference.active')

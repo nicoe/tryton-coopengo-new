@@ -1,7 +1,8 @@
 # This file is part of Tryton.  The COPYRIGHT file at the top level of
 # this repository contains the full copyright notices and license terms.
+from trytond import tx
 from trytond.model import ModelView, Workflow
-from trytond.pool import Pool, PoolMeta
+from trytond.pool import PoolMeta
 
 
 class Move(metaclass=PoolMeta):
@@ -9,7 +10,7 @@ class Move(metaclass=PoolMeta):
 
     @classmethod
     def check_over_shipment(cls, moves):
-        pool = Pool()
+        pool = tx.pool
         SaleLine = pool.get('sale.line')
         for move in moves:
             if isinstance(move.origin, SaleLine):

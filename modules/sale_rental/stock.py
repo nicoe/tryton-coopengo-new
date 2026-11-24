@@ -1,10 +1,11 @@
 # This file is part of Tryton.  The COPYRIGHT file at the top level of
 # this repository contains the full copyright notices and license terms.
 
+from trytond import tx
 from trytond.i18n import gettext
 from trytond.model import ModelView, Workflow, fields
 from trytond.modules.stock.exceptions import MoveValidationError
-from trytond.pool import Pool, PoolMeta
+from trytond.pool import PoolMeta
 from trytond.pyson import Eval
 
 
@@ -79,7 +80,7 @@ class Move(metaclass=PoolMeta):
     @ModelView.button
     @Workflow.transition('done')
     def do(cls, moves):
-        pool = Pool()
+        pool = tx.pool
         SaleRental = pool.get('sale.rental')
         super().do(moves)
         sale_rentals = {
@@ -96,7 +97,7 @@ class Move(metaclass=PoolMeta):
 
     @classmethod
     def check_rental_quantities(cls, moves, field_names):
-        pool = Pool()
+        pool = tx.pool
         Lang = pool.get('ir.lang')
         SaleRental = pool.get('sale.rental')
         SaleRentalLine = pool.get('sale.rental.line')

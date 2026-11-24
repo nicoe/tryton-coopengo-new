@@ -9,11 +9,10 @@ import genshi.template
 # XXX fix: https://genshi.edgewall.org/ticket/582
 from genshi.template.astutil import ASTCodeGenerator, ASTTransformer
 
+from trytond import tx
 from trytond.model import Model
-from trytond.pool import Pool
 from trytond.rpc import RPC
 from trytond.tools import cached_property, slugify
-from trytond.transaction import Transaction
 
 if not hasattr(ASTCodeGenerator, 'visit_NameConstant'):
     def visit_NameConstant(self, node):
@@ -63,12 +62,12 @@ class Invoice(Model):
                 })
 
     def __init__(self, invoice):
-        pool = Pool()
+        pool = tx.pool
         Invoice = pool.get('account.invoice')
         super().__init__()
         if int(invoice) >= 0:
             invoice = Invoice(int(invoice))
-            with Transaction().set_context(language=invoice.party_lang):
+            with tx.transaction.set_context(language=invoice.party_lang):
                 self.invoice = invoice.__class__(int(invoice))
         else:
             self.invoice = invoice

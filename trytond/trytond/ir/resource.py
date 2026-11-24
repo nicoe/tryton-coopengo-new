@@ -5,13 +5,13 @@ from collections import defaultdict
 
 from sql.conditionals import Coalesce
 
+from trytond import tx
 from trytond.i18n import gettext, lazy_gettext
 from trytond.model import Index, ModelSQL, ModelStorage, ModelView, fields
 from trytond.model.exceptions import AccessError
-from trytond.pool import Pool
 from trytond.pyson import Eval
 from trytond.tools.domain_inversion import is_leaf
-from trytond.transaction import Transaction, without_check_access
+from trytond.transaction import without_check_access
 
 __all__ = ['ResourceAccessMixin', 'ResourceMixin', 'resource_copy']
 
@@ -31,25 +31,25 @@ class ResourceAccessMixin(ModelStorage):
 
     @classmethod
     def default_resource(cls):
-        return Transaction().context.get('resource')
+        return tx.transaction.context.get('resource')
 
     @staticmethod
     def get_models():
-        pool = Pool()
+        pool = tx.pool
         Model = pool.get('ir.model')
         ModelAccess = pool.get('ir.model.access')
         models = Model.get_name_items((ModelStorage, ModelView))
-        if Transaction().check_access:
+        if tx.transaction.check_access:
             access = ModelAccess.get_access([m for m, _ in models])
             models = [(m, n) for m, n in models if access[m]['read']]
         return models
 
     @classmethod
     def check_access(cls, ids, mode='read'):
-        pool = Pool()
+        pool = tx.pool
         ModelAccess = pool.get('ir.model.access')
         Rule = pool.get('ir.rule')
-        transaction = Transaction()
+        transaction = tx.transaction
         if transaction.user == 0 or not transaction.check_access:
             return
         records = defaultdict(set)
@@ -70,7 +70,7 @@ class ResourceAccessMixin(ModelStorage):
 
     @classmethod
     def check_search_access(cls, domain):
-        pool = Pool()
+        pool = tx.pool
         ModelData = pool.get('ir.model.data')
         ModelAccess = pool.get('ir.model.access')
         Rule = pool.get('ir.rule')
@@ -113,7 +113,7 @@ class ResourceAccessMixin(ModelStorage):
                             return True
             return False
 
-        transaction = Transaction()
+        transaction = tx.transaction
         if not transaction.user or not transaction.check_access:
             return
         user_groups = {g.id for g in User(transaction.user).groups}
@@ -190,7 +190,7 @@ class ResourceMixin(ResourceAccessMixin, ModelStorage, ModelView):
 
     @fields.depends('resource')
     def get_copy_to_resources(self):
-        pool = Pool()
+        pool = tx.pool
         Model = pool.get('ir.model')
         resources = []
         if isinstance(self.resource, ResourceCopyMixin):
@@ -237,7 +237,7 @@ def resource_copy(resource, name, string):
             return super().copy(records, default=default)
 
         def copy_resources_to(self, target):
-            pool = Pool()
+            pool = tx.pool
             Resource = pool.get(resource)
 
             try:

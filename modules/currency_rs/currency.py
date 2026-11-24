@@ -7,11 +7,12 @@ from zeep import Client, Transport
 from zeep.exceptions import Error
 
 import trytond.config as config
+from trytond import tx
 from trytond.cache import Cache
 from trytond.i18n import gettext
 from trytond.model import fields
 from trytond.modules.currency.currency import CronFetchError
-from trytond.pool import Pool, PoolMeta
+from trytond.pool import PoolMeta
 from trytond.pyson import Eval, If
 
 from .exceptions import RSCredentialWarning
@@ -101,7 +102,7 @@ class Cron(metaclass=PoolMeta):
 
     @classmethod
     def check_modification(cls, mode, crons, values=None, external=False):
-        pool = Pool()
+        pool = tx.pool
         Warning = pool.get('res.user.warning')
 
         super().check_modification(

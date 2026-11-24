@@ -10,7 +10,7 @@ from sql import Null
 from sql.aggregate import Count
 from sql.functions import CharLength
 
-from trytond import backend
+from trytond import backend, tx
 from trytond.i18n import gettext
 from trytond.ir.attachment import AttachmentCopyMixin
 from trytond.ir.note import NoteCopyMixin
@@ -25,10 +25,8 @@ from trytond.modules.company.model import (
     employee_field, reset_employee, set_employee)
 from trytond.modules.currency.fields import Monetary
 from trytond.modules.product import price_digits
-from trytond.pool import Pool
 from trytond.pyson import Bool, Eval, If
 from trytond.tools import cached_property, firstline
-from trytond.transaction import Transaction
 from trytond.wizard import (
     Button, StateAction, StateTransition, StateView, Wizard)
 
@@ -43,7 +41,7 @@ def samesign(a, b):
 def get_shipments_returns(model_name):
     "Computes the returns or shipments"
     def method(self, name):
-        Model = Pool().get(model_name)
+        Model = tx.pool.get(model_name)
         shipments = set()
         for line in self.line_lines:
             for move in line.moves:
@@ -365,7 +363,7 @@ class Purchase(
 
     @classmethod
     def __register__(cls, module_name):
-        cursor = Transaction().connection.cursor()
+        cursor = tx.transaction.connection.cursor()
         sql_table = cls.__table__()
 
         super().__register__(module_name)
@@ -389,12 +387,12 @@ class Purchase(
 
     @classmethod
     def default_warehouse(cls):
-        Location = Pool().get('stock.location')
+        Location = tx.pool.get('stock.location')
         return Location.get_default_warehouse()
 
     @staticmethod
     def default_company():
-        return Transaction().context.get('company')
+        return tx.transaction.context.get('company')
 
     @fields.depends('company')
     def on_change_company(self):
@@ -407,7 +405,7 @@ class Purchase(
 
     @classmethod
     def default_currency(cls, **pattern):
-        pool = Pool()
+        pool = tx.pool
         Company = pool.get('company.company')
         company = pattern.get('company')
         if not company:
@@ -417,7 +415,7 @@ class Purchase(
 
     @classmethod
     def default_invoice_method(cls, **pattern):
-        Configuration = Pool().get('purchase.configuration')
+        Configuration = tx.pool.get('purchase.configuration')
         configuration = Configuration(1)
         return configuration.get_multivalue(
             'purchase_invoice_method', **pattern)
@@ -433,7 +431,7 @@ class Purchase(
     @fields.depends(
         'company', 'party', 'invoice_party', 'payment_term', 'lines')
     def on_change_party(self):
-        cursor = Transaction().connection.cursor()
+        cursor = tx.transaction.connection.cursor()
         table = self.__table__()
         if not self.invoice_party:
             self.invoice_address = None
@@ -487,7 +485,7 @@ class Purchase(
 
     @fields.depends('party')
     def on_change_with_party_lang(self, name=None):
-        Config = Pool().get('ir.configuration')
+        Config = tx.pool.get('ir.configuration')
         if self.party:
             if self.party.lang:
                 return self.party.lang.code
@@ -677,7 +675,7 @@ class Purchase(
 
     @classmethod
     def get_origin(cls):
-        Model = Pool().get('ir.model')
+        Model = tx.pool.get('ir.model')
         get_name = Model.get_name
         models = cls._get_origin()
         return [(None, '')] + [(m, get_name(m)) for m in models]
@@ -732,7 +730,7 @@ class Purchase(
             ('/tree/field[@name="shipment_state"]', 'visual',
                 If(Eval('shipment_state') == 'exception', 'danger', '')),
             ]
-        if Transaction().context.get('modify_header'):
+        if tx.transaction.context.get('modify_header'):
             attributes.extend([
                     ('//group[@id="states"]', 'states', {'invisible': True}),
                     ('//group[@id="amount"]', 'states', {'invisible': True}),
@@ -791,7 +789,7 @@ class Purchase(
         '''
         Fill the number field with the purchase sequence
         '''
-        pool = Pool()
+        pool = tx.pool
         Config = pool.get('purchase.configuration')
 
         config = Config(1)
@@ -808,9 +806,9 @@ class Purchase(
 
     @classmethod
     def set_purchase_date(cls, purchases):
-        Date = Pool().get('ir.date')
+        Date = tx.pool.get('ir.date')
         for company, purchases in groupby(purchases, key=lambda p: p.company):
-            with Transaction().set_context(company=company.id):
+            with tx.transaction.set_context(company=company.id):
                 today = Date.today()
             cls.write([p for p in purchases if not p.purchase_date], {
                     'purchase_date': today,
@@ -832,7 +830,7 @@ class Purchase(
 
     def _get_invoice(self):
         'Return invoice'
-        pool = Pool()
+        pool = tx.pool
         Invoice = pool.get('account.invoice')
         party = self.invoice_party or self.party
         invoice = Invoice(
@@ -849,7 +847,7 @@ class Purchase(
 
     def create_invoice(self):
         'Create an invoice for the purchase and return it'
-        context = Transaction().context
+        context = tx.transaction.context
         if (self.invoice_method == 'manual'
                 and not context.get('_purchase_manual_invoice', False)):
             return
@@ -871,7 +869,7 @@ class Purchase(
         '''
         Create move for each purchase lines
         '''
-        pool = Pool()
+        pool = tx.pool
         Move = pool.get('stock.move')
 
         moves = []
@@ -889,7 +887,7 @@ class Purchase(
                 or self.warehouse.storage_location)
 
     def _get_return_shipment(self):
-        ShipmentInReturn = Pool().get('stock.shipment.in.return')
+        ShipmentInReturn = tx.pool.get('stock.shipment.in.return')
         return ShipmentInReturn(
             company=self.company,
             from_location=self.return_from_location,
@@ -959,7 +957,7 @@ class Purchase(
 
     @property
     def process_after(self):
-        pool = Pool()
+        pool = tx.pool
         Configuration = pool.get('purchase.configuration')
         config = Configuration(1)
         return config.purchase_process_after
@@ -969,9 +967,9 @@ class Purchase(
     @Workflow.transition('confirmed')
     @set_employee('confirmed_by')
     def confirm(cls, purchases):
-        pool = Pool()
+        pool = tx.pool
         Line = pool.get('purchase.line')
-        transaction = Transaction()
+        transaction = tx.transaction
         context = transaction.context
         cls.set_purchase_date(purchases)
 
@@ -1030,7 +1028,7 @@ class Purchase(
 
     @classmethod
     def _save_invoice(cls, invoices):
-        pool = Pool()
+        pool = tx.pool
         Invoice = pool.get('account.invoice')
 
         Invoice.save(invoices.values())
@@ -1039,7 +1037,7 @@ class Purchase(
 
     @classmethod
     def _process_fulfillment(cls, purchases):
-        pool = Pool()
+        pool = tx.pool
         Move = pool.get('stock.move')
         ShipmentInReturn = pool.get('stock.shipment.in.return')
 
@@ -1060,7 +1058,7 @@ class Purchase(
 
     @classmethod
     def _process_invoice_fulfillment_states(cls, purchases):
-        pool = Pool()
+        pool = tx.pool
         Line = pool.get('purchase.line')
         lines = []
         purchases_to_invoice = defaultdict(list)
@@ -1112,7 +1110,7 @@ class Purchase(
     @ModelView.button
     def manual_invoice(cls, purchases):
         purchases = [p for p in purchases if p.invoice_method == 'manual']
-        with Transaction().set_context(_purchase_manual_invoice=True):
+        with tx.transaction.set_context(_purchase_manual_invoice=True):
             cls.process(purchases)
 
     @classmethod
@@ -1474,7 +1472,7 @@ class Line(sequence_ordered(), ModelSQL, ModelView):
     @property
     def _invoice_remaining_quantity(self):
         "Compute the remaining quantity to be paid"
-        pool = Pool()
+        pool = tx.pool
         UoM = pool.get('product.uom')
         if self.type != 'line':
             return
@@ -1509,7 +1507,7 @@ class Line(sequence_ordered(), ModelSQL, ModelView):
     @property
     def _move_remaining_quantity(self):
         "Compute the remaining quantity to receive"
-        pool = Pool()
+        pool = tx.pool
         Uom = pool.get('product.uom')
         if self.type != 'line' or not self.product:
             return
@@ -1631,7 +1629,7 @@ class Line(sequence_ordered(), ModelSQL, ModelView):
         'type', 'product',
         methods=['on_change_with_company', '_get_tax_rule_pattern'])
     def compute_taxes(self, party):
-        pool = Pool()
+        pool = tx.pool
         AccountConfiguration = pool.get('account.configuration')
 
         if self.type != 'line':
@@ -1665,12 +1663,13 @@ class Line(sequence_ordered(), ModelSQL, ModelView):
     @fields.depends('product', 'quantity', 'unit_price',
         methods=['_get_context_purchase_price'])
     def compute_unit_price(self):
-        pool = Pool()
+        pool = tx.pool
         Product = pool.get('product.product')
 
         unit_price = None
         if self.product:
-            with Transaction().set_context(self._get_context_purchase_price()):
+            with tx.transaction.set_context(
+                    self._get_context_purchase_price()):
                 unit_price = Product.get_purchase_price(
                     [self.product], abs(self.quantity or 0))[self.product.id]
         if unit_price is None:
@@ -1762,7 +1761,7 @@ class Line(sequence_ordered(), ModelSQL, ModelView):
 
     @fields.depends('product')
     def on_change_with_movable(self, name=None):
-        pool = Pool()
+        pool = tx.pool
         Move = pool.get('stock.move')
         if self.product:
             return self.product.type in Move.get_product_types()
@@ -1796,7 +1795,7 @@ class Line(sequence_ordered(), ModelSQL, ModelView):
         '_parent_purchase.delivery_date', '_parent_purchase.party',
         '_parent_purchase.company')
     def planned_delivery_date(self):
-        pool = Pool()
+        pool = tx.pool
         ProductSupplier = pool.get('purchase.product_supplier')
 
         product_supplier = self.product_supplier
@@ -1821,7 +1820,7 @@ class Line(sequence_ordered(), ModelSQL, ModelView):
 
     @classmethod
     def get_purchase_states(cls):
-        pool = Pool()
+        pool = tx.pool
         Purchase = pool.get('purchase.purchase')
         return Purchase.fields_get(['state'])['state']['selection']
 
@@ -1866,7 +1865,7 @@ class Line(sequence_ordered(), ModelSQL, ModelView):
 
     def get_invoice_line(self):
         'Return a list of invoice line for purchase line'
-        pool = Pool()
+        pool = tx.pool
         InvoiceLine = pool.get('account.invoice.line')
         AccountConfiguration = pool.get('account.configuration')
         account_config = AccountConfiguration(1)
@@ -1924,7 +1923,7 @@ class Line(sequence_ordered(), ModelSQL, ModelView):
 
     def _get_invoice_line_quantity(self):
         'Return the quantity that should be invoiced'
-        pool = Pool()
+        pool = tx.pool
         Uom = pool.get('product.uom')
 
         if (self.purchase.invoice_method in {'order', 'manual'}
@@ -1950,7 +1949,7 @@ class Line(sequence_ordered(), ModelSQL, ModelView):
 
     def _get_invoiced_quantity(self):
         'Return the quantity already invoiced'
-        pool = Pool()
+        pool = tx.pool
         Uom = pool.get('product.uom')
 
         quantity = 0
@@ -1984,7 +1983,7 @@ class Line(sequence_ordered(), ModelSQL, ModelView):
         '''
         Return move values for purchase line
         '''
-        pool = Pool()
+        pool = tx.pool
         Move = pool.get('stock.move')
         Date = pool.get('ir.date')
 
@@ -2011,7 +2010,7 @@ class Line(sequence_ordered(), ModelSQL, ModelView):
                     purchase=self.purchase.rec_name,
                     party=self.purchase.party.rec_name))
 
-        with Transaction().set_context(company=self.purchase.company.id):
+        with tx.transaction.set_context(company=self.purchase.company.id):
             today = Date.today()
 
         move = Move()
@@ -2042,7 +2041,7 @@ class Line(sequence_ordered(), ModelSQL, ModelView):
 
     def _get_shipped_quantity(self, move_type):
         'Return the quantity already shipped'
-        pool = Pool()
+        pool = tx.pool
         Uom = pool.get('product.uom')
 
         quantity = 0
@@ -2054,7 +2053,7 @@ class Line(sequence_ordered(), ModelSQL, ModelView):
         return quantity
 
     def check_move_quantity(self):
-        pool = Pool()
+        pool = tx.pool
         Lang = pool.get('ir.lang')
         Warning = pool.get('res.user.warning')
         lang = Lang.get()
@@ -2085,7 +2084,7 @@ class Line(sequence_ordered(), ModelSQL, ModelView):
         return list(lines)
 
     def set_quantities(self):
-        pool = Pool()
+        pool = tx.pool
         Uom = pool.get('product.uom')
         if self.type != 'line':
             return
@@ -2121,7 +2120,7 @@ class Line(sequence_ordered(), ModelSQL, ModelView):
             self.quantity_to_invoice = quantity_to_invoice
 
     def get_rec_name(self, name):
-        pool = Pool()
+        pool = tx.pool
         Lang = pool.get('ir.lang')
         if self.product:
             lang = Lang.get()
@@ -2255,16 +2254,16 @@ class PurchaseReport(CompanyReport):
 
     @classmethod
     def execute(cls, ids, data):
-        with Transaction().set_context(address_with_party=True):
+        with tx.transaction.set_context(address_with_party=True):
             return super().execute(ids, data)
 
     @classmethod
     def get_context(cls, records, header, data):
-        pool = Pool()
+        pool = tx.pool
         Date = pool.get('ir.date')
         context = super().get_context(records, header, data)
         company = header.get('company')
-        with Transaction().set_context(
+        with tx.transaction.set_context(
                 company=company.id if company else None):
             context['today'] = Date.today()
         return context
@@ -2312,7 +2311,7 @@ class HandleShipmentException(Wizard):
             }
 
     def transition_handle(self):
-        pool = Pool()
+        pool = tx.pool
         PurchaseLine = pool.get('purchase.line')
 
         for line in self.record.lines:
@@ -2398,7 +2397,7 @@ class HandleInvoiceException(Wizard):
 
 class ModifyHeaderStateView(StateView):
     def get_view(self, wizard, state_name):
-        with Transaction().set_context(modify_header=True):
+        with tx.transaction.set_context(modify_header=True):
             return super().get_view(
                 wizard, state_name)
 
@@ -2432,7 +2431,7 @@ class ModifyHeader(Wizard):
         return values
 
     def transition_modify(self):
-        pool = Pool()
+        pool = tx.pool
         Line = pool.get('purchase.line')
 
         purchase = self.get_purchase()

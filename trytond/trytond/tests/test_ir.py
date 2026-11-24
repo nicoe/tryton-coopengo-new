@@ -17,12 +17,11 @@ except ImportError:
 
 from dateutil.relativedelta import relativedelta
 
+from trytond import tx
 from trytond.ir.exceptions import SequenceAffixError
 from trytond.ir.lang import _replace
-from trytond.pool import Pool
 from trytond.pyson import Eval, If, PYSONEncoder
 from trytond.tools import timezone
-from trytond.transaction import Transaction
 
 from .test_tryton import (
     ModuleTestCase, TestCase, activate_module, drop_db, with_transaction)
@@ -35,7 +34,7 @@ class IrTestCase(ModuleTestCase):
     @with_transaction()
     def test_model_search_name(self):
         "Test searching on name of model"
-        pool = Pool()
+        pool = tx.pool
         Model = pool.get('ir.model')
 
         record, = Model.search([
@@ -47,7 +46,7 @@ class IrTestCase(ModuleTestCase):
     @with_transaction()
     def test_model_search_order(self):
         "Test searching and ordering on name of model"
-        pool = Pool()
+        pool = tx.pool
         Model = pool.get('ir.model')
 
         records = Model.search([
@@ -60,7 +59,7 @@ class IrTestCase(ModuleTestCase):
     @with_transaction()
     def test_model_field_search_description(self):
         "Test searching on description of model field"
-        pool = Pool()
+        pool = tx.pool
         ModelField = pool.get('ir.model.field')
 
         field, = ModelField.search([
@@ -73,7 +72,7 @@ class IrTestCase(ModuleTestCase):
     @with_transaction()
     def test_model_field_search_order_description(self):
         "Test searching and ordering on description of model field"
-        pool = Pool()
+        pool = tx.pool
         ModelField = pool.get('ir.model.field')
 
         fields = ModelField.search([
@@ -87,7 +86,7 @@ class IrTestCase(ModuleTestCase):
     @unittest.expectedFailure
     def test_model_field_lazy(self):
         "Test searching on lazy string of model field"
-        pool = Pool()
+        pool = tx.pool
         ModelField = pool.get('ir.model.field')
 
         field, = ModelField.search([
@@ -100,7 +99,7 @@ class IrTestCase(ModuleTestCase):
     @with_transaction()
     def test_sequence_substitutions(self):
         'Test Sequence Substitutions'
-        pool = Pool()
+        pool = tx.pool
         Sequence = pool.get('ir.sequence')
         SequenceType = pool.get('ir.sequence.type')
         Date = pool.get('ir.date')
@@ -120,13 +119,13 @@ class IrTestCase(ModuleTestCase):
         sequence.save()
         self.assertEqual(sequence.get(), '%s2' % str(today.year))
         next_year = today + relativedelta(years=1)
-        with Transaction().set_context(date=next_year):
+        with tx.transaction.set_context(date=next_year):
             self.assertEqual(sequence.get(), '%s3' % str(next_year.year))
 
     @with_transaction()
     def test_sequence_format(self):
         'Test Sequence Format'
-        pool = Pool()
+        pool = tx.pool
         Sequence = pool.get('ir.sequence')
         SequenceType = pool.get('ir.sequence.type')
         try:
@@ -144,13 +143,13 @@ class IrTestCase(ModuleTestCase):
 
         today = datetime.date(2023, 1, 1)
 
-        with Transaction().set_context(date=today):
+        with tx.transaction.set_context(date=today):
             self.assertEqual(sequence.get(), '23-1')
 
     @with_transaction()
     def test_sequence_wrong_format(self):
         'Test Sequence Wrong Format'
-        pool = Pool()
+        pool = tx.pool
         Sequence = pool.get('ir.sequence')
         SequenceType = pool.get('ir.sequence.type')
         try:
@@ -171,7 +170,7 @@ class IrTestCase(ModuleTestCase):
     @with_transaction()
     def test_sequence_get(self):
         "Test get sequences"
-        pool = Pool()
+        pool = tx.pool
         Sequence = pool.get('ir.sequence')
         SequenceType = pool.get('ir.sequence.type')
         try:
@@ -190,7 +189,7 @@ class IrTestCase(ModuleTestCase):
     @with_transaction()
     def test_sequence_get_many(self):
         "Test get many sequences"
-        pool = Pool()
+        pool = tx.pool
         Sequence = pool.get('ir.sequence')
         SequenceType = pool.get('ir.sequence.type')
         try:
@@ -210,7 +209,7 @@ class IrTestCase(ModuleTestCase):
     @with_transaction()
     def test_ui_view_tree_width_set(self):
         "Test set view tree width"
-        pool = Pool()
+        pool = tx.pool
         ViewTreeWidth = pool.get('ir.ui.view_tree_width')
 
         model = 'ir.ui.view_tree_width'
@@ -233,12 +232,12 @@ class IrTestCase(ModuleTestCase):
     @with_transaction()
     def test_ui_view_tree_width_set_duplicate(self):
         "Test set view tree width with existing duplicate"
-        pool = Pool()
+        pool = tx.pool
         ViewTreeWidth = pool.get('ir.ui.view_tree_width')
 
         model = 'ir.ui.view_tree_width'
         ViewTreeWidth.create([{
-                    'user': Transaction().user,
+                    'user': tx.transaction.user,
                     'model': model,
                     'field': 'user',
                     'screen_width': 992,
@@ -263,24 +262,24 @@ class IrTestCase(ModuleTestCase):
     @with_transaction()
     def test_ui_view_tree_width_reset(self):
         "Test reset view tree width"
-        pool = Pool()
+        pool = tx.pool
         ViewTreeWidth = pool.get('ir.ui.view_tree_width')
 
         model = 'ir.ui.view_tree_width'
         ViewTreeWidth.create([{
-                    'user': Transaction().user,
+                    'user': tx.transaction.user,
                     'model': model,
                     'field': 'user',
                     'screen_width': 992,
                     'width': 200,
                     }, {
-                    'user': Transaction().user,
+                    'user': tx.transaction.user,
                     'model': model,
                     'field': 'user',
                     'screen_width': None,
                     'width': 200,
                     }, {
-                    'user': Transaction().user,
+                    'user': tx.transaction.user,
                     'model': model,
                     'field': 'user',
                     'screen_width': 1400,
@@ -297,7 +296,7 @@ class IrTestCase(ModuleTestCase):
     @with_transaction()
     def test_ui_view_tree_width_get(self):
         "Test get view tree width"
-        pool = Pool()
+        pool = tx.pool
         ViewTreeWidth = pool.get('ir.ui.view_tree_width')
 
         model = 'ir.ui.view_tree_width'
@@ -317,7 +316,7 @@ class IrTestCase(ModuleTestCase):
     @with_transaction()
     def test_ui_view_tree_width_get_fallback(self):
         "Test get view tree width"
-        pool = Pool()
+        pool = tx.pool
         ViewTreeWidth = pool.get('ir.ui.view_tree_width')
 
         model = 'ir.ui.view_tree_width'
@@ -337,14 +336,14 @@ class IrTestCase(ModuleTestCase):
     @with_transaction()
     def test_global_search(self):
         'Test Global Search'
-        pool = Pool()
+        pool = tx.pool
         Model = pool.get('ir.model')
         Model.global_search('User', 10)
 
     @with_transaction()
     def test_lang_get_subtags(self):
         "Test Lang.get with subtags"
-        pool = Pool()
+        pool = tx.pool
         Lang = pool.get('ir.lang')
 
         self.assertEqual(Lang.get('fr_CA').code, 'fr')
@@ -353,7 +352,7 @@ class IrTestCase(ModuleTestCase):
     @with_transaction()
     def test_lang_get_unknown(self):
         "Test Lang.get with unknown language"
-        pool = Pool()
+        pool = tx.pool
         Lang = pool.get('ir.lang')
 
         self.assertEqual(Lang.get('foo').code, 'en')
@@ -361,7 +360,7 @@ class IrTestCase(ModuleTestCase):
     @with_transaction()
     def test_lang_currency(self):
         "Test Lang.currency"
-        pool = Pool()
+        pool = tx.pool
         Lang = pool.get('ir.lang')
         lang = Lang.get('en')
         currency = Mock()
@@ -379,7 +378,7 @@ class IrTestCase(ModuleTestCase):
     @with_transaction()
     def test_lang_currency_without_symbol(self):
         "Test Lang.currency without symbol"
-        pool = Pool()
+        pool = tx.pool
         Lang = pool.get('ir.lang')
         lang = Lang.get('en')
         currency = Mock()
@@ -398,7 +397,7 @@ class IrTestCase(ModuleTestCase):
     @with_transaction()
     def test_lang_format(self):
         "Test Lang.format"
-        pool = Pool()
+        pool = tx.pool
         Lang = pool.get('ir.lang')
         lang = Lang.get('en')
         test_data = [
@@ -422,7 +421,7 @@ class IrTestCase(ModuleTestCase):
     @with_transaction()
     def test_lang_strftime(self):
         "Test Lang.strftime"
-        pool = Pool()
+        pool = tx.pool
         Lang = pool.get('ir.lang')
         lang = Lang.get('en')
         test_data = [
@@ -449,7 +448,7 @@ class IrTestCase(ModuleTestCase):
     @with_transaction()
     def test_lang_format_number(self):
         "Test Lang.format_number"
-        pool = Pool()
+        pool = tx.pool
         Lang = pool.get('ir.lang')
         lang = Lang.get('en')
         test_data = [
@@ -464,7 +463,7 @@ class IrTestCase(ModuleTestCase):
     @with_transaction()
     def test_lang_format_number_symbol(self):
         "Test Lang.format_number_symbol"
-        pool = Pool()
+        pool = tx.pool
         Lang = pool.get('ir.lang')
         lang = Lang.get('en')
         unit = Mock()
@@ -483,7 +482,7 @@ class IrTestCase(ModuleTestCase):
     @with_transaction()
     def test_lang_plural(self):
         "Test Lang plural"
-        pool = Pool()
+        pool = tx.pool
         Lang = pool.get('ir.lang')
 
         languages = Lang.search([])
@@ -494,7 +493,7 @@ class IrTestCase(ModuleTestCase):
     @with_transaction()
     def test_model_data_get_id(self):
         "Test ModelData.get_id"
-        pool = Pool()
+        pool = tx.pool
         ModelData = pool.get('ir.model.data')
         User = pool.get('res.user')
 
@@ -506,7 +505,7 @@ class IrTestCase(ModuleTestCase):
     @with_transaction()
     def test_model_data_get_id_dot(self):
         "Test ModelData.get_id with dot"
-        pool = Pool()
+        pool = tx.pool
         ModelData = pool.get('ir.model.data')
         User = pool.get('res.user')
 
@@ -518,7 +517,7 @@ class IrTestCase(ModuleTestCase):
     @with_transaction()
     def test_email_send(self):
         "Test sending email"
-        pool = Pool()
+        pool = tx.pool
         Email = pool.get('ir.email')
         Report = pool.get('ir.action.report')
         Attachment = pool.get('ir.attachment')
@@ -580,7 +579,7 @@ class IrTestCase(ModuleTestCase):
     @with_transaction()
     def test_email_template_get(self):
         "Test email template get"
-        pool = Pool()
+        pool = tx.pool
         Template = pool.get('ir.email.template')
         IrModel = pool.get('ir.model')
         IrModelField = pool.get('ir.model.field')
@@ -615,7 +614,7 @@ class IrTestCase(ModuleTestCase):
     @with_transaction()
     def test_email_template_get_default(self):
         "Test email template get default"
-        pool = Pool()
+        pool = tx.pool
         Template = pool.get('ir.email.template')
         IrModel = pool.get('ir.model')
         IrModelField = pool.get('ir.model.field')
@@ -641,7 +640,7 @@ class IrTestCase(ModuleTestCase):
     @with_transaction()
     def test_email_template_get_pyson(self):
         "Test email template get with pyson"
-        pool = Pool()
+        pool = tx.pool
         Template = pool.get('ir.email.template')
         IrModel = pool.get('ir.model')
         IrModelField = pool.get('ir.model.field')
@@ -681,7 +680,7 @@ class IrTestCase(ModuleTestCase):
     @with_transaction()
     def test_model_graph(self):
         "Test model graph"
-        pool = Pool()
+        pool = tx.pool
         Model = pool.get('ir.model')
         ModelGraph = pool.get('ir.model.graph', type='report')
 
@@ -702,7 +701,7 @@ class IrTestCase(ModuleTestCase):
     @with_transaction()
     def test_workflow_graph(self):
         "Test workflow graph"
-        pool = Pool()
+        pool = tx.pool
         Model = pool.get('ir.model')
         ModelWorkflowGraph = pool.get('ir.model.workflow_graph', type='report')
 
@@ -736,7 +735,7 @@ class IrCronTestCase(TestCase):
         self.addCleanup(setattr, timezone, 'SERVER', server_tz)
 
     def _get_cron(self):
-        pool = Pool()
+        pool = tx.pool
         Cron = pool.get('ir.cron')
 
         cron = Cron()
@@ -800,7 +799,7 @@ class IrCronTestCase(TestCase):
     @with_transaction()
     def test_clean(self):
         "Test cleaning cron logs"
-        pool = Pool()
+        pool = tx.pool
         Cron = pool.get('ir.cron')
         Log = pool.get('ir.cron.log')
         dt = datetime

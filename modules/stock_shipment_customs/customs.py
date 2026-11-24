@@ -4,7 +4,7 @@
 from collections import namedtuple
 from decimal import Decimal
 
-from trytond.pool import Pool
+from trytond import tx
 from trytond.report import Report
 
 
@@ -60,7 +60,7 @@ class CommercialInvoice(Report):
 
     @classmethod
     def get_weight(cls, product, weight):
-        pool = Pool()
+        pool = tx.pool
         UoM = pool.get('product.uom')
         ModelData = pool.get('ir.model.data')
         kg = UoM(ModelData.get_id('product', 'uom_kilogram'))
@@ -68,7 +68,7 @@ class CommercialInvoice(Report):
 
     @classmethod
     def get_total_value(cls, shipment):
-        pool = Pool()
+        pool = tx.pool
         Currency = pool.get('currency.currency')
         currency, = {m.currency for m in shipment.customs_moves}
         return currency.round(sum(
@@ -80,7 +80,7 @@ class CommercialInvoice(Report):
 
     @classmethod
     def get_total_weight(cls, shipment):
-        pool = Pool()
+        pool = tx.pool
         UoM = pool.get('product.uom')
         ModelData = pool.get('ir.model.data')
         kg = UoM(ModelData.get_id('product', 'uom_kilogram'))

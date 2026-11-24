@@ -7,9 +7,10 @@ from functools import wraps
 
 import requests
 
+from trytond import tx
 from trytond.i18n import gettext
 from trytond.model import fields
-from trytond.pool import Pool, PoolMeta
+from trytond.pool import PoolMeta
 from trytond.pyson import Eval
 
 from .exceptions import TyplessCredentialWarning, TyplessError
@@ -244,7 +245,7 @@ class IncomingOCRService(metaclass=PoolMeta):
 
     @classmethod
     def check_modification(cls, mode, services, values=None, external=False):
-        pool = Pool()
+        pool = tx.pool
         Warning = pool.get('res.user.warning')
 
         super().check_modification(
@@ -361,7 +362,7 @@ class IncomingOCRService_IncomingInvoice(metaclass=PoolMeta):
             return invoice.origins
 
     def _typless_feedback_payload_line_items(self, record):
-        pool = Pool()
+        pool = tx.pool
         Invoice = pool.get('account.invoice')
         yield from super()._typless_feedback_payload_line_items(record)
         if isinstance(record, Invoice):
@@ -391,7 +392,7 @@ class IncomingOCRService_IncomingInvoice(metaclass=PoolMeta):
             return line.origin_name
 
     def _typless_feedback_payload_vat_rates(self, record):
-        pool = Pool()
+        pool = tx.pool
         Invoice = pool.get('account.invoice')
         yield from super()._typless_feedback_payload_vat_rates(record)
         if isinstance(record, Invoice):

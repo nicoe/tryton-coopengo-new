@@ -1,8 +1,9 @@
 # This file is part of Tryton.  The COPYRIGHT file at the top level of
 # this repository contains the full copyright notices and license terms.
 
+from trytond import tx
 from trytond.model import fields
-from trytond.pool import Pool, PoolMeta
+from trytond.pool import PoolMeta
 from trytond.pyson import Eval
 
 
@@ -22,7 +23,7 @@ class Work(metaclass=PoolMeta):
 
     @classmethod
     def on_modification(cls, mode, works, field_names=None):
-        pool = Pool()
+        pool = tx.pool
         Sale = pool.get('sale.sale')
         SaleLine = pool.get('sale.line')
         super().on_modification(mode, works, field_names=field_names)
@@ -37,7 +38,7 @@ class Work_Invoice(metaclass=PoolMeta):
 
     @fields.depends('origin')
     def on_change_with_invoice_method(self, name=None):
-        pool = Pool()
+        pool = tx.pool
         SaleLine = pool.get('sale.line')
         method = super().on_change_with_invoice_method(name=name)
         if isinstance(self.origin, SaleLine):

@@ -7,11 +7,10 @@ from sql import Literal
 from sql.aggregate import Max, Sum
 from sql.functions import Extract
 
+from trytond import tx
 from trytond.i18n import gettext
 from trytond.model import Index, ModelSQL, ModelView, Unique, fields
-from trytond.pool import Pool
 from trytond.pyson import Date, Eval, PYSONEncoder, TimeDelta
-from trytond.transaction import Transaction
 from trytond.wizard import Button, StateAction, StateView, Wizard
 
 from .exceptions import DurationValidationError
@@ -100,16 +99,16 @@ class Line(ModelSQL, ModelView):
 
     @staticmethod
     def default_company():
-        return Transaction().context.get('company')
+        return tx.transaction.context.get('company')
 
     @staticmethod
     def default_employee():
-        User = Pool().get('res.user')
+        User = tx.pool.get('res.user')
         employee_id = None
-        if Transaction().context.get('employee'):
-            employee_id = Transaction().context['employee']
+        if tx.transaction.context.get('employee'):
+            employee_id = tx.transaction.context['employee']
         else:
-            user = User(Transaction().user)
+            user = User(tx.transaction.user)
             if user.employee:
                 employee_id = user.employee.id
         if employee_id:
@@ -117,8 +116,8 @@ class Line(ModelSQL, ModelView):
 
     @staticmethod
     def default_date():
-        Date_ = Pool().get('ir.date')
-        return Transaction().context.get('date') or Date_.today()
+        Date_ = tx.pool.get('ir.date')
+        return tx.transaction.context.get('date') or Date_.today()
 
     @classmethod
     def validate_fields(cls, lines, field_names):
@@ -179,12 +178,12 @@ class EnterLinesStart(ModelView):
 
     @staticmethod
     def default_employee():
-        Line = Pool().get('timesheet.line')
+        Line = tx.pool.get('timesheet.line')
         return Line.default_employee()
 
     @staticmethod
     def default_date():
-        Line = Pool().get('timesheet.line')
+        Line = tx.pool.get('timesheet.line')
         return Line.default_date()
 
 
@@ -198,7 +197,7 @@ class EnterLines(Wizard):
     enter = StateAction('timesheet.act_line_form')
 
     def do_enter(self, action):
-        pool = Pool()
+        pool = tx.pool
         Lang = pool.get('ir.lang')
         date = self.start.date
         date = Date(date.year, date.month, date.day)
@@ -229,14 +228,14 @@ class HoursEmployee(ModelSQL, ModelView):
 
     @staticmethod
     def table_query():
-        pool = Pool()
+        pool = tx.pool
         Line = pool.get('timesheet.line')
         line = Line.__table__()
         where = Literal(True)
-        if Transaction().context.get('start_date'):
-            where &= line.date >= Transaction().context['start_date']
-        if Transaction().context.get('end_date'):
-            where &= line.date <= Transaction().context['end_date']
+        if tx.transaction.context.get('start_date'):
+            where &= line.date >= tx.transaction.context['start_date']
+        if tx.transaction.context.get('end_date'):
+            where &= line.date <= tx.transaction.context['end_date']
         return line.select(
             line.employee.as_('id'),
             line.employee,
@@ -267,7 +266,7 @@ class HoursEmployeeWeekly(ModelSQL, ModelView):
 
     @classmethod
     def table_query(cls):
-        pool = Pool()
+        pool = tx.pool
         Line = pool.get('timesheet.line')
         line = Line.__table__()
         year_column = Extract('YEAR', line.date).as_('year')
@@ -299,7 +298,7 @@ class HoursEmployeeMonthly(ModelSQL, ModelView):
 
     @classmethod
     def table_query(cls):
-        pool = Pool()
+        pool = tx.pool
         Line = pool.get('timesheet.line')
         Month = pool.get('ir.calendar.month')
         line = Line.__table__()

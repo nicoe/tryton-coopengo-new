@@ -7,12 +7,11 @@ from sql.aggregate import Sum
 from sql.conditionals import Coalesce
 from sql.functions import Extract
 
-from trytond import backend
+from trytond import backend, tx
 from trytond.model import fields
-from trytond.pool import Pool, PoolMeta
+from trytond.pool import PoolMeta
 from trytond.pyson import Eval
 from trytond.tools import sqlite_apply_types
-from trytond.transaction import Transaction
 
 
 class WorkCenter(metaclass=PoolMeta):
@@ -68,7 +67,7 @@ class Work(metaclass=PoolMeta):
 
     @classmethod
     def set_timesheet_lines(cls, works, name, value):
-        pool = Pool()
+        pool = tx.pool
         TimesheetWork = pool.get('timesheet.work')
         if value:
             timesheet_works = [tw for w in works for tw in w.timesheet_works]
@@ -84,7 +83,7 @@ class Work(metaclass=PoolMeta):
 
     @classmethod
     def on_delete(cls, works):
-        pool = Pool()
+        pool = tx.pool
         TimesheetWork = pool.get('timesheet.work')
         callback = super().on_delete(works)
         timesheet_works = [w for pw in works for w in pw.timesheet_works]
@@ -93,7 +92,7 @@ class Work(metaclass=PoolMeta):
 
     @classmethod
     def _set_timesheet_work(cls, works):
-        pool = Pool()
+        pool = tx.pool
         Timesheet = pool.get('timesheet.work')
         Date = pool.get('ir.date')
 
@@ -101,7 +100,7 @@ class Work(metaclass=PoolMeta):
         to_delete = []
         to_write = defaultdict(list)
         for work in works:
-            with Transaction().set_context(company=work.company.id):
+            with tx.transaction.set_context(company=work.company.id):
                 today = Date.today()
             if work.timesheet_available:
                 ended = work.state in {'done', 'cancelled'}
@@ -136,7 +135,7 @@ class Work_TimesheetCost(metaclass=PoolMeta):
 
     @classmethod
     def _get_cost(cls, works):
-        pool = Pool()
+        pool = tx.pool
         Line = pool.get('timesheet.line')
         TimesheetWork = pool.get('timesheet.work')
         Work = pool.get('production.work')
@@ -146,7 +145,7 @@ class Work_TimesheetCost(metaclass=PoolMeta):
         work = Work.__table__()
         center = WorkCenter.__table__()
 
-        cursor = Transaction().connection.cursor()
+        cursor = tx.transaction.connection.cursor()
 
         costs = super()._get_cost(works)
 

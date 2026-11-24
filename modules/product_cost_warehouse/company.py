@@ -2,8 +2,9 @@
 # this repository contains the full copyright notices and license terms.
 import copy
 
+from trytond import tx
 from trytond.model import fields
-from trytond.pool import Pool, PoolMeta
+from trytond.pool import PoolMeta
 
 from .product import cost_price_warehouse
 
@@ -15,7 +16,7 @@ class Company(metaclass=PoolMeta):
         copy.deepcopy(cost_price_warehouse), 'get_cost_price_warehouse')
 
     def get_cost_price_warehouse(self, name, **pattern):
-        pool = Pool()
+        pool = tx.pool
         Configuration = pool.get('product.configuration')
         config = Configuration(1)
         pattern['company'] = self.id

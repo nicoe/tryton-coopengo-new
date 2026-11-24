@@ -3,15 +3,16 @@
 import functools
 from decimal import Decimal
 
+from trytond import tx
 from trytond.model import fields
-from trytond.pool import Pool, PoolMeta
+from trytond.pool import PoolMeta
 from trytond.pyson import Eval, If
 
 
 def sale_payment_confirm(func):
     @functools.wraps(func)
     def wrapper(cls, payments, *args, **kwargs):
-        pool = Pool()
+        pool = tx.pool
         Sale = pool.get('sale.sale')
 
         result = func(cls, payments, *args, **kwargs)
@@ -55,7 +56,7 @@ class Payment(metaclass=PoolMeta):
 
     @fields.depends('origin')
     def on_change_origin(self):
-        pool = Pool()
+        pool = tx.pool
         Sale = pool.get('sale.sale')
         try:
             super().on_change_origin()
@@ -145,7 +146,7 @@ class Invoice(metaclass=PoolMeta):
         return payments
 
     def reconcile_payments(self):
-        pool = Pool()
+        pool = tx.pool
         Payment = pool.get('account.payment')
         Line = pool.get('account.move.line')
         if not hasattr(Payment, 'clearing_move'):
@@ -176,7 +177,7 @@ class Invoice(metaclass=PoolMeta):
 
     @classmethod
     def _post(cls, invoices):
-        pool = Pool()
+        pool = tx.pool
         Payment = pool.get('account.payment')
 
         super()._post(invoices)

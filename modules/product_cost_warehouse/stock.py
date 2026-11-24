@@ -2,13 +2,13 @@
 # this repository contains the full copyright notices and license terms.
 from decimal import Decimal
 
+from trytond import tx
 from trytond.i18n import gettext
 from trytond.model import fields
 from trytond.modules.product import round_price
 from trytond.modules.stock.exceptions import MoveValidationError
-from trytond.pool import Pool, PoolMeta
+from trytond.pool import PoolMeta
 from trytond.pyson import Bool, Eval
-from trytond.transaction import Transaction
 
 
 class Configuration(metaclass=PoolMeta):
@@ -94,7 +94,7 @@ class Move(metaclass=PoolMeta):
 
     @classmethod
     def get_unit_price_company(cls, moves, name):
-        pool = Pool()
+        pool = tx.pool
         ShipmentInternal = pool.get('stock.shipment.internal')
         Uom = pool.get('product.uom')
         prices = super().get_unit_price_company(moves, name)
@@ -118,7 +118,7 @@ class Move(metaclass=PoolMeta):
         return prices
 
     def get_cost_price(self, product_cost_price=None):
-        pool = Pool()
+        pool = tx.pool
         ShipmentInternal = pool.get('stock.shipment.internal')
         cost_price = super().get_cost_price(
             product_cost_price=product_cost_price)
@@ -131,7 +131,7 @@ class Move(metaclass=PoolMeta):
 
     @classmethod
     def validate(cls, moves):
-        pool = Pool()
+        pool = tx.pool
         Configuration = pool.get('stock.configuration')
         super().validate(moves)
         config = Configuration(1)
@@ -189,7 +189,7 @@ class Move(metaclass=PoolMeta):
 
     @classmethod
     def _cost_price_context(cls, moves):
-        pool = Pool()
+        pool = tx.pool
         Location = pool.get('stock.location')
         context = super()._cost_price_context(moves)
         if moves[0].company.cost_price_warehouse:
@@ -208,7 +208,7 @@ class Move(metaclass=PoolMeta):
 
     def get_fifo_move(self, quantity=0.0, date=None):
         warehouse = self.cost_warehouse.id if self.cost_warehouse else None
-        with Transaction().set_context(warehouse=warehouse):
+        with tx.transaction.set_context(warehouse=warehouse):
             return super().get_fifo_move(quantity=quantity, date=date)
 
     def _get_account_stock_move_type(self):
@@ -229,7 +229,7 @@ class ShipmentInternal(metaclass=PoolMeta):
 
     @fields.depends('company')
     def on_change_with_transit_location(self, name=None):
-        pool = Pool()
+        pool = tx.pool
         Config = pool.get('stock.configuration')
         location = super().on_change_with_transit_location(name=name)
         if not location and self.company and self.company.cost_price_warehouse:

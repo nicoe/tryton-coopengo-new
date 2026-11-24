@@ -8,10 +8,10 @@ from sql.aggregate import Sum
 from sql.conditionals import Coalesce
 
 import trytond.config as config
+from trytond import tx
 from trytond.model import ModelStorage, ModelView, fields
-from trytond.pool import Pool, PoolMeta
+from trytond.pool import PoolMeta
 from trytond.pyson import Eval
-from trytond.transaction import Transaction
 from trytond.wizard import Button, StateTransition, StateView, Wizard
 
 VATEX_CODES = [
@@ -79,7 +79,7 @@ class AccountTemplate(metaclass=PoolMeta):
 
     @classmethod
     def __register__(cls, module_name):
-        cursor = Transaction().connection.cursor()
+        cursor = tx.transaction.connection.cursor()
         model_data = Table('ir_model_data')
 
         # Migration from 6.0: rename ids
@@ -118,7 +118,7 @@ class CreateChart(metaclass=PoolMeta):
     __name__ = 'account.create_chart'
 
     def default_properties(self, fields):
-        pool = Pool()
+        pool = tx.pool
         ModelData = pool.get('ir.model.data')
         defaults = super().default_properties(fields)
         template_id = ModelData.get_id('account_fr.root')
@@ -186,13 +186,13 @@ class FrFEC(Wizard):
             quoting=csv.QUOTE_NONE)
 
     def get_format_date(self):
-        pool = Pool()
+        pool = tx.pool
         Lang = pool.get('ir.lang')
         fr = Lang(code='fr_FR', date='%d.%m.%Y')
         return lambda value: fr.strftime(value, '%Y%m%d')
 
     def get_format_number(self):
-        pool = Pool()
+        pool = tx.pool
         Lang = pool.get('ir.lang')
         fr = Lang(
             decimal_point=',',
@@ -224,7 +224,7 @@ class FrFEC(Wizard):
             ]
 
     def get_start_balance(self):
-        pool = Pool()
+        pool = tx.pool
         Account = pool.get('account.account')
         Move = pool.get('account.move')
         Line = pool.get('account.move.line')
@@ -236,7 +236,7 @@ class FrFEC(Wizard):
         line = Line.__table__()
         period = Period.__table__()
         party = Party.__table__()
-        cursor = Transaction().connection.cursor()
+        cursor = tx.transaction.connection.cursor()
         format_date = self.get_format_date()
         format_number = self.get_format_number()
 
@@ -306,7 +306,7 @@ class FrFEC(Wizard):
                 ]
 
     def get_lines(self):
-        pool = Pool()
+        pool = tx.pool
         Line = pool.get('account.move.line')
 
         domain = [
@@ -358,7 +358,7 @@ class FrFEC(Wizard):
         return line.move.origin
 
     def get_reference_date(self, line):
-        pool = Pool()
+        pool = tx.pool
         try:
             Invoice = pool.get('account.invoice')
         except KeyError:

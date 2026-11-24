@@ -7,18 +7,16 @@ from itertools import groupby
 from sql.aggregate import Sum
 from sql.conditionals import Coalesce
 
-from trytond import backend
+from trytond import backend, tx
 from trytond.i18n import gettext
 from trytond.model import (
     ChatMixin, Index, ModelSQL, ModelView, Unique, fields, sequence_ordered,
     tree)
 from trytond.modules.account.exceptions import FiscalYearNotFoundError
 from trytond.modules.currency.fields import Monetary
-from trytond.pool import Pool
 from trytond.pyson import Bool, Eval, If
 from trytond.rpc import RPC
 from trytond.tools import sqlite_apply_types
-from trytond.transaction import Transaction
 from trytond.wizard import (
     Button, StateAction, StateTransition, StateView, Wizard)
 
@@ -49,7 +47,7 @@ class AmountMixin:
 
     @classmethod
     def get_amount(cls, records, names):
-        transaction = Transaction()
+        transaction = tx.transaction
         cursor = transaction.connection.cursor()
         records = cls.browse(sorted(records, key=cls._get_amount_group_key))
         balances = defaultdict(Decimal)
@@ -101,7 +99,7 @@ class BudgetMixin(ChatMixin):
 
     @classmethod
     def default_company(cls):
-        return Transaction().context.get('company')
+        return tx.transaction.context.get('company')
 
     @classmethod
     def copy(cls, budgets, default=None):
@@ -192,7 +190,7 @@ class BudgetLineMixin(
 
     @classmethod
     def get_total_amount(cls, records, name):
-        transaction = Transaction()
+        transaction = tx.transaction
         cursor = transaction.connection.cursor()
         table = cls.__table__()
         children = cls.__table__()
@@ -272,10 +270,10 @@ class BudgetContext(ModelView):
 
     @classmethod
     def default_budget(cls):
-        pool = Pool()
+        pool = tx.pool
         Budget = pool.get('account.budget')
         FiscalYear = pool.get('account.fiscalyear')
-        context = Transaction().context
+        context = tx.transaction.context
         if 'budget' in context:
             return context.get('budget')
         try:
@@ -328,7 +326,7 @@ class Budget(BudgetMixin, ModelSQL, ModelView):
 
     @classmethod
     def default_fiscalyear(cls):
-        pool = Pool()
+        pool = tx.pool
         FiscalYear = pool.get('account.fiscalyear')
         try:
             fiscalyear = FiscalYear.find(
@@ -339,7 +337,7 @@ class Budget(BudgetMixin, ModelSQL, ModelView):
 
     @fields.depends('company', 'fiscalyear')
     def on_change_company(self):
-        pool = Pool()
+        pool = tx.pool
         FiscalYear = pool.get('account.fiscalyear')
         if not self.fiscalyear or self.fiscalyear.company != self.company:
             try:
@@ -378,7 +376,7 @@ class Budget(BudgetMixin, ModelSQL, ModelView):
     @classmethod
     @ModelView.button
     def update_lines(cls, budgets):
-        pool = Pool()
+        pool = tx.pool
         Account = pool.get('account.account')
         AccountType = pool.get('account.account.type')
         Line = pool.get('account.budget.line')
@@ -523,7 +521,7 @@ class BudgetLine(BudgetLineMixin, ModelSQL, ModelView):
     @classmethod
     def get_total_amount(cls, lines, name):
         amounts = super().get_total_amount(lines, name)
-        periods = Transaction().context.get('periods')
+        periods = tx.transaction.context.get('periods')
         if periods:
             for line in lines:
                 ratio = sum(
@@ -538,7 +536,7 @@ class BudgetLine(BudgetLineMixin, ModelSQL, ModelView):
 
     @classmethod
     def _get_amount_query(cls, records, context):
-        pool = Pool()
+        pool = tx.pool
         Line = pool.get('account.move.line')
         Period = pool.get('account.period')
 
@@ -548,13 +546,13 @@ class BudgetLine(BudgetLineMixin, ModelSQL, ModelView):
 
         amount = Sum(Coalesce(line.credit, 0) - Coalesce(line.debit, 0))
         red_sql = fields.SQL_OPERATORS['in'](table.id, [r.id for r in records])
-        periods = Transaction().context.get('periods')
+        periods = tx.transaction.context.get('periods')
         if not periods:
             periods = [p.id for p in Period.search([
                         ('fiscalyear', '=', context.get('fiscalyear')),
                         ('type', '=', 'standard'),
                         ])]
-        with Transaction().set_context(context, periods=periods):
+        with tx.transaction.set_context(context, periods=periods):
             query_where, _ = Line.query_get(line)
         return (table
             .join(
@@ -585,7 +583,7 @@ class BudgetLine(BudgetLineMixin, ModelSQL, ModelView):
         pass
 
     def create_period(self, method_name, account_periods):
-        pool = Pool()
+        pool = tx.pool
         Period = pool.get('account.budget.line.period')
         method = getattr(self, 'distribute_%s' % method_name)
         periods = []
@@ -661,7 +659,7 @@ class BudgetLinePeriod(AmountMixin, ModelSQL, ModelView):
     @classmethod
     def get_total_amount(cls, periods, name):
         amounts = {}
-        with Transaction().set_context(periods=None):
+        with tx.transaction.set_context(periods=None):
             periods = cls.browse(periods)
         for period in periods:
             if period.budget_line.total_amount is not None:
@@ -678,7 +676,7 @@ class BudgetLinePeriod(AmountMixin, ModelSQL, ModelView):
 
     @classmethod
     def _get_amount_query(cls, records, context):
-        pool = Pool()
+        pool = tx.pool
         BudgetLine = pool.get('account.budget.line')
         Move = pool.get('account.move')
         MoveLine = pool.get('account.move.line')
@@ -692,14 +690,14 @@ class BudgetLinePeriod(AmountMixin, ModelSQL, ModelView):
 
         amount = Sum(Coalesce(line.credit, 0) - Coalesce(line.debit, 0))
         red_sql = fields.SQL_OPERATORS['in'](table.id, [r.id for r in records])
-        periods = Transaction().context.get('periods')
+        periods = tx.transaction.context.get('periods')
         if not periods:
             periods = [p.id for p in Period.search([
                         ('fiscalyear', '=', context.get('fiscalyear')),
                         ('type', '=', 'standard'),
                         ])]
 
-        with Transaction().set_context(context, periods=periods):
+        with tx.transaction.set_context(context, periods=periods):
             query_where, _ = MoveLine.query_get(line)
         return (table
             .join(budget_line, condition=budget_line.id == table.budget_line)
@@ -725,11 +723,11 @@ class BudgetLinePeriod(AmountMixin, ModelSQL, ModelView):
 
     @classmethod
     def check_ratio(cls, periods, field_names=None):
-        pool = Pool()
+        pool = tx.pool
         Line = pool.get('account.budget.line')
         if field_names and not (field_names & {'ratio', 'budget_line'}):
             return
-        transaction = Transaction()
+        transaction = tx.transaction
         cursor = transaction.connection.cursor()
         table = cls.__table__()
         line_ids = {p.budget_line.id for p in periods}
@@ -833,7 +831,7 @@ class CreatePeriods(Wizard):
     create_periods = StateTransition()
 
     def transition_create_periods(self):
-        pool = Pool()
+        pool = tx.pool
         AccountPeriod = pool.get('account.period')
         Period = pool.get('account.budget.line.period')
         account_periods = AccountPeriod.search([

@@ -6,14 +6,13 @@ from collections import defaultdict
 from sql import Window
 from sql.functions import FirstValue
 
-from trytond import backend
+from trytond import backend, tx
 from trytond.model import DeactivableMixin, ModelSQL, ModelView, Unique, fields
 from trytond.modules.currency.fields import Monetary
 from trytond.pool import Pool
 from trytond.pyson import Eval
 from trytond.rpc import RPC
 from trytond.tools import cursor_dict, sqlite_apply_types
-from trytond.transaction import Transaction
 
 
 class Journal(DeactivableMixin, ModelSQL, ModelView):
@@ -83,14 +82,14 @@ class Journal(DeactivableMixin, ModelSQL, ModelView):
 
     @staticmethod
     def default_currency():
-        if Transaction().context.get('company'):
-            Company = Pool().get('company.company')
-            company = Company(Transaction().context['company'])
+        if tx.transaction.context.get('company'):
+            Company = tx.pool.get('company.company')
+            company = Company(tx.transaction.context['company'])
             return company.currency.id
 
     @staticmethod
     def default_company():
-        return Transaction().context.get('company')
+        return tx.transaction.context.get('company')
 
     @fields.depends('company')
     def on_change_with_company_party(self, name=None):
@@ -124,7 +123,7 @@ class Journal(DeactivableMixin, ModelSQL, ModelView):
         pool = Pool()
         Statement = pool.get('account.statement')
         statement = Statement.__table__()
-        transaction = Transaction()
+        transaction = tx.transaction
         cursor = transaction.connection.cursor()
 
         id2currency = {j.id: j.currency for j in journals}

@@ -3,21 +3,22 @@
 from decimal import Decimal
 from functools import wraps
 
+from trytond import tx
 from trytond.i18n import gettext
 from trytond.model import ModelView, Workflow, fields
 from trytond.model.exceptions import AccessError
 from trytond.modules.product import round_price
-from trytond.pool import Pool, PoolMeta
-from trytond.transaction import Transaction, without_check_access
+from trytond.pool import PoolMeta
+from trytond.transaction import without_check_access
 
 
 def process_sale(moves_field):
     def _process_sale(func):
         @wraps(func)
         def wrapper(cls, shipments):
-            pool = Pool()
+            pool = tx.pool
             Sale = pool.get('sale.sale')
-            transaction = Transaction()
+            transaction = tx.transaction
             context = transaction.context
             with without_check_access():
                 sales = set(m.sale for s in cls.browse(shipments)
@@ -95,7 +96,7 @@ class ShipmentOutReturn(metaclass=PoolMeta):
     @Workflow.transition('received')
     @process_sale('incoming_moves')
     def receive(cls, shipments):
-        pool = Pool()
+        pool = tx.pool
         SaleLine = pool.get('sale.line')
         for shipment in shipments:
             for move in shipment.incoming_moves:
@@ -107,9 +108,9 @@ class ShipmentOutReturn(metaclass=PoolMeta):
 def process_sale_move(func):
     @wraps(func)
     def wrapper(cls, moves):
-        pool = Pool()
+        pool = tx.pool
         Sale = pool.get('sale.sale')
-        transaction = Transaction()
+        transaction = tx.transaction
         context = transaction.context
         with without_check_access():
             sales = set(m.sale for m in cls.browse(moves) if m.sale)
@@ -155,7 +156,7 @@ class Move(metaclass=PoolMeta):
         return types
 
     def get_sale(self, name):
-        SaleLine = Pool().get('sale.line')
+        SaleLine = tx.pool.get('sale.line')
         if isinstance(self.origin, SaleLine):
             return self.origin.sale.id
 
@@ -165,7 +166,7 @@ class Move(metaclass=PoolMeta):
             + ('sale.line',) + tuple(clause[3:])]
 
     def get_sale_exception_state(self, name):
-        SaleLine = Pool().get('sale.line')
+        SaleLine = tx.pool.get('sale.line')
         if not isinstance(self.origin, SaleLine):
             return ''
         if self in self.origin.moves_recreated:
@@ -176,7 +177,7 @@ class Move(metaclass=PoolMeta):
 
     @fields.depends('origin')
     def on_change_with_product_uom_category(self, name=None):
-        pool = Pool()
+        pool = tx.pool
         SaleLine = pool.get('sale.line')
         category = super().on_change_with_product_uom_category(name=name)
         # Enforce the same unit category as they are used to compute the
@@ -188,7 +189,7 @@ class Move(metaclass=PoolMeta):
         return category
 
     def get_cost_price(self, product_cost_price=None):
-        pool = Pool()
+        pool = tx.pool
         SaleLine = pool.get('sale.line')
         Sale = pool.get('sale.sale')
         # For return sale's move use the cost price of the original sale
@@ -216,7 +217,7 @@ class Move(metaclass=PoolMeta):
 
     @property
     def origin_name(self):
-        pool = Pool()
+        pool = tx.pool
         SaleLine = pool.get('sale.line')
         name = super().origin_name
         if isinstance(self.origin, SaleLine) and self.origin.id >= 0:

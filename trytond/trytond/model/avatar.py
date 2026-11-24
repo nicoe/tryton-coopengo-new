@@ -1,9 +1,9 @@
 # This file is part of Tryton.  The COPYRIGHT file at the top level of
 # this repository contains the full copyright notices and license terms.
 
+from trytond import tx
 from trytond.i18n import lazy_gettext
 from trytond.model import fields
-from trytond.pool import Pool
 
 
 def avatar_mixin(size=64, default=None):
@@ -32,7 +32,7 @@ def avatar_mixin(size=64, default=None):
 
         @classmethod
         def _set_avatar(cls, records, name, value):
-            pool = Pool()
+            pool = tx.pool
             Avatar = pool.get('ir.avatar')
             avatars = []
             image = Avatar.convert(value)
@@ -58,7 +58,7 @@ def avatar_mixin(size=64, default=None):
             from trytond.ir.avatar import PIL, generate
             if not PIL:
                 return
-            pool = Pool()
+            pool = tx.pool
             Avatar = pool.get('ir.avatar')
             avatars = []
             records = [r for r in records if not r.has_avatar]

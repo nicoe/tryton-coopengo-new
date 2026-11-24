@@ -4,11 +4,10 @@
 
 import urllib.parse
 
+from trytond import tx
 from trytond.model import ModelView
-from trytond.pool import Pool
 from trytond.tests.test_tryton import (
     TestCase, activate_module, with_transaction)
-from trytond.transaction import Transaction
 from trytond.url import HOSTNAME, http_host
 
 from .mixin import NotMixin, ReportMixin, TestMixin, TestSecondMixin
@@ -25,9 +24,9 @@ class UrlTestCase(TestCase):
     @with_transaction()
     def testModelURL(self):
         "Test model URLs"
-        pool = Pool()
+        pool = tx.pool
         UrlObject = pool.get('test.urlobject')
-        db_name = Transaction().database.name
+        db_name = tx.transaction.database.name
 
         self.assertEqual(UrlObject.__url__,
             'tryton://%s/%s/model/test.urlobject' % (
@@ -40,9 +39,9 @@ class UrlTestCase(TestCase):
     @with_transaction()
     def testModelHref(self):
         "Test model href"
-        pool = Pool()
+        pool = tx.pool
         UrlObject = pool.get('test.urlobject')
-        db_name = Transaction().database.name
+        db_name = tx.transaction.database.name
 
         self.assertEqual(UrlObject.__href__,
             '%s/#%s/model/test.urlobject' % (
@@ -55,9 +54,9 @@ class UrlTestCase(TestCase):
     @with_transaction()
     def testWizardURL(self):
         "Test wizard URLs"
-        pool = Pool()
+        pool = tx.pool
         UrlWizard = pool.get('test.test_wizard', type='wizard')
-        db_name = Transaction().database.name
+        db_name = tx.transaction.database.name
 
         self.assertEqual(UrlWizard.__url__,
             'tryton://%s/%s/wizard/test.test_wizard' % (
@@ -66,9 +65,9 @@ class UrlTestCase(TestCase):
     @with_transaction()
     def testWizardHref(self):
         "Test wizard href"
-        pool = Pool()
+        pool = tx.pool
         UrlWizard = pool.get('test.test_wizard', type='wizard')
-        db_name = Transaction().database.name
+        db_name = tx.transaction.database.name
 
         self.assertEqual(UrlWizard.__href__,
             '%s/#%s/wizard/test.test_wizard' % (
@@ -86,7 +85,7 @@ class MixinTestCase(TestCase):
     @with_transaction()
     def test_mixin_on_modelview(self):
         "Test all ModelView and only ModelView are subclass of TestMixin"
-        for _, model in Pool().iterobject():
+        for _, model in tx.pool.iterobject():
             self.assertEqual(
                 issubclass(model, ModelView),
                 issubclass(model, TestMixin))
@@ -94,7 +93,7 @@ class MixinTestCase(TestCase):
     @with_transaction()
     def test_second_mixin_on_modelview(self):
         "Test all ModelView and only ModelView are subclass of TestSecondMixin"
-        for _, model in Pool().iterobject():
+        for _, model in tx.pool.iterobject():
             self.assertEqual(
                 issubclass(model, ModelView),
                 issubclass(model, TestSecondMixin))
@@ -102,13 +101,13 @@ class MixinTestCase(TestCase):
     @with_transaction()
     def test_no_mixin(self):
         "Test any model are subclass of NotMixin"
-        for _, model in Pool().iterobject():
+        for _, model in tx.pool.iterobject():
             self.assertFalse(issubclass(model, NotMixin))
 
     @with_transaction()
     def test_report_mixin(self):
         "Test mixin applies on default report"
-        pool = Pool()
+        pool = tx.pool
         Report = pool.get('test.report.mixin', type='report')
 
         self.assertTrue(issubclass(Report, ReportMixin))
@@ -124,7 +123,7 @@ class DeactivableMixinTestCase(TestCase):
 
     @with_transaction()
     def test_deactivable_default_active(self):
-        pool = Pool()
+        pool = tx.pool
         Deactivable = pool.get('test.deactivable.modelsql')
 
         deactivable = Deactivable()
@@ -134,7 +133,7 @@ class DeactivableMixinTestCase(TestCase):
 
     @with_transaction()
     def test_search_deactivable(self):
-        pool = Pool()
+        pool = tx.pool
         Deactivable = pool.get('test.deactivable.modelsql')
 
         active = Deactivable()

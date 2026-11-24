@@ -1,10 +1,11 @@
 # This file is part of Tryton.  The COPYRIGHT file at the top level of
 # this repository contains the full copyright notices and license terms.
 
+from trytond import tx
 from trytond.i18n import gettext
 from trytond.model import ModelSQL, fields
 from trytond.modules.company.model import CompanyValueMixin
-from trytond.pool import Pool, PoolMeta
+from trytond.pool import PoolMeta
 from trytond.pyson import Eval, Id
 
 
@@ -47,7 +48,7 @@ class InvoicePaymentMean(metaclass=PoolMeta):
         return name
 
     def is_valid_with_payment(self, payment):
-        pool = Pool()
+        pool = tx.pool
         BankAccount = pool.get('bank.account')
         ReceptionDirectDebit = pool.get('party.party.reception_direct_debit')
         valid = super().is_valid_with_payment(payment)

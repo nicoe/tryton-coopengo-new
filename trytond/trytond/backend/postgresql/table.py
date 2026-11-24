@@ -8,10 +8,10 @@ from psycopg.sql import SQL, Identifier
 from sql import Column
 from sql.operators import NotEqual
 
+from trytond import tx
 from trytond.backend.table import (
     IndexTranslatorInterface, TableHandlerInterface)
 from trytond.sql.operators import RangeOperator
-from trytond.transaction import Transaction
 
 __all__ = ['TableHandler']
 
@@ -30,7 +30,7 @@ class TableHandler(TableHandlerInterface):
         self.__fk_deltypes = None
         self.__indexes = None
 
-        transaction = Transaction()
+        transaction = tx.transaction
         cursor = ClientCursor(transaction.connection)
 
         # Create new table if necessary
@@ -133,19 +133,19 @@ class TableHandler(TableHandlerInterface):
 
     @classmethod
     def table_exist(cls, table_name):
-        transaction = Transaction()
+        transaction = tx.transaction
         return bool(transaction.database.get_table_schema(
                 transaction.connection, table_name))
 
     @classmethod
     def view_exist(cls, view_name):
-        transaction = Transaction()
+        transaction = tx.transaction
         return bool(transaction.database.get_view_schema(
                 transaction.connection, view_name))
 
     @classmethod
     def table_rename(cls, old_name, new_name):
-        transaction = Transaction()
+        transaction = tx.transaction
         cursor = ClientCursor(transaction.connection)
         # Rename table
         if (cls.table_exist(old_name)
@@ -175,7 +175,7 @@ class TableHandler(TableHandlerInterface):
         return column_name in self._columns
 
     def column_rename(self, old_name, new_name):
-        cursor = ClientCursor(Transaction().connection)
+        cursor = ClientCursor(tx.transaction.connection)
         if self.column_exist(old_name):
             if not self.column_exist(new_name):
                 cursor.execute(SQL(
@@ -197,7 +197,7 @@ class TableHandler(TableHandlerInterface):
     @property
     def _columns(self):
         if self.__columns is None:
-            cursor = Transaction().connection.cursor()
+            cursor = tx.transaction.connection.cursor()
             self.__columns = {}
             # Fetch columns definitions from the table
             cursor.execute('SELECT '
@@ -220,7 +220,7 @@ class TableHandler(TableHandlerInterface):
     @property
     def _constraints(self):
         if self.__constraints is None:
-            cursor = Transaction().connection.cursor()
+            cursor = tx.transaction.connection.cursor()
             # fetch constraints for the table
             cursor.execute('SELECT constraint_name '
                 'FROM information_schema.table_constraints '
@@ -246,7 +246,7 @@ class TableHandler(TableHandlerInterface):
     @property
     def _fk_deltypes(self):
         if self.__fk_deltypes is None:
-            cursor = Transaction().connection.cursor()
+            cursor = tx.transaction.connection.cursor()
             cursor.execute('SELECT k.column_name, r.delete_rule '
                 'FROM information_schema.key_column_usage AS k '
                 'JOIN information_schema.referential_constraints AS r '
@@ -260,7 +260,7 @@ class TableHandler(TableHandlerInterface):
     @property
     def _indexes(self):
         if self.__indexes is None:
-            cursor = Transaction().connection.cursor()
+            cursor = tx.transaction.connection.cursor()
             # Fetch indexes defined for the table
             cursor.execute("SELECT cl2.relname "
                 "FROM pg_index ind "
@@ -283,7 +283,7 @@ class TableHandler(TableHandlerInterface):
             self.__fk_deltypes = None
 
     def alter_size(self, column_name, column_type):
-        cursor = ClientCursor(Transaction().connection)
+        cursor = ClientCursor(tx.transaction.connection)
         cursor.execute(
             SQL("ALTER TABLE {} ALTER COLUMN {} TYPE {}").format(
                 Identifier(self.table_name),
@@ -292,7 +292,7 @@ class TableHandler(TableHandlerInterface):
         self._update_definitions(columns=True)
 
     def alter_type(self, column_name, column_type):
-        cursor = ClientCursor(Transaction().connection)
+        cursor = ClientCursor(tx.transaction.connection)
         if column_type == 'jsonb':
             cursor.execute(
                 SQL('ALTER TABLE {} ALTER {} TYPE {} USING {}::jsonb').format(
@@ -310,7 +310,7 @@ class TableHandler(TableHandlerInterface):
     def column_is_type(self, column_name, type_, *, size=-1):
         db_type = self._columns[column_name]['typname'].upper()
 
-        database = Transaction().database
+        database = tx.transaction.database
         base_type = database.sql_type(type_).base.upper()
         if base_type == 'VARCHAR' and (size is None or size >= 0):
             same_size = self._columns[column_name]['size'] == size
@@ -325,15 +325,15 @@ class TableHandler(TableHandlerInterface):
         else:
             test = value
         if self._columns[column_name]['default'] != test:
-            cursor = ClientCursor(Transaction().connection)
+            cursor = ClientCursor(tx.transaction.connection)
             cursor.execute(
                 SQL('ALTER TABLE {} ALTER COLUMN {} SET DEFAULT %s')
                 .format(Identifier(self.table_name), Identifier(column_name)),
                 (value,))
 
     def add_column(self, column_name, sql_type, default=None):
-        cursor = ClientCursor(Transaction().connection)
-        database = Transaction().database
+        cursor = ClientCursor(tx.transaction.connection)
+        database = tx.transaction.database
 
         column_type = database.sql_type(sql_type)
         match = VARCHAR_SIZE_RE.match(sql_type)
@@ -434,7 +434,7 @@ class TableHandler(TableHandlerInterface):
         if isinstance(columns, str):
             columns = [columns]
 
-        cursor = ClientCursor(Transaction().connection)
+        cursor = ClientCursor(tx.transaction.connection)
         if ref_columns:
             ref_columns_name = '_' + '_'.join(ref_columns)
         else:
@@ -488,7 +488,7 @@ class TableHandler(TableHandlerInterface):
         if not self.column_exist(column_name):
             return
 
-        with ClientCursor(Transaction().connection) as cursor:
+        with ClientCursor(tx.transaction.connection) as cursor:
             if action == 'add':
                 if self._columns[column_name]['notnull']:
                     return
@@ -525,7 +525,7 @@ class TableHandler(TableHandlerInterface):
 
     def add_constraint(self, ident, constraint):
         from trytond.model.modelsql import Exclude
-        transaction = Transaction()
+        transaction = tx.transaction
         database = transaction.database
 
         if database.has_constraint(constraint):
@@ -533,7 +533,7 @@ class TableHandler(TableHandlerInterface):
             if ident in self._constraints:
                 # This constrain already exist
                 return
-            cursor = ClientCursor(Transaction().connection)
+            cursor = ClientCursor(tx.transaction.connection)
             if isinstance(constraint, Exclude):
                 definition = constraint.__str__(using=index_method(constraint))
             else:
@@ -550,14 +550,14 @@ class TableHandler(TableHandlerInterface):
         ident = self.convert_name((table or self.table_name) + "_" + ident)
         if ident not in self._constraints:
             return
-        cursor = ClientCursor(Transaction().connection)
+        cursor = ClientCursor(tx.transaction.connection)
         cursor.execute(
             SQL('ALTER TABLE {} DROP CONSTRAINT {} CASCADE').format(
                 Identifier(self.table_name), Identifier(ident)))
         self._update_definitions(constraints=True)
 
     def set_indexes(self, indexes, concurrently=False):
-        cursor = ClientCursor(Transaction().connection)
+        cursor = ClientCursor(tx.transaction.connection)
         old = set(self._indexes)
         for index in indexes:
             translator = self.index_translator_for(index)
@@ -586,11 +586,11 @@ class TableHandler(TableHandlerInterface):
                     params)
                 old.discard(name)
         for name in old:
-            if (name.startswith('idx_') or
-                name.endswith('_index') or
-                (len(name) == self.namedatalen - 1 and
-                    '_' not in name and
-                    name not in self._constraints)):
+            if (name.startswith('idx_')
+                    or name.endswith('_index')
+                    or (len(name) == self.namedatalen - 1
+                        and '_' not in name
+                        and name not in self._constraints)):
                 logger.info(f'Drop index {name}')
                 cursor.execute(
                     SQL("DROP INDEX {} {}").format(
@@ -605,7 +605,7 @@ class TableHandler(TableHandlerInterface):
             else:
                 return str(o)
 
-        connection = Transaction().connection
+        connection = tx.transaction.connection
         for index in indexes:
             translator = self.index_translator_for(index)
             if translator:
@@ -625,7 +625,7 @@ class TableHandler(TableHandlerInterface):
     def drop_column(self, column_name):
         if not self.column_exist(column_name):
             return
-        cursor = ClientCursor(Transaction().connection)
+        cursor = ClientCursor(tx.transaction.connection)
         cursor.execute(SQL('ALTER TABLE {} DROP COLUMN {}').format(
                 Identifier(self.table_name),
                 Identifier(column_name)))
@@ -633,7 +633,7 @@ class TableHandler(TableHandlerInterface):
 
     @classmethod
     def drop_table(cls, model, table, cascade=False):
-        cursor = ClientCursor(Transaction().connection)
+        cursor = ClientCursor(tx.transaction.connection)
         cursor.execute('DELETE FROM ir_model_data WHERE model = %s', (model,))
 
         query = 'DROP TABLE {}'
@@ -767,7 +767,7 @@ class TrigramTranslator(IndexMixin, IndexTranslatorInterface):
 
     @classmethod
     def score(cls, index):
-        database = Transaction().database
+        database = tx.transaction.database
         has_btree_gin = database.has_extension('btree_gin')
         has_trigram = database.has_extension('pg_trgm')
         if not has_btree_gin and not has_trigram:
@@ -791,7 +791,7 @@ class TrigramTranslator(IndexMixin, IndexTranslatorInterface):
 
     @classmethod
     def _get_indexed_expressions(cls, index):
-        database = Transaction().database
+        database = tx.transaction.database
         has_btree_gin = database.has_extension('btree_gin')
         has_trigram = database.has_extension('pg_trgm')
 

@@ -5,10 +5,9 @@ import datetime
 from sql import Literal
 from sql.conditionals import Coalesce
 
+from trytond import tx
 from trytond.model import Model, fields
-from trytond.pool import Pool
 from trytond.pyson import Bool, Eval, If
-from trytond.transaction import Transaction
 
 
 class PeriodMixin(Model):
@@ -69,11 +68,11 @@ class ActivePeriodMixin(PeriodMixin):
 
     @classmethod
     def _active_dates(cls):
-        pool = Pool()
+        pool = tx.pool
         Date = pool.get('ir.date')
         FiscalYear = pool.get('account.fiscalyear')
         Period = pool.get('account.period')
-        context = Transaction().context
+        context = tx.transaction.context
         today = Date.today()
 
         date = context.get('date')
@@ -155,12 +154,12 @@ class ContextCompanyMixin(Model):
         'get_context_company')
 
     def get_context_company(self, name):
-        context = Transaction().context
+        context = tx.transaction.context
         return self.company.id == context.get('company')
 
     @classmethod
     def domain_context_company(cls, domain, tables):
-        context = Transaction().context
+        context = tx.transaction.context
         table, _ = tables[None]
         _, operator, value = domain
 

@@ -5,6 +5,7 @@ from collections import defaultdict
 
 from sql.aggregate import Count, Max
 
+from trytond import tx
 from trytond.i18n import gettext
 from trytond.model import (
     Index, MatchMixin, ModelSQL, ModelView, fields, sequence_ordered)
@@ -12,10 +13,9 @@ from trytond.modules.currency.fields import Monetary
 from trytond.modules.product import (
     ProductDeactivatableMixin, copy_product_filtered, copy_template_filtered,
     price_digits, round_price)
-from trytond.pool import Pool, PoolMeta
+from trytond.pool import PoolMeta
 from trytond.pyson import Bool, Eval, If, TimeDelta
 from trytond.tools import is_full_text, lstrip_wildcard
-from trytond.transaction import Transaction
 
 from .exceptions import PurchaseUOMWarning
 
@@ -66,7 +66,7 @@ class Template(
 
     @classmethod
     def check_modification(cls, mode, templates, values=None, external=False):
-        pool = Pool()
+        pool = tx.pool
         Warning = pool.get('res.user.warning')
 
         super().check_modification(
@@ -108,12 +108,12 @@ class Product(
 
     @classmethod
     def get_purchase_price_uom(cls, products, name):
-        quantity = Transaction().context.get('quantity') or 0
+        quantity = tx.transaction.context.get('quantity') or 0
         return cls.get_purchase_price(products, quantity=quantity)
 
     @classmethod
     def get_last_purchase_price_uom(cls, products, name=None):
-        pool = Pool()
+        pool = tx.pool
         Company = pool.get('company.company')
         Currency = pool.get('currency.currency')
         Date = pool.get('ir.date')
@@ -121,7 +121,7 @@ class Product(
         Purchase = pool.get('purchase.purchase')
         UoM = pool.get('product.uom')
 
-        transaction = Transaction()
+        transaction = tx.transaction
         context = transaction.context
         cursor = transaction.connection.cursor()
         purchase = Purchase.__table__()
@@ -164,7 +164,7 @@ class Product(
             unit_price = UoM.compute_price(
                 line.unit, line.unit_price, product_uom)
             if currency and line.purchase.currency != currency:
-                with Transaction().set_context(date=date):
+                with tx.transaction.set_context(date=date):
                     unit_price = Currency.compute(
                         line.purchase.currency, unit_price, currency,
                         round=False)
@@ -190,7 +190,7 @@ class Product(
             supplier: the supplier party id
             currency: the currency id for the returned price
         '''
-        pool = Pool()
+        pool = tx.pool
         Uom = pool.get('product.uom')
         Company = pool.get('company.company')
         Currency = pool.get('currency.currency')
@@ -198,7 +198,7 @@ class Product(
         ProductSupplier = pool.get('purchase.product_supplier')
         ProductSupplierPrice = pool.get('purchase.product_supplier.price')
 
-        context = Transaction().context
+        context = tx.transaction.context
         prices = {}
 
         assert len(products) == len(set(products)), "Duplicate products"
@@ -241,7 +241,7 @@ class Product(
                     unit_price = Uom.compute_price(
                         default_uom, unit_price, product_uom)
                     if currency and default_currency:
-                        with Transaction().set_context(date=date):
+                        with tx.transaction.set_context(date=date):
                             unit_price = Currency.compute(
                                 default_currency, unit_price, currency,
                                 round=False)
@@ -329,13 +329,13 @@ class ProductSupplier(
 
     @staticmethod
     def default_company():
-        return Transaction().context.get('company')
+        return tx.transaction.context.get('company')
 
     @staticmethod
     def default_currency():
-        Company = Pool().get('company.company')
-        if Transaction().context.get('company'):
-            company = Company(Transaction().context['company'])
+        Company = tx.pool.get('company.company')
+        if tx.transaction.context.get('company'):
+            company = Company(tx.transaction.context['company'])
             return company.currency.id
 
     @fields.depends(
@@ -346,7 +346,7 @@ class ProductSupplier(
 
     @fields.depends('party')
     def on_change_party(self):
-        cursor = Transaction().connection.cursor()
+        cursor = tx.transaction.connection.cursor()
         self.currency = self.default_currency()
         if self.party:
             table = self.__table__()
@@ -418,10 +418,10 @@ class ProductSupplier(
         '''
         Compute the supply date for the Product Supplier at the given date
         '''
-        Date = Pool().get('ir.date')
+        Date = tx.pool.get('ir.date')
 
         if not date:
-            with Transaction().set_context(company=self.company.id):
+            with tx.transaction.set_context(company=self.company.id):
                 date = Date.today()
         if self.lead_time_used is None:
             return datetime.date.max
@@ -431,16 +431,16 @@ class ProductSupplier(
         '''
         Compute the purchase date for the Product Supplier at the given date
         '''
-        Date = Pool().get('ir.date')
+        Date = tx.pool.get('ir.date')
 
         if self.lead_time_used is None or date is None:
-            with Transaction().set_context(company=self.company.id):
+            with tx.transaction.set_context(company=self.company.id):
                 return Date.today()
         return date - self.lead_time_used
 
     @staticmethod
     def get_pattern():
-        context = Transaction().context
+        context = tx.transaction.context
         pattern = {'party': context.get('supplier')}
         if 'product_supplier' in context:
             pattern['id'] = context['product_supplier']
@@ -491,7 +491,7 @@ class ProductSupplierPrice(
         return {}
 
     def match(self, quantity, unit, pattern):
-        pool = Pool()
+        pool = tx.pool
         Uom = pool.get('product.uom')
         test_quantity = Uom.compute_qty(
             self.product_supplier.unit, self.quantity, unit)

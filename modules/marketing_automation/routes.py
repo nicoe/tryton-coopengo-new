@@ -1,10 +1,10 @@
 # This file is part of Tryton.  The COPYRIGHT file at the top level of
 # this repository contains the full copyright notices and license terms.
 
+from trytond import tx
 from trytond.protocols.wrappers import (
     Response, redirect, with_pool, with_transaction)
 from trytond.tools import file_open
-from trytond.transaction import Transaction
 from trytond.wsgi import app
 
 
@@ -24,7 +24,7 @@ def unsubscribe(request, pool):
     data = {
         'model': Record.__name__,
         }
-    with Transaction().set_context(language=record.language):
+    with tx.transaction.set_context(language=record.language):
         ext, content, _, _ = Report.execute([record.id], data)
     assert ext == 'html'
     return Response(content, 200, content_type='text/html')

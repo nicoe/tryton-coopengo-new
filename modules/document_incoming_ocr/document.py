@@ -8,10 +8,11 @@ import re
 from decimal import Decimal
 from operator import itemgetter
 
+from trytond import tx
 from trytond.cache import Cache
 from trytond.model import (
     MatchMixin, ModelSQL, ModelView, Workflow, fields, sequence_ordered)
-from trytond.pool import Pool, PoolMeta
+from trytond.pool import PoolMeta
 from trytond.pyson import Eval
 
 logger = logging.getLogger(__name__)
@@ -40,7 +41,7 @@ class Incoming(metaclass=PoolMeta):
     @ModelView.button
     @Workflow.transition('done')
     def proceed(cls, documents, with_children=False):
-        pool = Pool()
+        pool = tx.pool
         Service = pool.get('document.incoming.ocr.service')
         for document in documents:
             service = Service.get_service(document)
@@ -78,7 +79,7 @@ class IncomingSupplierInvoice(metaclass=PoolMeta):
     __name__ = 'document.incoming'
 
     def _process_supplier_invoice(self):
-        pool = Pool()
+        pool = tx.pool
         Party = pool.get('party.party')
         Currency = pool.get('currency.currency')
 
@@ -165,7 +166,7 @@ class IncomingSupplierInvoice(metaclass=PoolMeta):
 
     def _process_supplier_invoice_line(self, invoice, line_data, invoice_data):
         from trytond.modules.product import round_price
-        pool = Pool()
+        pool = tx.pool
         AccountConfiguration = pool.get('account.configuration')
         InvoiceLine = pool.get('account.invoice.line')
         Product = pool.get('product.product')
@@ -247,7 +248,7 @@ class IncomingSupplierInvoice(metaclass=PoolMeta):
         return line
 
     def _process_supplier_invoice_tax(self, invoice, parsed_tax):
-        pool = Pool()
+        pool = tx.pool
         Tax = pool.get('account.tax')
         InvoiceTax = pool.get('account.invoice.tax')
 
@@ -282,7 +283,7 @@ class IncomingSupplierInvoice(metaclass=PoolMeta):
 
     @property
     def supplier_invoice_company(self):
-        pool = Pool()
+        pool = tx.pool
         Company = pool.get('company.company')
         Party = pool.get('party.party')
         Identifier = pool.get('party.identifier')
@@ -326,7 +327,7 @@ class IncomingSupplierInvoice(metaclass=PoolMeta):
 
     @property
     def supplier_invoice_party(self):
-        pool = Pool()
+        pool = tx.pool
         Party = pool.get('party.party')
         Identifier = pool.get('party.identifier')
 
@@ -366,7 +367,7 @@ class IncomingSupplierInvoicePurchase(metaclass=PoolMeta):
     __name__ = 'document.incoming'
 
     def _process_supplier_invoice_line(self, invoice, line_data, invoice_data):
-        pool = Pool()
+        pool = tx.pool
         PurchaseLine = pool.get('purchase.line')
         UoM = pool.get('product.uom')
 
@@ -424,7 +425,7 @@ class IncomingOCRService(sequence_ordered(), ModelSQL, ModelView, MatchMixin):
 
     @classmethod
     def get_document_types(cls):
-        pool = Pool()
+        pool = tx.pool
         Incoming = pool.get('document.incoming')
         return Incoming.fields_get(['type'])['type']['selection']
 

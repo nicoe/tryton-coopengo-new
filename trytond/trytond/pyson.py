@@ -813,8 +813,8 @@ class Id(PYSON):
         return (self._module, self._fs_id)
 
     def pyson(self):
-        from trytond.pool import Pool
-        ModelData = Pool().get('ir.model.data')
+        from trytond import tx
+        ModelData = tx.pool.get('ir.model.data')
         return ModelData.get_id(self._module, self._fs_id)
 
     def types(self):

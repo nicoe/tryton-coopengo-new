@@ -2,12 +2,13 @@
 # this repository contains the full copyright notices and license terms.
 from decimal import Decimal
 
+from trytond import tx
 from trytond.model import fields
-from trytond.pool import Pool, PoolMeta
+from trytond.pool import PoolMeta
 
 
 def _percentage_amount(lines, company):
-    pool = Pool()
+    pool = tx.pool
     Move = pool.get('stock.move')
     Currency = pool.get('currency.currency')
 

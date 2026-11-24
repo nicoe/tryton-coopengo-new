@@ -2,10 +2,11 @@
 # this repository contains the full copyright notices and license terms.
 from functools import wraps
 
+from trytond import tx
 from trytond.i18n import gettext
 from trytond.model import ModelView, Workflow, fields
 from trytond.model.exceptions import AccessError
-from trytond.pool import Pool, PoolMeta
+from trytond.pool import PoolMeta
 from trytond.pyson import Eval
 from trytond.transaction import without_check_access
 
@@ -17,7 +18,7 @@ def process_request(func):
     # such as purchase has the proper state
     @wraps(func)
     def wrapper(cls, purchases):
-        pool = Pool()
+        pool = tx.pool
         Request = pool.get('purchase.request')
         result = func(cls, purchases)
         with without_check_access():
@@ -54,7 +55,7 @@ class Purchase(metaclass=PoolMeta):
         super().confirm(purchases)
 
     def check_request_warehouse(self):
-        pool = Pool()
+        pool = tx.pool
         Warning = pool.get('res.user.warning')
         for line in self.lines:
             for request in line.requests:
@@ -102,7 +103,7 @@ class Line(metaclass=PoolMeta):
 
     @classmethod
     def on_delete(cls, lines):
-        pool = Pool()
+        pool = tx.pool
         Request = pool.get('purchase.request')
         callback = super().on_delete(lines)
         requests = {r for l in lines for r in l.requests}

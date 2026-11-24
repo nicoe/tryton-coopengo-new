@@ -4,17 +4,15 @@
 from sql.aggregate import Sum
 from sql.conditionals import Coalesce
 
-from trytond import backend
+from trytond import backend, tx
 from trytond.i18n import gettext
 from trytond.model import (
     DeactivableMixin, MatchMixin, ModelSQL, ModelView, Unique, Workflow,
     fields, sequence_ordered)
 from trytond.model.exceptions import AccessError
 from trytond.modules.currency.fields import Monetary
-from trytond.pool import Pool
 from trytond.pyson import Eval
 from trytond.tools import is_full_text, lstrip_wildcard, sqlite_apply_types
-from trytond.transaction import Transaction
 
 STATES = {
     'readonly': Eval('state') == 'closed',
@@ -71,9 +69,9 @@ class Journal(
 
     @classmethod
     def get_currency(cls, journals, name):
-        pool = Pool()
+        pool = tx.pool
         Company = pool.get('company.company')
-        company_id = Transaction().context.get('company')
+        company_id = tx.transaction.context.get('company')
         if company_id is not None and company_id >= 0:
             company = Company(company_id)
             currency_id = company.currency.id
@@ -83,21 +81,21 @@ class Journal(
 
     @classmethod
     def get_debit_credit_balance(cls, journals, names):
-        pool = Pool()
+        pool = tx.pool
         MoveLine = pool.get('account.move.line')
         Move = pool.get('account.move')
         Account = pool.get('account.account')
         AccountType = pool.get('account.account.type')
         Company = pool.get('company.company')
-        context = Transaction().context
-        cursor = Transaction().connection.cursor()
+        context = tx.transaction.context
+        cursor = tx.transaction.connection.cursor()
 
         result = {}
         ids = [j.id for j in journals]
         for name in ['debit', 'credit', 'balance']:
             result[name] = dict.fromkeys(ids, 0)
 
-        company_id = Transaction().context.get('company')
+        company_id = tx.transaction.context.get('company')
         if not company_id:
             return result
         company = Company(company_id)
@@ -146,7 +144,7 @@ class Journal(
 
     @classmethod
     def check_modification(cls, mode, journals, values=None, external=False):
-        pool = Pool()
+        pool = tx.pool
         Move = pool.get('account.move')
         super().check_modification(
             mode, journals, values=values, external=external)
@@ -169,7 +167,7 @@ class JournalCashContext(ModelView):
 
     @classmethod
     def default_start_date(cls):
-        return Pool().get('ir.date').today()
+        return tx.pool.get('ir.date').today()
     default_end_date = default_start_date
 
 
@@ -218,7 +216,7 @@ class JournalPeriod(Workflow, ModelSQL, ModelView):
 
     @classmethod
     def __register__(cls, module):
-        cursor = Transaction().connection.cursor()
+        cursor = tx.transaction.connection.cursor()
         t = cls.__table__()
         super().__register__(module)
         # Migration from 6.8: rename state close to closed
@@ -259,7 +257,7 @@ class JournalPeriod(Workflow, ModelSQL, ModelView):
 
     @classmethod
     def _check(cls, periods):
-        Move = Pool().get('account.move')
+        Move = tx.pool.get('account.move')
         for period in periods:
             moves = Move.search([
                     ('journal', '=', period.journal.id),

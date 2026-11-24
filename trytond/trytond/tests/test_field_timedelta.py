@@ -2,8 +2,8 @@
 # this repository contains the full copyright notices and license terms.
 import datetime
 
+from trytond import tx
 from trytond.model.exceptions import RequiredValidationError
-from trytond.pool import Pool
 from trytond.tests.test_tryton import (
     TestCase, activate_module, with_transaction)
 
@@ -24,7 +24,7 @@ class FieldTimeDeltaTestCase(TestCase):
     @with_transaction()
     def test_set_string(self):
         "Test set string"
-        pool = Pool()
+        pool = tx.pool
         Model = pool.get('test.timedelta')
 
         record = Model()
@@ -37,7 +37,7 @@ class FieldTimeDeltaTestCase(TestCase):
     @with_transaction()
     def test_set_integer(self):
         "Test set integer"
-        pool = Pool()
+        pool = tx.pool
         Model = pool.get('test.timedelta')
 
         record = Model()
@@ -48,7 +48,7 @@ class FieldTimeDeltaTestCase(TestCase):
     @with_transaction()
     def test_create(self):
         "Test create timedelta"
-        TimeDelta = Pool().get('test.timedelta')
+        TimeDelta = tx.pool.get('test.timedelta')
 
         timedelta, timedelta_none = TimeDelta.create([{
                     'timedelta': hour,
@@ -62,7 +62,7 @@ class FieldTimeDeltaTestCase(TestCase):
     @with_transaction()
     def test_create_without_default(self):
         "Test create timedelta without default"
-        TimeDelta = Pool().get('test.timedelta')
+        TimeDelta = tx.pool.get('test.timedelta')
 
         timedelta, = TimeDelta.create([{}])
 
@@ -71,7 +71,7 @@ class FieldTimeDeltaTestCase(TestCase):
     @with_transaction()
     def test_create_with_default(self):
         "Test create timedelta with default"
-        TimeDelta = Pool().get('test.timedelta_default')
+        TimeDelta = tx.pool.get('test.timedelta_default')
 
         timedelta, = TimeDelta.create([{}])
 
@@ -80,7 +80,7 @@ class FieldTimeDeltaTestCase(TestCase):
     @with_transaction()
     def test_create_string(self):
         "Test create timedelta with timedelta string"
-        TimeDelta = Pool().get('test.timedelta')
+        TimeDelta = tx.pool.get('test.timedelta')
 
         timedelta, = TimeDelta.create([{
                     'timedelta': '1:20:30.5',
@@ -93,7 +93,7 @@ class FieldTimeDeltaTestCase(TestCase):
     @with_transaction()
     def test_create_string_simplet(self):
         "Test create timedelta with simple timedelta string"
-        TimeDelta = Pool().get('test.timedelta')
+        TimeDelta = tx.pool.get('test.timedelta')
 
         timedelta, = TimeDelta.create([{
                     'timedelta': '1:20',
@@ -106,7 +106,7 @@ class FieldTimeDeltaTestCase(TestCase):
     @with_transaction()
     def test_create_invalid_string(self):
         "Test create timedelta with invalid timedelta string"
-        TimeDelta = Pool().get('test.timedelta')
+        TimeDelta = tx.pool.get('test.timedelta')
 
         with self.assertRaises(ValueError):
             TimeDelta.create([{
@@ -116,7 +116,7 @@ class FieldTimeDeltaTestCase(TestCase):
     @with_transaction()
     def test_create_integer(self):
         "Test create timedelta with integer"
-        TimeDelta = Pool().get('test.timedelta')
+        TimeDelta = tx.pool.get('test.timedelta')
 
         timedelta, = TimeDelta.create([{
                     'timedelta': 42,
@@ -127,7 +127,7 @@ class FieldTimeDeltaTestCase(TestCase):
     @with_transaction()
     def test_create_float(self):
         "Test create timedelta with float"
-        TimeDelta = Pool().get('test.timedelta')
+        TimeDelta = tx.pool.get('test.timedelta')
 
         timedelta, = TimeDelta.create([{
                     'timedelta': 42.5,
@@ -138,7 +138,7 @@ class FieldTimeDeltaTestCase(TestCase):
     @with_transaction()
     def test_create_required_with_value(self):
         "Test create timedelta required with value"
-        TimeDelta = Pool().get('test.timedelta_required')
+        TimeDelta = tx.pool.get('test.timedelta_required')
 
         timedelta, = TimeDelta.create([{
                     'timedelta': hour,
@@ -149,7 +149,7 @@ class FieldTimeDeltaTestCase(TestCase):
     @with_transaction()
     def test_create_required_without_value(self):
         "Test create timedelta required without value"
-        TimeDelta = Pool().get('test.timedelta_required')
+        TimeDelta = tx.pool.get('test.timedelta_required')
 
         with self.assertRaises(RequiredValidationError):
             TimeDelta.create([{}])
@@ -157,7 +157,7 @@ class FieldTimeDeltaTestCase(TestCase):
     @with_transaction()
     def test_search_equals(self):
         "Test search timedelta equals"
-        TimeDelta = Pool().get('test.timedelta')
+        TimeDelta = tx.pool.get('test.timedelta')
         timedelta, = TimeDelta.create([{
                     'timedelta': hour,
                     }])
@@ -175,7 +175,7 @@ class FieldTimeDeltaTestCase(TestCase):
     @with_transaction()
     def test_search_equals_none(self):
         "Test search timedelta equals None"
-        TimeDelta = Pool().get('test.timedelta')
+        TimeDelta = tx.pool.get('test.timedelta')
         timedelta, = TimeDelta.create([{
                     'timedelta': None,
                     }])
@@ -189,7 +189,7 @@ class FieldTimeDeltaTestCase(TestCase):
     @with_transaction()
     def test_search_non_equals(self):
         "Test search timedelta non equals"
-        TimeDelta = Pool().get('test.timedelta')
+        TimeDelta = tx.pool.get('test.timedelta')
         timedelta, = TimeDelta.create([{
                     'timedelta': hour,
                     }])
@@ -207,7 +207,7 @@ class FieldTimeDeltaTestCase(TestCase):
     @with_transaction()
     def test_search_non_equals_none(self):
         "Test search timedelta non equals None"
-        TimeDelta = Pool().get('test.timedelta')
+        TimeDelta = tx.pool.get('test.timedelta')
         timedelta, = TimeDelta.create([{
                     'timedelta': None,
                     }])
@@ -221,7 +221,7 @@ class FieldTimeDeltaTestCase(TestCase):
     @with_transaction()
     def test_search_in(self):
         "Test search timedelta in"
-        TimeDelta = Pool().get('test.timedelta')
+        TimeDelta = tx.pool.get('test.timedelta')
         timedelta, = TimeDelta.create([{
                     'timedelta': hour,
                     }])
@@ -243,7 +243,7 @@ class FieldTimeDeltaTestCase(TestCase):
     @with_transaction()
     def test_search_in_none(self):
         "Test search timedelta in [None]"
-        TimeDelta = Pool().get('test.timedelta')
+        TimeDelta = tx.pool.get('test.timedelta')
         timedelta, = TimeDelta.create([{
                     'timedelta': None,
                     }])
@@ -257,7 +257,7 @@ class FieldTimeDeltaTestCase(TestCase):
     @with_transaction()
     def test_search_not_in(self):
         "Test search timedelta not in"
-        TimeDelta = Pool().get('test.timedelta')
+        TimeDelta = tx.pool.get('test.timedelta')
         timedelta, = TimeDelta.create([{
                     'timedelta': hour,
                     }])
@@ -279,7 +279,7 @@ class FieldTimeDeltaTestCase(TestCase):
     @with_transaction()
     def test_search_not_in_none(self):
         "Test search timedelta not in [None]"
-        TimeDelta = Pool().get('test.timedelta')
+        TimeDelta = tx.pool.get('test.timedelta')
         timedelta, = TimeDelta.create([{
                     'timedelta': None,
                     }])
@@ -293,7 +293,7 @@ class FieldTimeDeltaTestCase(TestCase):
     @with_transaction()
     def test_search_in_multi(self):
         "Test search timedelta in multiple"
-        TimeDelta = Pool().get('test.timedelta')
+        TimeDelta = tx.pool.get('test.timedelta')
         timedeltas = TimeDelta.create([{
                     'timedelta': hour,
                     }, {
@@ -309,7 +309,7 @@ class FieldTimeDeltaTestCase(TestCase):
     @with_transaction()
     def test_search_not_in_multi(self):
         "Test search timedelta not in multiple"
-        TimeDelta = Pool().get('test.timedelta')
+        TimeDelta = tx.pool.get('test.timedelta')
         TimeDelta.create([{
                     'timedelta': hour,
                     }, {
@@ -325,7 +325,7 @@ class FieldTimeDeltaTestCase(TestCase):
     @with_transaction()
     def test_search_less(self):
         "Test search timedelta less than"
-        TimeDelta = Pool().get('test.timedelta')
+        TimeDelta = tx.pool.get('test.timedelta')
         timedelta, = TimeDelta.create([{
                     'timedelta': hour,
                     }])
@@ -347,7 +347,7 @@ class FieldTimeDeltaTestCase(TestCase):
     @with_transaction()
     def test_search_less_equals(self):
         "Test search timedelta less than or equals"
-        TimeDelta = Pool().get('test.timedelta')
+        TimeDelta = tx.pool.get('test.timedelta')
         timedelta, = TimeDelta.create([{
                     'timedelta': hour,
                     }])
@@ -369,7 +369,7 @@ class FieldTimeDeltaTestCase(TestCase):
     @with_transaction()
     def test_search_greater(self):
         "Test search timedelta greater than"
-        TimeDelta = Pool().get('test.timedelta')
+        TimeDelta = tx.pool.get('test.timedelta')
         timedelta, = TimeDelta.create([{
                     'timedelta': hour,
                     }])
@@ -391,7 +391,7 @@ class FieldTimeDeltaTestCase(TestCase):
     @with_transaction()
     def test_search_greater_equals(self):
         "Test search timedelta greater than or equals"
-        TimeDelta = Pool().get('test.timedelta')
+        TimeDelta = tx.pool.get('test.timedelta')
         timedelta, = TimeDelta.create([{
                     'timedelta': hour,
                     }])
@@ -413,7 +413,7 @@ class FieldTimeDeltaTestCase(TestCase):
     @with_transaction()
     def test_write(self):
         "Test write timedelta"
-        TimeDelta = Pool().get('test.timedelta')
+        TimeDelta = tx.pool.get('test.timedelta')
         timedelta, = TimeDelta.create([{
                     'timedelta': hour,
                     }])
@@ -427,7 +427,7 @@ class FieldTimeDeltaTestCase(TestCase):
     @with_transaction()
     def test_write_string(self):
         "Test write timedelta with timedelta string"
-        TimeDelta = Pool().get('test.timedelta')
+        TimeDelta = tx.pool.get('test.timedelta')
         timedelta, = TimeDelta.create([{
                     'timedelta': hour,
                     }])
@@ -443,7 +443,7 @@ class FieldTimeDeltaTestCase(TestCase):
     @with_transaction()
     def test_write_string_simple(self):
         "Test write timedelta with simple timedelta string"
-        TimeDelta = Pool().get('test.timedelta')
+        TimeDelta = tx.pool.get('test.timedelta')
         timedelta, = TimeDelta.create([{
                     'timedelta': hour,
                     }])
@@ -459,7 +459,7 @@ class FieldTimeDeltaTestCase(TestCase):
     @with_transaction()
     def test_write_invalid_string(self):
         "Test write timedelta with invalid timedelta string"
-        TimeDelta = Pool().get('test.timedelta')
+        TimeDelta = tx.pool.get('test.timedelta')
         timedelta, = TimeDelta.create([{
                     'timedelta': hour,
                     }])
@@ -472,7 +472,7 @@ class FieldTimeDeltaTestCase(TestCase):
     @with_transaction()
     def test_write_interger(self):
         "Test write timedelta with integer"
-        TimeDelta = Pool().get('test.timedelta')
+        TimeDelta = tx.pool.get('test.timedelta')
         timedelta, = TimeDelta.create([{
                     'timedelta': hour,
                     }])
@@ -488,7 +488,7 @@ class FieldTimeDeltaTestCase(TestCase):
     @with_transaction()
     def test_write_float(self):
         "Test write timedelta with float"
-        TimeDelta = Pool().get('test.timedelta')
+        TimeDelta = tx.pool.get('test.timedelta')
         timedelta, = TimeDelta.create([{
                     'timedelta': hour,
                     }])

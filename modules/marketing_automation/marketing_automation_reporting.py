@@ -7,10 +7,9 @@ from sql.aggregate import Count, Min
 from sql.conditionals import NullIf
 from sql.functions import DateTrunc, Round
 
+from trytond import tx
 from trytond.model import ModelSQL, ModelView, fields
-from trytond.pool import Pool
 from trytond.pyson import Eval, If
-from trytond.transaction import Transaction
 
 
 class Context(ModelView):
@@ -36,25 +35,25 @@ class Context(ModelView):
 
     @classmethod
     def default_from_date(cls):
-        pool = Pool()
+        pool = tx.pool
         Date = pool.get('ir.date')
-        context = Transaction().context
+        context = tx.transaction.context
         if 'from_date' in context:
             return context['from_date']
         return Date.today() - relativedelta(years=1)
 
     @classmethod
     def default_to_date(cls):
-        pool = Pool()
+        pool = tx.pool
         Date = pool.get('ir.date')
-        context = Transaction().context
+        context = tx.transaction.context
         if 'to_date' in context:
             return context['to_date']
         return Date.today()
 
     @classmethod
     def default_period(cls):
-        return Transaction().context.get('period', 'month')
+        return tx.transaction.context.get('period', 'month')
 
 
 class Abstract(ModelSQL, ModelView):
@@ -88,7 +87,7 @@ class Scenario(Abstract):
 
     @classmethod
     def _joins(cls):
-        pool = Pool()
+        pool = tx.pool
         Record = pool.get('marketing.automation.record')
         tables = {}
         tables['record'] = record = Record.__table__()
@@ -118,7 +117,7 @@ class Scenario(Abstract):
 
     @classmethod
     def _column_date(cls, tables, withs):
-        context = Transaction().context
+        context = tx.transaction.context
         record = tables['record']
 
         date = DateTrunc(context.get('period', 'month'), record.create_date)
@@ -131,7 +130,7 @@ class Scenario(Abstract):
 
     @classmethod
     def _where(cls, tables, withs):
-        context = Transaction().context
+        context = tx.transaction.context
         record = tables['record']
 
         where = Literal(True)
@@ -181,7 +180,7 @@ class Activity(Abstract):
 
     @classmethod
     def get_activity_actions(cls):
-        pool = Pool()
+        pool = tx.pool
         Activity = pool.get('marketing.automation.activity')
         return Activity.fields_get(['action'])['action']['selection']
 
@@ -192,7 +191,7 @@ class Activity(Abstract):
 
     @classmethod
     def _joins(cls):
-        pool = Pool()
+        pool = tx.pool
         RecordActivity = pool.get('marketing.automation.record.activity')
         tables = {}
         tables['record_activity'] = record = RecordActivity.__table__()
@@ -230,7 +229,7 @@ class Activity(Abstract):
 
     @classmethod
     def _column_date(cls, tables, withs):
-        context = Transaction().context
+        context = tx.transaction.context
         record_activity = tables['record_activity']
 
         date = DateTrunc(context.get('period', 'month'), record_activity.at)
@@ -245,7 +244,7 @@ class Activity(Abstract):
 
     @classmethod
     def _where(cls, tables, withs):
-        context = Transaction().context
+        context = tx.transaction.context
         record_activity = tables['record_activity']
 
         where = Literal(True)

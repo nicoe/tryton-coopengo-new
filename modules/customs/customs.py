@@ -5,14 +5,12 @@ from decimal import Decimal
 
 from sql import Null
 
-from trytond import backend
+from trytond import backend, tx
 from trytond.model import (
     DeactivableMixin, MatchMixin, ModelSQL, ModelView, fields,
     sequence_ordered)
 from trytond.modules.product import price_digits
-from trytond.pool import Pool
 from trytond.pyson import Bool, Eval, If
-from trytond.transaction import Transaction
 
 
 class CountryMatchMixin(MatchMixin):
@@ -81,9 +79,9 @@ class TariffCode(DeactivableMixin, CountryMatchMixin, ModelSQL, ModelView):
 
     @classmethod
     def __register__(cls, module_name):
-        transaction = Transaction()
+        transaction = tx.transaction
         cursor = transaction.connection.cursor()
-        pool = Pool()
+        pool = tx.pool
         Month = pool.get('ir.calendar.month')
         sql_table = cls.__table__()
         month = Month.__table__()
@@ -218,12 +216,12 @@ class DutyRate(CountryMatchMixin, ModelSQL, ModelView):
             currency, quantity, uom, **kwargs)
 
     def compute_amount(self, currency, quantity, uom, **kwargs):
-        pool = Pool()
+        pool = tx.pool
         Currency = pool.get('currency.currency')
         return Currency.compute(self.currency, self.amount, currency)
 
     def compute_quantity(self, currency, quantity, uom, **kwargs):
-        pool = Pool()
+        pool = tx.pool
         Currency = pool.get('currency.currency')
         Uom = pool.get('product.uom')
 
@@ -251,7 +249,7 @@ class Agent(DeactivableMixin, ModelSQL, ModelView):
 
     @classmethod
     def __setup__(cls):
-        pool = Pool()
+        pool = tx.pool
         Party = pool.get('party.party')
         super().__setup__()
         tax_identifier_types = Party.tax_identifier_types()
@@ -299,7 +297,7 @@ class AgentSelection(
 
     @classmethod
     def default_company(cls):
-        return Transaction().context.get('company')
+        return tx.transaction.context.get('company')
 
     @classmethod
     def get_agent(cls, company, pattern):

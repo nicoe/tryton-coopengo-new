@@ -6,12 +6,10 @@ import unittest
 from sql import Literal, Select
 from sql.functions import CurrentDate
 
-from trytond import backend
+from trytond import backend, tx
 from trytond.model.exceptions import RequiredValidationError
-from trytond.pool import Pool
 from trytond.tests.test_tryton import (
     TestCase, activate_module, with_transaction)
-from trytond.transaction import Transaction
 
 today = datetime.date(2009, 1, 1)
 tomorrow = today + datetime.timedelta(1)
@@ -30,7 +28,7 @@ class FieldDateTestCase(TestCase):
     @with_transaction()
     def test_set_string(self):
         "Test set string"
-        pool = Pool()
+        pool = tx.pool
         Model = pool.get('test.date')
 
         record = Model()
@@ -41,7 +39,7 @@ class FieldDateTestCase(TestCase):
     @with_transaction()
     def test_create(self):
         "Test create date"
-        Date = Pool().get('test.date')
+        Date = tx.pool.get('test.date')
 
         date, date_none = Date.create([{
                     'date': today,
@@ -55,7 +53,7 @@ class FieldDateTestCase(TestCase):
     @with_transaction()
     def test_create_date_string(self):
         "Test create date with date string"
-        Date = Pool().get('test.date')
+        Date = tx.pool.get('test.date')
 
         date, = Date.create([{
                     'date': str(today),
@@ -66,7 +64,7 @@ class FieldDateTestCase(TestCase):
     @with_transaction()
     def test_create_invalid_date_string(self):
         "Test create date with invalid date string"
-        Date = Pool().get('test.date')
+        Date = tx.pool.get('test.date')
 
         with self.assertRaises(ValueError):
             Date.create([{
@@ -76,7 +74,7 @@ class FieldDateTestCase(TestCase):
     @with_transaction()
     def test_create_without_default(self):
         "Test create date without default"
-        Date = Pool().get('test.date')
+        Date = tx.pool.get('test.date')
 
         date, = Date.create([{}])
 
@@ -85,7 +83,7 @@ class FieldDateTestCase(TestCase):
     @with_transaction()
     def test_create_with_default(self):
         "Test create date with default"
-        Date = Pool().get('test.date_default')
+        Date = tx.pool.get('test.date_default')
 
         date, = Date.create([{}])
 
@@ -94,7 +92,7 @@ class FieldDateTestCase(TestCase):
     @with_transaction()
     def test_create_with_sql_value(self):
         "Test create date with SQL value"
-        Date = Pool().get('test.date')
+        Date = tx.pool.get('test.date')
 
         date, = Date.create([{'date': CurrentDate()}])
 
@@ -103,7 +101,7 @@ class FieldDateTestCase(TestCase):
     @with_transaction()
     def test_set_sql_value(self):
         "Test cannot set SQL value"
-        Date = Pool().get('test.date')
+        Date = tx.pool.get('test.date')
 
         date = Date()
 
@@ -113,7 +111,7 @@ class FieldDateTestCase(TestCase):
     @with_transaction()
     def test_create_non_date(self):
         "Test create date with non date"
-        Date = Pool().get('test.date')
+        Date = tx.pool.get('test.date')
 
         with self.assertRaises(ValueError):
             Date.create([{
@@ -123,7 +121,7 @@ class FieldDateTestCase(TestCase):
     @with_transaction()
     def test_create_integer(self):
         "Test create date with integer"
-        Date = Pool().get('test.date')
+        Date = tx.pool.get('test.date')
 
         with self.assertRaises(TypeError):
             Date.create([{
@@ -133,7 +131,7 @@ class FieldDateTestCase(TestCase):
     @with_transaction()
     def test_create_datetime(self):
         "Test create date with datetime"
-        Date = Pool().get('test.date')
+        Date = tx.pool.get('test.date')
 
         with self.assertRaises(ValueError):
             Date.create([{
@@ -143,7 +141,7 @@ class FieldDateTestCase(TestCase):
     @with_transaction()
     def test_create_required_with_value(self):
         "Test create date required with value"
-        Date = Pool().get('test.date_required')
+        Date = tx.pool.get('test.date_required')
 
         date, = Date.create([{
                     'date': today,
@@ -154,7 +152,7 @@ class FieldDateTestCase(TestCase):
     @with_transaction()
     def test_create_required_without_value(self):
         "Test create date required without value"
-        Date = Pool().get('test.date_required')
+        Date = tx.pool.get('test.date_required')
 
         with self.assertRaises(RequiredValidationError):
             Date.create([{}])
@@ -162,7 +160,7 @@ class FieldDateTestCase(TestCase):
     @with_transaction()
     def test_search_equals(self):
         "Test search date equals"
-        Date = Pool().get('test.date')
+        Date = tx.pool.get('test.date')
         date, = Date.create([{
                     'date': today,
                     }])
@@ -180,7 +178,7 @@ class FieldDateTestCase(TestCase):
     @with_transaction()
     def test_search_equals_none(self):
         "Test search date equals None"
-        Date = Pool().get('test.date')
+        Date = tx.pool.get('test.date')
         date, = Date.create([{
                     'date': None,
                     }])
@@ -194,7 +192,7 @@ class FieldDateTestCase(TestCase):
     @with_transaction()
     def test_search_non_equals(self):
         "Test search date non equals"
-        Date = Pool().get('test.date')
+        Date = tx.pool.get('test.date')
         date, = Date.create([{
                     'date': today,
                     }])
@@ -212,7 +210,7 @@ class FieldDateTestCase(TestCase):
     @with_transaction()
     def test_search_non_equals_none(self):
         "Test search date non equals None"
-        Date = Pool().get('test.date')
+        Date = tx.pool.get('test.date')
         date, = Date.create([{
                     'date': None,
                     }])
@@ -226,7 +224,7 @@ class FieldDateTestCase(TestCase):
     @with_transaction()
     def test_search_in(self):
         "Test search date in"
-        Date = Pool().get('test.date')
+        Date = tx.pool.get('test.date')
         date, = Date.create([{
                     'date': today,
                     }])
@@ -248,7 +246,7 @@ class FieldDateTestCase(TestCase):
     @with_transaction()
     def test_search_in_none(self):
         "Test search date in [None]"
-        Date = Pool().get('test.date')
+        Date = tx.pool.get('test.date')
         date, = Date.create([{
                     'date': None,
                     }])
@@ -262,7 +260,7 @@ class FieldDateTestCase(TestCase):
     @with_transaction()
     def test_search_not_in(self):
         "Test search date not in"
-        Date = Pool().get('test.date')
+        Date = tx.pool.get('test.date')
         date, = Date.create([{
                     'date': today,
                     }])
@@ -284,7 +282,7 @@ class FieldDateTestCase(TestCase):
     @with_transaction()
     def test_search_not_in_none(self):
         "Test search date not in [None]"
-        Date = Pool().get('test.date')
+        Date = tx.pool.get('test.date')
         date, = Date.create([{
                     'date': None,
                     }])
@@ -298,7 +296,7 @@ class FieldDateTestCase(TestCase):
     @with_transaction()
     def test_search_in_multi(self):
         "Test search date in multiple"
-        Date = Pool().get('test.date')
+        Date = tx.pool.get('test.date')
         dates = Date.create([{
                     'date': today,
                     }, {
@@ -314,7 +312,7 @@ class FieldDateTestCase(TestCase):
     @with_transaction()
     def test_search_not_in_multi(self):
         "Test search date not in multiple"
-        Date = Pool().get('test.date')
+        Date = tx.pool.get('test.date')
         Date.create([{
                     'date': today,
                     }, {
@@ -330,7 +328,7 @@ class FieldDateTestCase(TestCase):
     @with_transaction()
     def test_search_less(self):
         "Test search date less than"
-        Date = Pool().get('test.date')
+        Date = tx.pool.get('test.date')
         date, = Date.create([{
                     'date': today,
                     }])
@@ -352,7 +350,7 @@ class FieldDateTestCase(TestCase):
     @with_transaction()
     def test_search_less_equals(self):
         "Test search date less than or equals"
-        Date = Pool().get('test.date')
+        Date = tx.pool.get('test.date')
         date, = Date.create([{
                     'date': today,
                     }])
@@ -374,7 +372,7 @@ class FieldDateTestCase(TestCase):
     @with_transaction()
     def test_search_greater(self):
         "Test search date greater than"
-        Date = Pool().get('test.date')
+        Date = tx.pool.get('test.date')
         date, = Date.create([{
                     'date': today,
                     }])
@@ -396,7 +394,7 @@ class FieldDateTestCase(TestCase):
     @with_transaction()
     def test_search_greater_equals(self):
         "Test search date greater than or equals"
-        Date = Pool().get('test.date')
+        Date = tx.pool.get('test.date')
         date, = Date.create([{
                     'date': today,
                     }])
@@ -418,7 +416,7 @@ class FieldDateTestCase(TestCase):
     @with_transaction()
     def test_write(self):
         "Test write date"
-        Date = Pool().get('test.date')
+        Date = tx.pool.get('test.date')
         date, = Date.create([{
                     'date': today,
                     }])
@@ -432,7 +430,7 @@ class FieldDateTestCase(TestCase):
     @with_transaction()
     def test_write_non_date(self):
         "Test write date with non date"
-        Date = Pool().get('test.date')
+        Date = tx.pool.get('test.date')
         date, = Date.create([{
                     'date': today,
                     }])
@@ -445,7 +443,7 @@ class FieldDateTestCase(TestCase):
     @with_transaction()
     def test_write_integer(self):
         "Test write date with integer"
-        Date = Pool().get('test.date')
+        Date = tx.pool.get('test.date')
         date, = Date.create([{
                     'date': today,
                     }])
@@ -458,7 +456,7 @@ class FieldDateTestCase(TestCase):
     @with_transaction()
     def test_write_datetime(self):
         "Test write date with datetime"
-        Date = Pool().get('test.date')
+        Date = tx.pool.get('test.date')
         date, = Date.create([{
                     'date': today,
                     }])
@@ -473,11 +471,11 @@ class FieldDateTestCase(TestCase):
     @with_transaction()
     def test_sql_cast_timezone(self):
         "Cast datetime to date with timezone"
-        Date = Pool().get('test.date')
+        Date = tx.pool.get('test.date')
         expression = Date.date.sql_cast(
             Literal(datetime.datetime(2021, 10, 14, 22, 00)),
             timezone='Europe/Brussels')
-        cursor = Transaction().connection.cursor()
+        cursor = tx.transaction.connection.cursor()
 
         cursor.execute(*Select([expression]))
         result, = cursor.fetchone()

@@ -11,8 +11,9 @@ from enum import IntFlag
 
 from sql.operators import Equal
 
+from trytond import tx
 from trytond.model import Exclude, fields
-from trytond.pool import Pool, PoolMeta
+from trytond.pool import PoolMeta
 from trytond.pyson import Bool, Eval
 
 _ACT_FIELDNAMES = [
@@ -127,7 +128,7 @@ class Move(metaclass=PoolMeta):
 
     @property
     def winbooks_number(self):
-        pool = Pool()
+        pool = tx.pool
         Invoice = pool.get('account.invoice')
         if isinstance(self.origin, Invoice):
             number = self.origin.number
@@ -141,7 +142,7 @@ class MoveLine(metaclass=PoolMeta):
 
     @property
     def winbooks_comment(self):
-        pool = Pool()
+        pool = tx.pool
         InvoiceLine = pool.get('account.invoice.line')
         if isinstance(self.origin, InvoiceLine):
             comment = self.origin.rec_name
@@ -227,7 +228,7 @@ class MoveExport(metaclass=PoolMeta):
             yield from self._process_winbooks_act_move(move)
 
     def _process_winbooks_act_move(self, move):
-        pool = Pool()
+        pool = tx.pool
         Invoice = pool.get('account.invoice')
         try:
             Statement = pool.get('account.statement')

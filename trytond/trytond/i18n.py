@@ -1,22 +1,21 @@
 # This file is part of Tryton.  The COPYRIGHT file at the top level of
 # this repository contains the full copyright notices and license terms.
-from trytond.pool import Pool
+from trytond import tx
 from trytond.tools.string_ import LazyString
-from trytond.transaction import Transaction
 
 _none = object()
 
 
 def _ngettext(message_id, *args, **variables):
-    if not Transaction().database:
+    if not tx.transaction.database:
         return message_id
-    pool = Pool()
+    pool = tx.pool
     if not pool.ready:
         return message_id
     Message = pool.get('ir.message')
     if len(args) < 2:
         n, = args
-        language = Transaction().language
+        language = tx.transaction.language
     else:
         n, language = args
     try:

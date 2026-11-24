@@ -9,14 +9,13 @@ from sql.conditionals import Coalesce
 from sql.functions import Extract
 from sql.operators import Concat
 
-from trytond import backend
+from trytond import backend, tx
 from trytond.model import fields
 from trytond.modules.currency.fields import Monetary
 from trytond.modules.product import price_digits, round_price
-from trytond.pool import Pool, PoolMeta
+from trytond.pool import PoolMeta
 from trytond.pyson import Bool, Eval, If
 from trytond.tools import sqlite_apply_types
-from trytond.transaction import Transaction
 
 
 class Work(metaclass=PoolMeta):
@@ -48,7 +47,7 @@ class Work(metaclass=PoolMeta):
 
     @classmethod
     def __setup__(cls):
-        pool = Pool()
+        pool = tx.pool
 
         super().__setup__()
 
@@ -92,10 +91,10 @@ class Work(metaclass=PoolMeta):
 
     @classmethod
     def _timesheet_cost(cls, works):
-        pool = Pool()
+        pool = tx.pool
         Line = pool.get('timesheet.line')
         Work = pool.get('timesheet.work')
-        transaction = Transaction()
+        transaction = tx.transaction
         cursor = transaction.connection.cursor()
         table = cls.__table__()
         work = Work.__table__()
@@ -121,14 +120,14 @@ class Work(metaclass=PoolMeta):
         if not hasattr(cls, 'purchase_lines'):
             return
 
-        pool = Pool()
+        pool = tx.pool
         Currency = pool.get('currency.currency')
         PurchaseLine = pool.get('purchase.line')
         InvoiceLine = pool.get('account.invoice.line')
         Invoice = pool.get('account.invoice')
         Company = pool.get('company.company')
 
-        cursor = Transaction().connection.cursor()
+        cursor = tx.transaction.connection.cursor()
         table = cls.__table__()
         purchase_line = PurchaseLine.__table__()
         invoice_line = InvoiceLine.__table__()
@@ -165,7 +164,7 @@ class Work(metaclass=PoolMeta):
             currency_id = work2currency[work_id]
             currency = id2currency[currency_id]
             if currency != invoice.currency:
-                with Transaction().set_context(date=invoice.currency_date):
+                with tx.transaction.set_context(date=invoice.currency_date):
                     amount = Currency.compute(invoice.currency,
                         invoice_line.amount, currency)
             else:
@@ -191,7 +190,7 @@ class Work(metaclass=PoolMeta):
 
     @fields.depends('product')
     def on_change_product(self):
-        pool = Pool()
+        pool = tx.pool
         ModelData = pool.get('ir.model.data')
         Uom = pool.get('product.uom')
 
@@ -209,7 +208,7 @@ class Work(metaclass=PoolMeta):
 
     @property
     def price_list_hour(self):
-        pool = Pool()
+        pool = tx.pool
         ModelData = pool.get('ir.model.data')
         Category = pool.get('product.uom.category')
         if not self.product:

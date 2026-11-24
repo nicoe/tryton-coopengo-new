@@ -10,15 +10,14 @@ from sql.aggregate import Sum
 from sql.conditionals import Coalesce
 from sql.operators import Equal
 
+from trytond import tx
 from trytond.i18n import gettext
 from trytond.model import (
     ChatMixin, Exclude, Index, ModelSQL, ModelView, Unique, Workflow, fields)
 from trytond.model.exceptions import AccessError
-from trytond.pool import Pool
 from trytond.pyson import Bool, Eval, If
 from trytond.sql.functions import DateRange
 from trytond.sql.operators import RangeOverlap
-from trytond.transaction import Transaction
 from trytond.wizard import Button, StateTransition, StateView, Wizard
 
 
@@ -115,29 +114,29 @@ class Forecast(Workflow, ModelSQL, ModelView, ChatMixin):
 
     @classmethod
     def default_warehouse(cls):
-        pool = Pool()
+        pool = tx.pool
         Location = pool.get('stock.location')
         return Location.get_default_warehouse()
 
     @classmethod
     def default_destination(cls):
-        Location = Pool().get('stock.location')
+        Location = tx.pool.get('stock.location')
         locations = Location.search(cls.destination.domain)
         if len(locations) == 1:
             return locations[0].id
 
     @staticmethod
     def default_company():
-        return Transaction().context.get('company')
+        return tx.transaction.context.get('company')
 
     def get_active(self, name):
-        pool = Pool()
+        pool = tx.pool
         Date = pool.get('ir.date')
         return self.to_date >= Date.today()
 
     @classmethod
     def search_active(cls, name, clause):
-        pool = Pool()
+        pool = tx.pool
         Date = pool.get('ir.date')
 
         today = Date.today()
@@ -158,7 +157,7 @@ class Forecast(Workflow, ModelSQL, ModelView, ChatMixin):
             return []
 
     def get_rec_name(self, name):
-        pool = Pool()
+        pool = tx.pool
         Lang = pool.get('ir.lang')
 
         lang = Lang.get()
@@ -217,7 +216,7 @@ class Forecast(Workflow, ModelSQL, ModelView, ChatMixin):
     @staticmethod
     def create_moves(forecasts):
         'Create stock moves for the forecast ids'
-        pool = Pool()
+        pool = tx.pool
         Move = pool.get('stock.move')
         to_save = []
         for forecast in forecasts:
@@ -229,7 +228,7 @@ class Forecast(Workflow, ModelSQL, ModelView, ChatMixin):
     @staticmethod
     def delete_moves(forecasts):
         'Delete stock moves for the forecast ids'
-        Line = Pool().get('stock.forecast.line')
+        Line = tx.pool.get('stock.forecast.line')
         Line.delete_moves([l for f in forecasts for l in f.lines])
 
 
@@ -317,7 +316,7 @@ class ForecastLine(ModelSQL, ModelView):
 
     @classmethod
     def get_forecast_states(cls):
-        pool = Pool()
+        pool = tx.pool
         Forecast = pool.get('stock.forecast')
         return Forecast.fields_get(['state'])['state']['selection']
 
@@ -335,8 +334,8 @@ class ForecastLine(ModelSQL, ModelView):
 
     @classmethod
     def get_quantity_executed(cls, lines, name):
-        cursor = Transaction().connection.cursor()
-        pool = Pool()
+        cursor = tx.transaction.connection.cursor()
+        pool = tx.pool
         Move = pool.get('stock.move')
         Location = pool.get('stock.location')
         Uom = pool.get('product.uom')
@@ -391,7 +390,7 @@ class ForecastLine(ModelSQL, ModelView):
 
     def get_moves(self):
         'Get stock moves for the forecast line'
-        pool = Pool()
+        pool = tx.pool
         Move = pool.get('stock.move')
         Date = pool.get('ir.date')
 
@@ -435,7 +434,7 @@ class ForecastLine(ModelSQL, ModelView):
     @classmethod
     def delete_moves(cls, lines):
         'Delete stock moves of the forecast line'
-        Move = Pool().get('stock.move')
+        Move = tx.pool.get('stock.move')
         Move.delete([m for l in lines for m in l.moves])
 
     def distribute(self, delta, qty):
@@ -529,7 +528,7 @@ class ForecastComplete(Wizard):
         return default
 
     def transition_complete(self):
-        pool = Pool()
+        pool = tx.pool
         ForecastLine = pool.get('stock.forecast.line')
 
         product2line = {l.product: l for l in self.record.lines}

@@ -6,13 +6,12 @@ import time
 import unittest
 from unittest.mock import patch
 
-from trytond import backend, config
+from trytond import backend, config, tx
 from trytond.cache import (
     REFRESH_POOL_MSG, Cache, LRUDict, LRUDictTransaction, MemoryCache, freeze,
     unfreeze)
 from trytond.tests.test_tryton import (
     DB_NAME, USER, TestCase, activate_module, with_transaction)
-from trytond.transaction import Transaction
 
 cache = MemoryCache('test.cache')
 cache_expire = MemoryCache('test.cache_expire', duration=1)
@@ -76,10 +75,10 @@ class CacheTestCase(TestCase):
     @with_transaction()
     def test_ignored_context_key_global(self):
         "Test global keys are ignored from context"
-        with Transaction().set_context(client='foo'):
+        with tx.transaction.set_context(client='foo'):
             cache_ignored_global_context.set('key', 0)
 
-        with Transaction().set_context(client='bar'):
+        with tx.transaction.set_context(client='bar'):
             value = cache_ignored_global_context.get('key')
 
         self.assertEqual(value, 0)
@@ -87,10 +86,10 @@ class CacheTestCase(TestCase):
     @with_transaction()
     def test_ignored_context_key_local(self):
         "Test local keys are ignored from context"
-        with Transaction().set_context(ignored='foo'):
+        with tx.transaction.set_context(ignored='foo'):
             cache_ignored_local_context.set('key', 1)
 
-        with Transaction().set_context(ignored='bar'):
+        with tx.transaction.set_context(ignored='bar'):
             value = cache_ignored_local_context.get('key')
 
         self.assertEqual(value, 1)
@@ -146,7 +145,7 @@ class MemoryCacheTestCase(TestCase):
 
     def test_memory_cache_transactions(self):
         "Test MemoryCache with concurrent transactions"
-        transaction1 = Transaction().start(DB_NAME, USER)
+        transaction1 = tx.transaction.start(DB_NAME, USER)
         self.wait_cache_listening()
         self.addCleanup(transaction1.stop)
 
@@ -162,7 +161,7 @@ class MemoryCacheTestCase(TestCase):
         cache.set('foo', 'baz')
         self.assertEqual(cache.get('foo'), 'baz')
 
-        with Transaction().set_current_transaction(transaction1):
+        with tx.transaction.set_current_transaction(transaction1):
             self.assertEqual(cache.get('foo'), 'bar')
 
         commit_time = dt.datetime.now()
@@ -173,19 +172,19 @@ class MemoryCacheTestCase(TestCase):
     def test_memory_cache_nested_transactions(self):
         "Test MemoryCache with nested transactions"
         # Create entry in the cache table to trigger 2 updates
-        with Transaction().start(DB_NAME, USER):
+        with tx.transaction.start(DB_NAME, USER):
             cache.clear()
         # Ensure sync is performed on start
         time.sleep(config.getint('cache', 'clean_timeout'))
 
-        with Transaction().start(DB_NAME, USER) as transaction1:
+        with tx.transaction.start(DB_NAME, USER) as transaction1:
             cache.clear()
             with transaction1.new_transaction():
                 cache.clear()
 
     def test_memory_cache_set_get_savepoint(self):
         "Test MemoryCache set/get with savepoint"
-        transaction = Transaction()
+        transaction = tx.transaction
 
         with transaction.start(DB_NAME, USER):
             self.wait_cache_listening()
@@ -202,7 +201,7 @@ class MemoryCacheTestCase(TestCase):
 
     def test_memory_cache_savepoint_clear(self):
         "Test clearing MemoryCache with a savepoint"
-        transaction = Transaction()
+        transaction = tx.transaction
 
         with transaction.start(DB_NAME, USER):
             self.wait_cache_listening()
@@ -214,7 +213,7 @@ class MemoryCacheTestCase(TestCase):
 
     def test_memory_cache_savepoint_clear_rollback(self):
         "Test clearing MemoryCache with a rollbacked savepoint"
-        transaction = Transaction()
+        transaction = tx.transaction
 
         with transaction.start(DB_NAME, USER):
             self.wait_cache_listening()
@@ -227,19 +226,19 @@ class MemoryCacheTestCase(TestCase):
 
     def test_memory_cache_sync(self):
         "Test MemoryCache synchronisation"
-        with Transaction().start(DB_NAME, USER):
+        with tx.transaction.start(DB_NAME, USER):
             cache.clear()
         time.sleep(config.getint('cache', 'clean_timeout'))
         # sync sets _clean_last on the configured class, which may be a
         # subclass of MemoryCache ([cache] class)
         last = Cache._clean_last
 
-        with Transaction().start(DB_NAME, USER):
+        with tx.transaction.start(DB_NAME, USER):
             self.assertGreater(Cache._clean_last, last)
 
     def test_memory_cache_old_transaction(self):
         "Test old transaction does not fill cache"
-        transaction1 = Transaction().start(DB_NAME, USER)
+        transaction1 = tx.transaction.start(DB_NAME, USER)
         self.wait_cache_listening()
         self.addCleanup(transaction1.stop)
 
@@ -252,7 +251,7 @@ class MemoryCacheTestCase(TestCase):
         self.wait_cache_sync(after=commit_time)
 
         # Set value from old transaction
-        Transaction().set_current_transaction(transaction1)
+        tx.transaction.set_current_transaction(transaction1)
         self.addCleanup(transaction1.stop)
         cache.set('foo', 'baz')
 
@@ -299,7 +298,7 @@ class MemoryCacheChannelTestCase(MemoryCacheTestCase):
             time.sleep(.01)
 
     def wait_cache_listening(self):
-        dbname = Transaction().database.name
+        dbname = tx.transaction.database.name
         listener = MemoryCache._local.listeners[dbname]
         while (not getattr(listener, 'listening', False)
                 and listener.is_alive()):
@@ -312,7 +311,7 @@ class MemoryCacheChannelTestCase(MemoryCacheTestCase):
     @with_transaction()
     def test_memory_cache_refresh_pool(self):
         "Test MemoryCache refresh_pool uses Database.notify"
-        transaction = Transaction()
+        transaction = tx.transaction
         with patch(
                 'trytond.backend.Database.notify',
                 side_effect=transaction.database.notify) as notify:
@@ -385,17 +384,17 @@ class LRUDictTransactionTestCase(TestCase):
         "Test init set to transaction counter"
         lru_dict = LRUDictTransaction(48)
 
-        self.assertEqual(lru_dict.counter, Transaction().counter)
+        self.assertEqual(lru_dict.counter, tx.transaction.counter)
 
     @with_transaction()
     def test_clear(self):
         "Test clear reset counter"
         lru_dict = LRUDictTransaction(48)
 
-        Transaction().counter += 1
+        tx.transaction.counter += 1
         lru_dict.clear()
 
-        self.assertEqual(lru_dict.counter, Transaction().counter)
+        self.assertEqual(lru_dict.counter, tx.transaction.counter)
 
     @with_transaction()
     def test_refresh(self):
@@ -407,8 +406,8 @@ class LRUDictTransactionTestCase(TestCase):
 
         self.assertEqual(lru_dict, {'foo': 'foo'})
 
-        Transaction().counter += 1
+        tx.transaction.counter += 1
         lru_dict.refresh()
 
         self.assertEqual(lru_dict, {})
-        self.assertEqual(lru_dict.counter, Transaction().counter)
+        self.assertEqual(lru_dict.counter, tx.transaction.counter)

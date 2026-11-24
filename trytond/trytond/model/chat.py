@@ -4,9 +4,8 @@
 from collections import namedtuple
 from itertools import groupby
 
+from trytond import tx
 from trytond.i18n import gettext, ngettext
-from trytond.pool import Pool
-from trytond.transaction import Transaction
 
 from .descriptors import dualmethod
 
@@ -25,7 +24,7 @@ class ChatMixin:
     def chat_post(
             cls, records, message_id,
             audience='internal', n=None, **variables):
-        transaction = Transaction()
+        transaction = tx.transaction
         for language, recs in groupby(
                 records, key=lambda r: r.chat_language(audience)):
             with transaction.set_context(language=language):
@@ -40,9 +39,9 @@ class ChatMixin:
 
     @classmethod
     def _chat_dispatch(cls, records, message):
-        pool = Pool()
+        pool = tx.pool
         Channel = pool.get('ir.chat.channel')
-        transaction = Transaction()
+        transaction = tx.transaction
         message = ChatMessage(*message)
         if message.n is None:
             msg = gettext(message.msg_id, **message.variables)

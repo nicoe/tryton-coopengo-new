@@ -3,8 +3,9 @@
 import json
 from operator import attrgetter
 
+from trytond import tx
 from trytond.model import fields
-from trytond.pool import Pool, PoolMeta
+from trytond.pool import PoolMeta
 from trytond.tools import slugify
 
 from .web import ShopVSFIdentifierMixin
@@ -35,7 +36,7 @@ class _ProductEntityMixin:
 
     @property
     def vsf_quantity(self):
-        pool = Pool()
+        pool = tx.pool
         Uom = pool.get('product.uom')
         quantity = self.forecast_quantity
         if quantity < 0:
@@ -108,7 +109,7 @@ class Category(ShopVSFIdentifierMixin, metaclass=PoolMeta):
     __name__ = 'product.category'
 
     def get_vsf_entity(self, shop):
-        pool = Pool()
+        pool = tx.pool
         Product = pool.get('product.product')
         count = Product.search([
                 ('categories_all', '=', self.id),

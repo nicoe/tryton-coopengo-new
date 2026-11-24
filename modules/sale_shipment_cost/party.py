@@ -1,14 +1,14 @@
 # This file is part of Tryton.  The COPYRIGHT file at the top level of this
 # repository contains the full copyright notices and license terms.
+from trytond import tx
 from trytond.model import fields
-from trytond.pool import Pool, PoolMeta
-from trytond.transaction import Transaction
+from trytond.pool import PoolMeta
 
 
 def get_sale_methods(field_name):
     @classmethod
     def func(cls):
-        pool = Pool()
+        pool = tx.pool
         Sale = pool.get('sale.sale')
         return Sale.fields_get([field_name])[field_name]['selection'] + [
             ('default', "")]
@@ -25,7 +25,7 @@ class Party(metaclass=PoolMeta):
 
     @classmethod
     def multivalue_model(cls, field):
-        pool = Pool()
+        pool = tx.pool
         if field == 'sale_shipment_cost_method':
             return pool.get('party.party.sale_method')
         return super().multivalue_model(field)
@@ -39,7 +39,7 @@ class Party(metaclass=PoolMeta):
     @classmethod
     def copy(cls, parties, default=None):
         default = default.copy() if default else {}
-        if Transaction().check_access:
+        if tx.transaction.check_access:
             fields = ['sale_shipment_cost_method']
             default_values = cls.default_get(fields, with_rec_name=False)
             for fname in fields:

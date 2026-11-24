@@ -1,12 +1,12 @@
 # This file is part of Tryton.  The COPYRIGHT file at the top level of
 # this repository contains the full copyright notices and license terms.
 
+from trytond import tx
 from trytond.i18n import gettext
 from trytond.model import Index, ModelSQL, ModelView, Workflow, fields
 from trytond.modules.product import price_digits
-from trytond.pool import Pool, PoolMeta
+from trytond.pool import PoolMeta
 from trytond.pyson import Bool, Eval, If
-from trytond.transaction import Transaction
 
 from .exceptions import AmendmentValidateError
 
@@ -91,7 +91,7 @@ class Amendment(Workflow, ModelSQL, ModelView):
 
     @classmethod
     def default_date(cls):
-        return Pool().get('ir.date').today()
+        return tx.pool.get('ir.date').today()
 
     @classmethod
     def default_state(cls):
@@ -101,9 +101,9 @@ class Amendment(Workflow, ModelSQL, ModelView):
     @ModelView.button
     @Workflow.transition('validated')
     def validate_amendment(cls, amendments):
-        pool = Pool()
+        pool = tx.pool
         Purchase = pool.get('purchase.purchase')
-        transaction = Transaction()
+        transaction = tx.transaction
         context = transaction.context
         purchases = set()
         for amendment in amendments:
@@ -128,7 +128,7 @@ class Amendment(Workflow, ModelSQL, ModelView):
 
     @classmethod
     def _clear_purchase(cls, purchases):
-        pool = Pool()
+        pool = tx.pool
         Invoice = pool.get('account.invoice')
         InvoiceLine = pool.get('account.invoice.line')
         Move = pool.get('stock.move')
@@ -340,7 +340,7 @@ class AmendmentLine(ModelSQL, ModelView):
 
     @classmethod
     def get_states(cls):
-        pool = Pool()
+        pool = tx.pool
         Amendment = pool.get('purchase.amendment')
         return Amendment.fields_get(['state'])['state']['selection']
 

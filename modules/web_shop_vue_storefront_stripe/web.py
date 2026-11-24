@@ -1,7 +1,8 @@
 # This file is part of Tryton.  The COPYRIGHT file at the top level of
 # this repository contains the full copyright notices and license terms.
+from trytond import tx
 from trytond.model import fields
-from trytond.pool import Pool, PoolMeta
+from trytond.pool import PoolMeta
 from trytond.pyson import Eval
 
 
@@ -17,7 +18,7 @@ class Shop(metaclass=PoolMeta):
         depends=['currency'])
 
     def vsf_order_create(self, data, sale, user):
-        pool = Pool()
+        pool = tx.pool
         Payment = pool.get('account.payment')
         PaymentGroup = pool.get('account.payment.group')
         sale = super().vsf_order_create(data, sale, user)

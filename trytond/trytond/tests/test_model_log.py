@@ -2,8 +2,7 @@
 # repository contains the full copyright notices and license terms.
 import unittest
 
-from trytond.pool import Pool
-from trytond.transaction import Transaction
+from trytond import tx
 
 from .test_tryton import TestCase, activate_module, with_transaction
 
@@ -19,10 +18,10 @@ class ModelLogTestCase(TestCase):
     @with_transaction()
     def test_log(self):
         "Test model log"
-        pool = Pool()
+        pool = tx.pool
         Model = pool.get('test.model_log.model')
         Log = pool.get('ir.model.log')
-        transaction = Transaction()
+        transaction = tx.transaction
 
         record, = Model.create([{}])
         Model.log([record], 'delete', user=0)
@@ -35,10 +34,10 @@ class ModelLogTestCase(TestCase):
     @with_transaction()
     def test_log_no_log(self):
         "Test no model log without _log"
-        pool = Pool()
+        pool = tx.pool
         Model = pool.get('test.model_log.model')
         Log = pool.get('ir.model.log')
-        transaction = Transaction()
+        transaction = tx.transaction
 
         self.addCleanup(setattr, Model, '_log', Model._log)
         Model._log = False
@@ -53,10 +52,10 @@ class ModelLogTestCase(TestCase):
     @with_transaction(context={'_check_access': True})
     def test_create(self):
         "Test no model log on create"
-        pool = Pool()
+        pool = tx.pool
         Model = pool.get('test.model_log.model')
         Log = pool.get('ir.model.log')
-        transaction = Transaction()
+        transaction = tx.transaction
 
         record, = Model.create([{}])
         transaction._store_log_records()
@@ -67,10 +66,10 @@ class ModelLogTestCase(TestCase):
     @with_transaction(context={'_check_access': True})
     def test_write(self):
         "Test model log on write"
-        pool = Pool()
+        pool = tx.pool
         Model = pool.get('test.model_log.model')
         Log = pool.get('ir.model.log')
-        transaction = Transaction()
+        transaction = tx.transaction
 
         record, = Model.create([{}])
         Model.write([record], {'name': "Foo", 'state': 'end'})
@@ -84,10 +83,10 @@ class ModelLogTestCase(TestCase):
     @with_transaction(context={'_check_access': True})
     def test_write_empty(self):
         "Test no model log on empty write"
-        pool = Pool()
+        pool = tx.pool
         Model = pool.get('test.model_log.model')
         Log = pool.get('ir.model.log')
-        transaction = Transaction()
+        transaction = tx.transaction
 
         record, = Model.create([{}])
         Model.write([record], {})
@@ -99,10 +98,10 @@ class ModelLogTestCase(TestCase):
     @with_transaction(context={'_check_access': False})
     def test_write_no_check_access(self):
         "Test no model log on write without check access"
-        pool = Pool()
+        pool = tx.pool
         Model = pool.get('test.model_log.model')
         Log = pool.get('ir.model.log')
-        transaction = Transaction()
+        transaction = tx.transaction
 
         record, = Model.create([{}])
         Model.write([record], {'name': "Foo", 'state': 'end'})
@@ -114,10 +113,10 @@ class ModelLogTestCase(TestCase):
     @with_transaction(context={'_check_access': True})
     def test_delete(self):
         "Test model log on delete"
-        pool = Pool()
+        pool = tx.pool
         Model = pool.get('test.model_log.model')
         Log = pool.get('ir.model.log')
-        transaction = Transaction()
+        transaction = tx.transaction
 
         record, = Model.create([{}])
         Model.delete([record])
@@ -129,10 +128,10 @@ class ModelLogTestCase(TestCase):
     @with_transaction(context={'_check_access': False})
     def test_delete_no_check_access(self):
         "Test no model log on delete without check access"
-        pool = Pool()
+        pool = tx.pool
         Model = pool.get('test.model_log.model')
         Log = pool.get('ir.model.log')
-        transaction = Transaction()
+        transaction = tx.transaction
 
         record, = Model.create([{}])
         Model.delete([record])
@@ -144,10 +143,10 @@ class ModelLogTestCase(TestCase):
     @with_transaction(context={'_check_access': True})
     def test_button(self):
         "Test model log on button"
-        pool = Pool()
+        pool = tx.pool
         Model = pool.get('test.model_log.model')
         Log = pool.get('ir.model.log')
-        transaction = Transaction()
+        transaction = tx.transaction
 
         record, = Model.create([{}])
         Model.click([record])
@@ -161,10 +160,10 @@ class ModelLogTestCase(TestCase):
     @with_transaction(context={'_check_access': False})
     def test_button_no_check_access(self):
         "Test model log on button"
-        pool = Pool()
+        pool = tx.pool
         Model = pool.get('test.model_log.model')
         Log = pool.get('ir.model.log')
-        transaction = Transaction()
+        transaction = tx.transaction
 
         record, = Model.create([{}])
         Model.click([record])
@@ -176,11 +175,11 @@ class ModelLogTestCase(TestCase):
     @with_transaction()
     def test_wizard(self):
         "Test model log on wizard"
-        pool = Pool()
+        pool = tx.pool
         Model = pool.get('test.model_log.model')
         Wizard = pool.get('test.model_log.wizard', type='wizard')
         Log = pool.get('ir.model.log')
-        transaction = Transaction()
+        transaction = tx.transaction
 
         record, = Model.create([{}])
         with transaction.set_context(
@@ -199,11 +198,11 @@ class ModelLogTestCase(TestCase):
     @with_transaction()
     def test_wizard_no_modification(self):
         "Test no model log on wizard without modification"
-        pool = Pool()
+        pool = tx.pool
         Model = pool.get('test.model_log.model')
         Wizard = pool.get('test.model_log.wizard', type='wizard')
         Log = pool.get('ir.model.log')
-        transaction = Transaction()
+        transaction = tx.transaction
 
         record, = Model.create([{}])
         with transaction.set_context(
@@ -220,10 +219,10 @@ class ModelLogTestCase(TestCase):
     @with_transaction()
     def test_worflow(self):
         "Test model log on workflow transition"
-        pool = Pool()
+        pool = tx.pool
         Model = pool.get('test.model_log.model')
         Log = pool.get('ir.model.log')
-        transaction = Transaction()
+        transaction = tx.transaction
 
         record, = Model.create([{}])
         Model.end([record])
@@ -237,10 +236,10 @@ class ModelLogTestCase(TestCase):
     @with_transaction()
     def test_worflow_no_transition(self):
         "Test no model log on workflow without transition"
-        pool = Pool()
+        pool = tx.pool
         Model = pool.get('test.model_log.model')
         Log = pool.get('ir.model.log')
-        transaction = Transaction()
+        transaction = tx.transaction
 
         record, = Model.create([{'state': 'end'}])
         Model.end([record])

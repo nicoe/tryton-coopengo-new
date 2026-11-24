@@ -1,9 +1,10 @@
 # This file is part of Tryton.  The COPYRIGHT file at the top level of
 # this repository contains the full copyright notices and license terms.
 
+from trytond import tx
 from trytond.i18n import gettext
 from trytond.modules.bank.exceptions import AccountValidationError
-from trytond.pool import Pool, PoolMeta
+from trytond.pool import PoolMeta
 
 
 class Account(metaclass=PoolMeta):
@@ -16,7 +17,7 @@ class Account(metaclass=PoolMeta):
 
     @classmethod
     def check_currency_statement_journal(cls, accounts, field_names):
-        pool = Pool()
+        pool = tx.pool
         Journal = pool.get('account.statement.journal')
         if field_names and 'currency' not in field_names:
             return

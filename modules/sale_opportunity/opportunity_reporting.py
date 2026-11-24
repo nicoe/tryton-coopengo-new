@@ -6,14 +6,13 @@ from sql import Literal, Null, With
 from sql.aggregate import Count, Min, Sum
 from sql.conditionals import Case
 
+from trytond import tx
 from trytond.i18n import lazy_gettext
 from trytond.model import ModelSQL, ModelView, fields
 from trytond.modules.currency.fields import Monetary
-from trytond.pool import Pool
 from trytond.pyson import Eval, If
 from trytond.tools import pairwise_longest
 from trytond.tools.chart import sparkline
-from trytond.transaction import Transaction
 
 
 class Abstract(ModelSQL):
@@ -81,11 +80,11 @@ class Abstract(ModelSQL):
 
     @classmethod
     def _joins(cls):
-        pool = Pool()
+        pool = tx.pool
         Company = pool.get('company.company')
         Currency = pool.get('currency.currency')
         Opportunity = pool.get('sale.opportunity')
-        context = Transaction().context
+        context = tx.transaction.context
 
         tables = {}
         company = context.get('company')
@@ -143,7 +142,7 @@ class Abstract(ModelSQL):
 
     @classmethod
     def _where(cls, tables, withs):
-        context = Transaction().context
+        context = tx.transaction.context
         opportunity = tables['opportunity']
 
         where = opportunity.company == context.get('company')
@@ -195,7 +194,7 @@ class Abstract(ModelSQL):
 
     @classmethod
     def _period_delta(cls):
-        context = Transaction().context
+        context = tx.transaction.context
         return {
             'year': relativedelta(years=1),
             'month': relativedelta(months=1),
@@ -322,29 +321,29 @@ class Context(ModelView):
 
     @classmethod
     def default_company(cls):
-        return Transaction().context.get('company')
+        return tx.transaction.context.get('company')
 
     @classmethod
     def default_from_date(cls):
-        pool = Pool()
+        pool = tx.pool
         Date = pool.get('ir.date')
-        context = Transaction().context
+        context = tx.transaction.context
         if 'from_date' in context:
             return context['from_date']
         return Date.today() - relativedelta(years=1)
 
     @classmethod
     def default_to_date(cls):
-        pool = Pool()
+        pool = tx.pool
         Date = pool.get('ir.date')
-        context = Transaction().context
+        context = tx.transaction.context
         if 'to_date' in context:
             return context['to_date']
         return Date.today()
 
     @classmethod
     def default_period(cls):
-        return Transaction().context.get('period', 'month')
+        return tx.transaction.context.get('period', 'month')
 
 
 class Main(Abstract, ModelView):
@@ -359,7 +358,7 @@ class Main(Abstract, ModelView):
         return ''
 
     def get_time_series(self, name):
-        pool = Pool()
+        pool = tx.pool
         Timeseries = pool.get('sale.opportunity.reporting.main.time_series')
         return [t.id for t in Timeseries.search([])]
 
@@ -380,7 +379,7 @@ class Conversion(AbstractConversion, ModelView):
         return ''
 
     def get_time_series(self, name):
-        pool = Pool()
+        pool = tx.pool
         Timeseries = pool.get(
             'sale.opportunity.reporting.conversion.time_series')
         return [t.id for t in Timeseries.search([])]

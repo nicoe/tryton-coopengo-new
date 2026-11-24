@@ -1,7 +1,9 @@
 # This file is part of Tryton.  The COPYRIGHT file at the top level of
 # this repository contains the full copyright notices and license terms.
+
+from trytond import tx
 from trytond.model import ModelSQL, ValueMixin, fields
-from trytond.pool import Pool, PoolMeta
+from trytond.pool import PoolMeta
 
 dunning_procedure = fields.Many2One(
     'account.dunning.procedure', "Dunning Procedure", ondelete='RESTRICT')
@@ -15,7 +17,7 @@ class Party(metaclass=PoolMeta):
 
     @classmethod
     def default_dunning_procedure(cls, **pattern):
-        pool = Pool()
+        pool = tx.pool
         Configuration = pool.get('account.configuration')
         config = Configuration(1)
         dunning_procedure = config.get_multivalue(

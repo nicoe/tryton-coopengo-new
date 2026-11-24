@@ -8,16 +8,16 @@ from sql import Null
 from sql.conditionals import Case
 from sql.functions import CharLength
 
+from trytond import tx
 from trytond.i18n import gettext
 from trytond.model import (
     ChatMixin, Index, ModelSQL, ModelView, Workflow, fields)
 from trytond.modules.company import CompanyReport
 from trytond.modules.currency.fields import Monetary
 from trytond.modules.product import price_digits
-from trytond.pool import Pool, PoolMeta
+from trytond.pool import PoolMeta
 from trytond.pyson import Bool, Eval, Id, If
 from trytond.tools import sortable_values
-from trytond.transaction import Transaction
 from trytond.wizard import (
     Button, StateAction, StateTransition, StateView, Wizard)
 
@@ -27,7 +27,7 @@ from .exceptions import PreviousQuotation
 def process_request(func):
     @wraps(func)
     def wrapper(cls, quotations):
-        pool = Pool()
+        pool = tx.pool
         Request = pool.get('purchase.request')
         result = func(cls, quotations)
         requests = [l.request for q in quotations for l in q.lines]
@@ -51,7 +51,7 @@ class Configuration(metaclass=PoolMeta):
 
     @classmethod
     def multivalue_model(cls, field):
-        pool = Pool()
+        pool = tx.pool
         if field == 'purchase_request_quotation_sequence':
             return pool.get('purchase.configuration.sequence')
         return super().multivalue_model(field)
@@ -77,7 +77,7 @@ class ConfigurationSequence(metaclass=PoolMeta):
 
     @classmethod
     def default_purchase_request_quotation_sequence(cls):
-        pool = Pool()
+        pool = tx.pool
         ModelData = pool.get('ir.model.data')
         try:
             return ModelData.get_id(
@@ -187,7 +187,7 @@ class Quotation(Workflow, ModelSQL, ModelView, ChatMixin):
 
     @classmethod
     def default_company(cls):
-        return Transaction().context.get('company')
+        return tx.transaction.context.get('company')
 
     @classmethod
     def default_state(cls):
@@ -199,12 +199,12 @@ class Quotation(Workflow, ModelSQL, ModelView, ChatMixin):
 
     @classmethod
     def default_warehouse(cls):
-        Location = Pool().get('stock.location')
+        Location = tx.pool.get('stock.location')
         return Location.get_default_warehouse()
 
     @classmethod
     def set_number(cls, quotations):
-        pool = Pool()
+        pool = tx.pool
         Config = pool.get('purchase.configuration')
 
         config = Config(1)
@@ -348,7 +348,7 @@ class QuotationLine(ModelSQL, ModelView):
 
     @staticmethod
     def order_quotation_state(tables):
-        pool = Pool()
+        pool = tx.pool
         Quotation = pool.get('purchase.request.quotation')
         table, _ = tables[None]
         if 'quotation' not in tables:
@@ -385,14 +385,14 @@ class QuotationLine(ModelSQL, ModelView):
 
     @classmethod
     def get_quotation_state(cls):
-        pool = Pool()
+        pool = tx.pool
         Quotation = pool.get('purchase.request.quotation')
         return (Quotation.fields_get(
             ['state'])['state']['selection'])
 
     @fields.depends('quotation', '_parent_quotation.state')
     def on_change_with_quotation_state(self, name=None):
-        pool = Pool()
+        pool = tx.pool
         Quotation = pool.get('purchase.request.quotation')
         if self.quotation:
             return self.quotation.state
@@ -422,7 +422,7 @@ class QuotationLine(ModelSQL, ModelView):
 
     @classmethod
     def on_modification(cls, mode, records, field_names=None):
-        pool = Pool()
+        pool = tx.pool
         Request = pool.get('purchase.request')
         super().on_modification(mode, records, field_names=field_names)
         if mode in {'create', 'write'}:
@@ -433,7 +433,7 @@ class QuotationLine(ModelSQL, ModelView):
 
     @classmethod
     def on_write(cls, lines, values):
-        pool = Pool()
+        pool = tx.pool
         Request = pool.get('purchase.request')
 
         callback = super().on_write(lines, values)
@@ -445,7 +445,7 @@ class QuotationLine(ModelSQL, ModelView):
 
     @classmethod
     def on_delete(cls, lines):
-        pool = Pool()
+        pool = tx.pool
         Request = pool.get('purchase.request')
         callback = super().on_delete(lines)
         requests = {l.request for l in lines}
@@ -468,17 +468,17 @@ class PurchaseRequestQuotationReport(CompanyReport):
 
     @classmethod
     def execute(cls, ids, data):
-        with Transaction().set_context(address_with_party=True):
+        with tx.transaction.set_context(address_with_party=True):
             return super(
                 PurchaseRequestQuotationReport, cls).execute(ids, data)
 
     @classmethod
     def get_context(cls, records, header, data):
-        pool = Pool()
+        pool = tx.pool
         Date = pool.get('ir.date')
         context = super().get_context(records, header, data)
         company = header.get('company')
-        with Transaction().set_context(
+        with tx.transaction.set_context(
                 company=company.id if company else None):
             context['today'] = Date.today()
         return context
@@ -513,7 +513,7 @@ class CreatePurchaseRequestQuotation(Wizard):
         'purchase_request_quotation.act_purchase_request_quotation_form')
 
     def transition_start(self):
-        pool = Pool()
+        pool = tx.pool
         Warning = pool.get('res.user.warning')
 
         reqs = [
@@ -556,7 +556,7 @@ class CreatePurchaseRequestQuotation(Wizard):
         return (('company', request.company),)
 
     def do_create_quotations(self, action):
-        pool = Pool()
+        pool = tx.pool
         Quotation = pool.get('purchase.request.quotation')
         QuotationLine = pool.get('purchase.request.quotation.line')
         quotations = []
@@ -590,7 +590,7 @@ class CreatePurchaseRequestQuotation(Wizard):
             }
 
     def get_quotation(self, supplier, key):
-        pool = Pool()
+        pool = tx.pool
         Quotation = pool.get('purchase.request.quotation')
         quotation = Quotation()
         quotation.supplier = supplier
@@ -600,7 +600,7 @@ class CreatePurchaseRequestQuotation(Wizard):
         return quotation
 
     def get_quotation_line(self, request, quotation):
-        pool = Pool()
+        pool = tx.pool
         QuotationLine = pool.get('purchase.request.quotation.line')
         quotation_line = QuotationLine()
         quotation_line.request = request

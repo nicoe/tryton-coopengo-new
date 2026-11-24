@@ -1,9 +1,9 @@
 # This file is part of Tryton.  The COPYRIGHT file at the top level of
 # this repository contains the full copyright notices and license terms.
+from trytond import tx
 from trytond.i18n import gettext
 from trytond.model import ModelView, fields
-from trytond.pool import Pool
-from trytond.transaction import Transaction, check_access
+from trytond.transaction import check_access
 from trytond.wizard import (
     Button, StateAction, StateTransition, StateView, Wizard)
 
@@ -35,13 +35,13 @@ class Supply(Wizard):
             return 'end'
 
     def transition_create_(self):
-        pool = Pool()
+        pool = tx.pool
         Move = pool.get('stock.move')
         ShipmentInternal = pool.get('stock.shipment.internal')
         Date = pool.get('ir.date')
         Warning = pool.get('res.user.warning')
 
-        if not Transaction().context.get('_skip_warnings'):
+        if not tx.transaction.context.get('_skip_warnings'):
             today = Date.today()
             with check_access():
                 moves = Move.search([
@@ -93,7 +93,7 @@ class Supply(Wizard):
         return self.types()[0]
 
     def generate_internal(self, clean):
-        pool = Pool()
+        pool = tx.pool
         ShipmentInternal = pool.get('stock.shipment.internal')
         return ShipmentInternal.generate_internal_shipment(
             clean=clean, warehouses=self.start.warehouses)
@@ -108,7 +108,7 @@ class Supply(Wizard):
             }
 
     def generate_purchase(self, clean):
-        pool = Pool()
+        pool = tx.pool
         PurchaseRequest = pool.get('purchase.request')
         PurchaseRequest.generate_requests(**self._purchase_parameters)
         return False
@@ -129,7 +129,7 @@ class SupplyStart(ModelView):
 
     @classmethod
     def default_warehouses(cls):
-        pool = Pool()
+        pool = tx.pool
         Location = pool.get('stock.location')
         warehouse = Location.get_default_warehouse()
         if warehouse:

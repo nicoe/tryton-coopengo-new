@@ -1,7 +1,7 @@
 # This file is part of Tryton.  The COPYRIGHT file at the top level of
 # this repository contains the full copyright notices and license terms.
+from trytond import tx
 from trytond.pool import PoolMeta
-from trytond.transaction import Transaction
 
 
 class Cron(metaclass=PoolMeta):
@@ -18,7 +18,7 @@ class Cron(metaclass=PoolMeta):
     @classmethod
     def __register__(cls, module):
         table = cls.__table__()
-        cursor = Transaction().connection.cursor()
+        cursor = tx.transaction.connection.cursor()
 
         super().__register__(module)
 

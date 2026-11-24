@@ -10,12 +10,11 @@ try:
 except ImportError:
     mrml = None
 
+from trytond import tx
 from trytond.model.exceptions import AccessError
-from trytond.pool import Pool
 from trytond.report.report import Report, get_email
 from trytond.tests.test_tryton import (
     TestCase, activate_module, with_transaction)
-from trytond.transaction import Transaction
 
 
 class ReportTestCase(TestCase):
@@ -44,7 +43,7 @@ class ReportTestCase(TestCase):
     @with_transaction()
     def test_execute(self):
         "Execute report"
-        pool = Pool()
+        pool = tx.pool
         Report = pool.get('test.test_report', type='report')
 
         self.assertEqual(
@@ -54,7 +53,7 @@ class ReportTestCase(TestCase):
     @with_transaction()
     def test_execute_without_access(self):
         "Execute report without model access"
-        pool = Pool()
+        pool = tx.pool
         ActionReport = pool.get('ir.action.report')
         Group = pool.get('res.group')
         Report = pool.get('test.test_report', type='report')
@@ -73,7 +72,7 @@ class ReportTestCase(TestCase):
     @with_transaction()
     def test_execute_without_model_access(self):
         "Execute report without model access"
-        pool = Pool()
+        pool = tx.pool
         Report = pool.get('test.test_report', type='report')
         ModelAccess = pool.get('ir.model.access')
         ModelAccess.create([{
@@ -87,7 +86,7 @@ class ReportTestCase(TestCase):
     @with_transaction()
     def test_execute_without_read_access(self):
         "Execute report without read access"
-        pool = Pool()
+        pool = tx.pool
         Report = pool.get('test.test_report', type='report')
 
         with self.assertRaises(AccessError):
@@ -97,7 +96,7 @@ class ReportTestCase(TestCase):
     @with_transaction()
     def test_convert_mjml_to_html(self):
         "Test convert MJML to HTML"
-        pool = Pool()
+        pool = tx.pool
         Report = pool.get('test.test_report_mjml', type='report')
 
         oext, content, _, _ = Report.execute([1], {})
@@ -166,7 +165,7 @@ class ReportTestCase(TestCase):
         class FakeReport(Report):
             @classmethod
             def execute(cls, *args, **kwargs):
-                language = Transaction().language
+                language = tx.transaction.language
                 return (
                     'html', f'<!doctype html><title>{language}</title>',
                     False, language.upper())

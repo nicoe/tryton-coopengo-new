@@ -2,9 +2,10 @@
 # this repository contains the full copyright notices and license terms.
 from collections import defaultdict
 
+from trytond import tx
 from trytond.i18n import gettext
 from trytond.model import Model, ModelView, Workflow, fields
-from trytond.pool import Pool, PoolMeta
+from trytond.pool import PoolMeta
 
 
 class ShipmentIn(metaclass=PoolMeta):
@@ -21,7 +22,7 @@ class ShipmentIn(metaclass=PoolMeta):
             shipment.assign_supplied()
 
     def assign_supplied(self, grouping=('product',), filter_=None):
-        pool = Pool()
+        pool = tx.pool
         SaleLine = pool.get('sale.line')
 
         def filter_func(move):

@@ -4,10 +4,10 @@
 import datetime as dt
 
 import trytond.config as config
+from trytond import tx
 from trytond.model import ModelView, fields
-from trytond.pool import Pool, PoolMeta
+from trytond.pool import PoolMeta
 from trytond.pyson import Date, Eval, If, PYSONDecoder, PYSONEncoder
-from trytond.transaction import Transaction
 
 
 class PriceList(metaclass=PoolMeta):
@@ -43,7 +43,7 @@ class PriceList(metaclass=PoolMeta):
         return action
 
     def compute(self, product, quantity, uom, pattern=None):
-        context = Transaction().context
+        context = tx.transaction.context
         pattern = pattern.copy() if pattern is not None else {}
         pattern.setdefault('date', context.get('date'))
         return super().compute(product, quantity, uom, pattern=pattern)
@@ -54,7 +54,7 @@ class PriceListCache(metaclass=PoolMeta):
 
     @classmethod
     def patterns(cls, price_list, product):
-        pool = Pool()
+        pool = tx.pool
         Date = pool.get('ir.date')
         today = Date.today()
         for pattern in super().patterns(price_list, product):
@@ -67,9 +67,9 @@ class PriceListCache(metaclass=PoolMeta):
 
     @classmethod
     def get(cls, price_list, product, pattern=None):
-        pool = Pool()
+        pool = tx.pool
         Date = pool.get('ir.date')
-        context = Transaction().context
+        context = tx.transaction.context
         today = Date.today()
         pattern = pattern.copy() if pattern else {}
         pattern['date'] = pattern.get('date', context.get('date')) or today
@@ -95,7 +95,7 @@ class PriceListLine(metaclass=PoolMeta):
             ])
 
     def match(self, pattern):
-        pool = Pool()
+        pool = tx.pool
         Date = pool.get('ir.date')
 
         pattern = pattern.copy()
@@ -114,7 +114,7 @@ class PriceListLineContext(metaclass=PoolMeta):
 
     @classmethod
     def default_date(cls):
-        pool = Pool()
+        pool = tx.pool
         Date = pool.get('ir.date')
         return Date.today()
 

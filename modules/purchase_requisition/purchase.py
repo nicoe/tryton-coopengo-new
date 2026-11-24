@@ -6,6 +6,7 @@ from itertools import chain
 from sql import Null
 from sql.functions import CharLength
 
+from trytond import tx
 from trytond.i18n import gettext
 from trytond.model import (
     ChatMixin, Index, ModelSQL, ModelView, Workflow, fields, sequence_ordered)
@@ -14,10 +15,9 @@ from trytond.modules.company.model import (
     employee_field, reset_employee, set_employee)
 from trytond.modules.currency.fields import Monetary
 from trytond.modules.product import price_digits, round_price
-from trytond.pool import Pool, PoolMeta
+from trytond.pool import PoolMeta
 from trytond.pyson import Bool, Eval, Id, If
 from trytond.tools import firstline
-from trytond.transaction import Transaction
 from trytond.wizard import Wizard
 
 
@@ -35,7 +35,7 @@ class Configuration(metaclass=PoolMeta):
 
     @classmethod
     def multivalue_model(cls, field):
-        pool = Pool()
+        pool = tx.pool
         if field == 'purchase_requisition_sequence':
             return pool.get('purchase.configuration.sequence')
         return super().multivalue_model(field)
@@ -59,7 +59,7 @@ class ConfigurationSequence(metaclass=PoolMeta):
 
     @classmethod
     def default_purchase_requisition_sequence(cls):
-        pool = Pool()
+        pool = tx.pool
         ModelData = pool.get('ir.model.data')
         try:
             return ModelData.get_id(
@@ -204,21 +204,21 @@ class PurchaseRequisition(Workflow, ModelSQL, ModelView, ChatMixin):
 
     @classmethod
     def default_company(cls):
-        return Transaction().context.get('company')
+        return tx.transaction.context.get('company')
 
     @classmethod
     def default_employee(cls):
-        return Transaction().context.get('employee')
+        return tx.transaction.context.get('employee')
 
     @classmethod
     def default_warehouse(cls):
-        Location = Pool().get('stock.location')
+        Location = tx.pool.get('stock.location')
         return Location.get_default_warehouse()
 
     @classmethod
     def default_currency(cls):
-        Company = Pool().get('company.company')
-        company = Transaction().context.get('company')
+        Company = tx.pool.get('company.company')
+        company = tx.transaction.context.get('company')
         if company is not None and company >= 0:
             return Company(company).currency.id
 
@@ -264,7 +264,7 @@ class PurchaseRequisition(Workflow, ModelSQL, ModelView, ChatMixin):
 
     @classmethod
     def create_requests(cls, requisitions):
-        pool = Pool()
+        pool = tx.pool
         Request = pool.get('purchase.request')
         requests = []
         for requisition in requisitions:
@@ -284,7 +284,7 @@ class PurchaseRequisition(Workflow, ModelSQL, ModelView, ChatMixin):
 
     @classmethod
     def preprocess_values(cls, mode, values):
-        pool = Pool()
+        pool = tx.pool
         Configuration = pool.get('purchase.configuration')
         values = super().preprocess_values(mode, values)
         if mode == 'create' and not values.get('number'):
@@ -365,9 +365,9 @@ class PurchaseRequisition(Workflow, ModelSQL, ModelView, ChatMixin):
     @Workflow.transition('approved')
     @set_employee('approved_by')
     def approve(cls, requisitions):
-        pool = Pool()
+        pool = tx.pool
         Configuration = pool.get('purchase.configuration')
-        transaction = Transaction()
+        transaction = tx.transaction
         context = transaction.context
         cls.store_cache(requisitions)
         config = Configuration(1)
@@ -488,7 +488,7 @@ class PurchaseRequisitionLine(sequence_ordered(), ModelSQL, ModelView):
 
     @classmethod
     def get_purchase_requisition_states(cls):
-        pool = Pool()
+        pool = tx.pool
         Requisition = pool.get('purchase.requisition')
         return Requisition.fields_get(['state'])['state']['selection']
 
@@ -526,7 +526,7 @@ class PurchaseRequisitionLine(sequence_ordered(), ModelSQL, ModelView):
         return amount
 
     def get_rec_name(self, name):
-        pool = Pool()
+        pool = tx.pool
         Lang = pool.get('ir.lang')
         if self.product:
             lang = Lang.get()
@@ -555,7 +555,7 @@ class PurchaseRequisitionLine(sequence_ordered(), ModelSQL, ModelView):
 
     @property
     def request_quantity(self):
-        pool = Pool()
+        pool = tx.pool
         Uom = pool.get('product.uom')
         quantity = self.quantity
         request_unit = self.request_unit
@@ -575,7 +575,7 @@ class PurchaseRequisitionLine(sequence_ordered(), ModelSQL, ModelView):
         Return the value of the purchase request which will answer to
         the needed quantity at the given date.
         """
-        pool = Pool()
+        pool = tx.pool
         Uom = pool.get('product.uom')
         Request = pool.get('purchase.request')
 
@@ -639,7 +639,7 @@ class PurchaseRequest(metaclass=PoolMeta):
 
     @property
     def currency(self):
-        pool = Pool()
+        pool = tx.pool
         RequisitionLine = pool.get('purchase.requisition.line')
         currency = super().currency
         if (isinstance(self.origin, RequisitionLine)
@@ -649,7 +649,7 @@ class PurchaseRequest(metaclass=PoolMeta):
 
     @classmethod
     def update_state(cls, requests):
-        pool = Pool()
+        pool = tx.pool
         Requisition = pool.get('purchase.requisition')
         RequisitionLine = pool.get('purchase.requisition.line')
 
@@ -666,7 +666,7 @@ class HandlePurchaseCancellationException(metaclass=PoolMeta):
     __name__ = 'purchase.request.handle.purchase.cancellation'
 
     def transition_reset(self):
-        pool = Pool()
+        pool = tx.pool
         Requisition = pool.get('purchase.requisition')
         RequisitionLine = pool.get('purchase.requisition.line')
 
@@ -684,7 +684,7 @@ class CreatePurchase(Wizard):
     __name__ = 'purchase.request.create_purchase'
 
     def _group_purchase_line_key(self, request):
-        pool = Pool()
+        pool = tx.pool
         RequisitionLine = pool.get('purchase.requisition.line')
         key = super()._group_purchase_line_key(request)
         if isinstance(request.origin, RequisitionLine):
@@ -695,7 +695,7 @@ class CreatePurchase(Wizard):
 
     @classmethod
     def compute_purchase_line(cls, key, requests, purchase):
-        pool = Pool()
+        pool = tx.pool
         RequisitionLine = pool.get('purchase.requisition.line')
         Uom = pool.get('product.uom')
 

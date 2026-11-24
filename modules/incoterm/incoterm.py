@@ -1,9 +1,9 @@
 # This file is part of Tryton.  The COPYRIGHT file at the top level of
 # this repository contains the full copyright notices and license terms.
 
+from trytond import tx
 from trytond.cache import Cache
 from trytond.model import MatchMixin, ModelSQL, ModelView, fields
-from trytond.pool import Pool
 
 
 class Incoterm(MatchMixin, ModelSQL, ModelView):
@@ -79,7 +79,7 @@ class Incoterm_Company(ModelSQL):
 
     @classmethod
     def on_modification(cls, mode, records, field_names=None):
-        pool = Pool()
+        pool = tx.pool
         Incoterm = pool.get('incoterm.incoterm')
         super().on_modification(mode, records, field_names=field_names)
         Incoterm._get_incoterms_cache.clear()

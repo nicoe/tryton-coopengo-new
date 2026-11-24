@@ -7,8 +7,7 @@ try:
 except ImportError:
     PIL = None
 
-from trytond.pool import Pool
-from trytond.transaction import Transaction
+from trytond import tx
 
 from .test_tryton import ModuleTestCase, with_transaction
 
@@ -19,15 +18,15 @@ class ResTestCase(ModuleTestCase):
 
     @with_transaction()
     def tearDown(self):
-        pool = Pool()
+        pool = tx.pool
         Warning_ = pool.get('res.user.warning')
         Warning_.delete(Warning_.search([]))
-        Transaction().commit()
+        tx.transaction.commit()
 
     @unittest.skipUnless(PIL, "Avatars are not generated without PIL")
     @with_transaction()
     def test_user_avatar(self):
-        pool = Pool()
+        pool = tx.pool
         User = pool.get('res.user')
 
         user = User(login="avatar")
@@ -40,7 +39,7 @@ class ResTestCase(ModuleTestCase):
     @with_transaction()
     def test_user_warning(self):
         "Check user warning"
-        pool = Pool()
+        pool = tx.pool
         Warning_ = pool.get('res.user.warning')
 
         self.assertTrue(Warning_.check('test'))
@@ -48,33 +47,33 @@ class ResTestCase(ModuleTestCase):
     @with_transaction()
     def test_user_warning_ignored(self):
         "Check ignored user warning"
-        pool = Pool()
+        pool = tx.pool
         Warning_ = pool.get('res.user.warning')
 
-        with Transaction().new_transaction():
+        with tx.transaction.new_transaction():
             Warning_.skip('test')
             self.assertFalse(Warning_.check('test'))
 
-        with Transaction().new_transaction():
+        with tx.transaction.new_transaction():
             self.assertTrue(Warning_.check('test'))
 
     @with_transaction()
     def test_user_warning_always_ignored(self):
         "Check always ignored user warning"
-        pool = Pool()
+        pool = tx.pool
         Warning_ = pool.get('res.user.warning')
 
-        with Transaction().new_transaction():
+        with tx.transaction.new_transaction():
             Warning_.skip('test', always=True)
             self.assertFalse(Warning_.check('test'))
 
-        with Transaction().new_transaction():
+        with tx.transaction.new_transaction():
             self.assertFalse(Warning_.check('test'))
 
     @with_transaction()
     def test_user_warning_reentrant(self):
         "Check re-entrant user warning"
-        pool = Pool()
+        pool = tx.pool
         Warning_ = pool.get('res.user.warning')
 
         Warning_.skip('test')
@@ -85,10 +84,10 @@ class ResTestCase(ModuleTestCase):
     @with_transaction()
     def test_user_warning_format(self):
         "Test format of user warning"
-        pool = Pool()
+        pool = tx.pool
         Warning_ = pool.get('res.user.warning')
         Record = pool.get('res.user')
-        transaction = Transaction()
+        transaction = tx.transaction
 
         key1 = Warning_.format('test', [Record(1)])
 

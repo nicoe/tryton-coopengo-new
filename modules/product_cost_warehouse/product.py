@@ -1,11 +1,11 @@
 # This file is part of Tryton.  The COPYRIGHT file at the top level of
 # this repository contains the full copyright notices and license terms.
+from trytond import tx
 from trytond.model import ModelSQL, fields
 from trytond.modules.company.model import CompanyValueMixin
 from trytond.modules.product.product import TemplateFunction
-from trytond.pool import Pool, PoolMeta
+from trytond.pool import PoolMeta
 from trytond.pyson import Eval
-from trytond.transaction import Transaction
 
 cost_price_warehouse = fields.Boolean(
     "Cost Price per Warehouse",
@@ -54,9 +54,9 @@ class Product(metaclass=PoolMeta):
         return records
 
     def get_multivalue(self, name, **pattern):
-        pool = Pool()
+        pool = tx.pool
         Company = pool.get('company.company')
-        context = Transaction().context
+        context = tx.transaction.context
         if not isinstance(self._fields[name], TemplateFunction):
             Value = self.multivalue_model(name)
             if issubclass(Value, CostPrice) and context.get('company'):
@@ -66,9 +66,9 @@ class Product(metaclass=PoolMeta):
         return super().get_multivalue(name, **pattern)
 
     def set_multivalue(self, name, value, save=True, **pattern):
-        pool = Pool()
+        pool = tx.pool
         Company = pool.get('company.company')
-        context = Transaction().context
+        context = tx.transaction.context
         Value = self.multivalue_model(name)
         if issubclass(Value, CostPrice) and context.get('company'):
             company = Company(context['company'])
@@ -80,9 +80,9 @@ class Product(metaclass=PoolMeta):
 
     @classmethod
     def _domain_moves_cost(cls):
-        pool = Pool()
+        pool = tx.pool
         Company = pool.get('company.company')
-        context = Transaction().context
+        context = tx.transaction.context
         domain = super()._domain_moves_cost()
         if context.get('company'):
             company = Company(context['company'])
@@ -101,9 +101,9 @@ class Product(metaclass=PoolMeta):
 
     @classmethod
     def _domain_in_moves_cost(cls):
-        pool = Pool()
+        pool = tx.pool
         Company = pool.get('company.company')
-        context = Transaction().context
+        context = tx.transaction.context
         domain = super()._domain_in_moves_cost()
         if context.get('company'):
             company = Company(context['company'])
@@ -129,9 +129,9 @@ class Product(metaclass=PoolMeta):
 
     @classmethod
     def _domain_out_moves_cost(cls):
-        pool = Pool()
+        pool = tx.pool
         Company = pool.get('company.company')
-        context = Transaction().context
+        context = tx.transaction.context
         domain = super()._domain_out_moves_cost()
         if context.get('company'):
             company = Company(context['company'])
@@ -157,9 +157,9 @@ class Product(metaclass=PoolMeta):
 
     @classmethod
     def _domain_storage_quantity(cls):
-        pool = Pool()
+        pool = tx.pool
         Company = pool.get('company.company')
-        context = Transaction().context
+        context = tx.transaction.context
         domain = super()._domain_storage_quantity()
         if context.get('company'):
             company = Company(context['company'])
@@ -176,7 +176,7 @@ class Product(metaclass=PoolMeta):
 
     @classmethod
     def default_cost_price(cls, **pattern):
-        context = Transaction().context
+        context = tx.transaction.context
         default = super().default_cost_price()
         if (context.get('cost_price_warehouse')
                 and not pattern.get('warehouse', context.get('warehouse'))):
@@ -217,13 +217,13 @@ class CostPriceRevision(metaclass=PoolMeta):
 
     @classmethod
     def default_warehouse(cls):
-        pool = Pool()
+        pool = tx.pool
         Company = pool.get('company.company')
         company_id = cls.default_company()
         if company_id is not None and company_id >= 0:
             company = Company(company_id)
             if company.cost_price_warehouse:
-                return Transaction().context.get('warehouse')
+                return tx.transaction.context.get('warehouse')
 
     @classmethod
     def get_warehouse_required(cls, records, name):
@@ -231,10 +231,10 @@ class CostPriceRevision(metaclass=PoolMeta):
 
     @classmethod
     def _get_for_product_domain(cls):
-        pool = Pool()
+        pool = tx.pool
         Company = pool.get('company.company')
         domain = super()._get_for_product_domain()
-        context = Transaction().context
+        context = tx.transaction.context
         if context.get('company'):
             company = Company(context['company'])
             if company.cost_price_warehouse:
@@ -251,7 +251,7 @@ class ModifyCostPrice(metaclass=PoolMeta):
     def get_revision(self, Revision):
         revision = super().get_revision(Revision)
         if revision.company.cost_price_warehouse:
-            revision.warehouse = Transaction().context.get('warehouse')
+            revision.warehouse = tx.transaction.context.get('warehouse')
         return revision
 
 

@@ -8,13 +8,13 @@ from decimal import Decimal
 from simpleeval import simple_eval
 from stdnum import iso11649
 
+from trytond import tx
 from trytond.model import ModelSQL, ModelView, fields, sequence_ordered
 from trytond.modules.account.exceptions import AccountMissing
 from trytond.modules.currency.fields import Monetary
-from trytond.pool import Pool, PoolMeta
+from trytond.pool import PoolMeta
 from trytond.pyson import Eval, If
 from trytond.tools import decistmt
-from trytond.transaction import Transaction
 
 
 class Statement(metaclass=PoolMeta):
@@ -33,7 +33,7 @@ class Statement(metaclass=PoolMeta):
     @classmethod
     @ModelView.button
     def apply_rules(cls, statements):
-        pool = Pool()
+        pool = tx.pool
         Rule = pool.get('account.statement.rule')
         Line = pool.get('account.statement.line')
 
@@ -189,7 +189,7 @@ class StatementRuleInformation(sequence_ordered(), ModelSQL, ModelView):
 
     @classmethod
     def get_key_types(cls):
-        pool = Pool()
+        pool = tx.pool
         OriginInformation = pool.get('account.statement.origin.information')
         return OriginInformation.fields_get(['type_'])['type_']['selection']
 
@@ -318,7 +318,7 @@ class StatementRuleLine(sequence_ordered(), ModelSQL, ModelView):
         return self.rule.company if self.rule else None
 
     def get_line(self, origin, keywords, **context):
-        pool = Pool()
+        pool = tx.pool
         Line = pool.get('account.statement.line')
         Party = pool.get('party.party')
         context.setdefault('functions', {})['Decimal'] = Decimal
@@ -347,7 +347,7 @@ class StatementRuleLine(sequence_ordered(), ModelSQL, ModelView):
             if related_to_account:
                 account = related_to_account
             elif party:
-                with Transaction().set_context(
+                with tx.transaction.set_context(
                         date=origin.date,
                         company=origin.company.id):
                     party = Party(party.id)
@@ -381,7 +381,7 @@ class StatementRuleLine(sequence_ordered(), ModelSQL, ModelView):
         return line
 
     def _get_party(self, origin, keywords, amount=0):
-        pool = Pool()
+        pool = tx.pool
         Party = pool.get('party.party')
         Line = pool.get('account.statement.line')
         Configuration = pool.get('account.configuration')
@@ -459,19 +459,19 @@ class StatementRuleLine(sequence_ordered(), ModelSQL, ModelView):
             self._get_invoice(origin, keywords, party=party, amount=amount)}
 
     def _get_party_from(self, related_to):
-        pool = Pool()
+        pool = tx.pool
         Invoice = pool.get('account.invoice')
         if isinstance(related_to, Invoice):
             return related_to.party
 
     def _get_account_from(self, related_to):
-        pool = Pool()
+        pool = tx.pool
         Invoice = pool.get('account.invoice')
         if isinstance(related_to, Invoice):
             return related_to.account
 
     def _get_invoice(self, origin, keywords, party=None, amount=0):
-        pool = Pool()
+        pool = tx.pool
         Invoice = pool.get('account.invoice')
         Configuration = pool.get('account.configuration')
 

@@ -4,9 +4,9 @@ import datetime
 
 from sql.functions import CurrentTimestamp
 
+from trytond import tx
 from trytond.model.exceptions import (
     RequiredValidationError, TimeFormatValidationError)
-from trytond.pool import Pool
 from trytond.tests.test_tryton import (
     TestCase, activate_module, with_transaction)
 
@@ -27,7 +27,7 @@ class FieldDateTimeTestCase(TestCase):
     @with_transaction()
     def test_set_string(self):
         "Test set string"
-        pool = Pool()
+        pool = tx.pool
         Model = pool.get('test.datetime')
 
         record = Model()
@@ -38,7 +38,7 @@ class FieldDateTimeTestCase(TestCase):
     @with_transaction()
     def test_create(self):
         "Test create datetime"
-        DateTime = Pool().get('test.datetime')
+        DateTime = tx.pool.get('test.datetime')
 
         datetime, datetime_none = DateTime.create([{
                     'datetime': today,
@@ -52,7 +52,7 @@ class FieldDateTimeTestCase(TestCase):
     @with_transaction()
     def test_create_datetime_string(self):
         "Test create datetime with datetime string"
-        DateTime = Pool().get('test.datetime')
+        DateTime = tx.pool.get('test.datetime')
 
         datetime, = DateTime.create([{
                     'datetime': str(today),
@@ -63,7 +63,7 @@ class FieldDateTimeTestCase(TestCase):
     @with_transaction()
     def test_create_invalid_datetime_string(self):
         "Test create datetime with invalid datetime string"
-        DateTime = Pool().get('test.datetime')
+        DateTime = tx.pool.get('test.datetime')
 
         with self.assertRaises(ValueError):
             DateTime.create([{
@@ -73,7 +73,7 @@ class FieldDateTimeTestCase(TestCase):
     @with_transaction()
     def test_create_without_default(self):
         "Test create datetime without default"
-        DateTime = Pool().get('test.datetime')
+        DateTime = tx.pool.get('test.datetime')
 
         datetime, = DateTime.create([{}])
 
@@ -82,7 +82,7 @@ class FieldDateTimeTestCase(TestCase):
     @with_transaction()
     def test_create_with_default(self):
         "Test create datetime with default"
-        DateTime = Pool().get('test.datetime_default')
+        DateTime = tx.pool.get('test.datetime_default')
 
         datetime, = DateTime.create([{}])
 
@@ -91,7 +91,7 @@ class FieldDateTimeTestCase(TestCase):
     @with_transaction()
     def test_create_with_sql_value(self):
         "Test create datetime with SQL value"
-        DateTime = Pool().get('test.datetime')
+        DateTime = tx.pool.get('test.datetime')
 
         datetime, = DateTime.create([{
                     'datetime': DateTime.datetime.sql_cast(CurrentTimestamp()),
@@ -102,7 +102,7 @@ class FieldDateTimeTestCase(TestCase):
     @with_transaction()
     def test_set_sql_value(self):
         "Test cannot set SQL value"
-        DateTime = Pool().get('test.datetime')
+        DateTime = tx.pool.get('test.datetime')
 
         datetime = DateTime()
 
@@ -112,7 +112,7 @@ class FieldDateTimeTestCase(TestCase):
     @with_transaction()
     def test_create_non_datetime(self):
         "Test create datetime with non datetime"
-        DateTime = Pool().get('test.datetime')
+        DateTime = tx.pool.get('test.datetime')
 
         with self.assertRaises(ValueError):
             DateTime.create([{
@@ -122,7 +122,7 @@ class FieldDateTimeTestCase(TestCase):
     @with_transaction()
     def test_create_integer(self):
         "Test create datetime with integer"
-        DateTime = Pool().get('test.datetime')
+        DateTime = tx.pool.get('test.datetime')
 
         with self.assertRaises(TypeError):
             DateTime.create([{
@@ -132,7 +132,7 @@ class FieldDateTimeTestCase(TestCase):
     @with_transaction()
     def test_create_date(self):
         "Test create datetime with date"
-        DateTime = Pool().get('test.datetime')
+        DateTime = tx.pool.get('test.datetime')
 
         with self.assertRaises(TypeError):
             DateTime.create([{
@@ -142,7 +142,7 @@ class FieldDateTimeTestCase(TestCase):
     @with_transaction()
     def test_create_microsecond(self):
         "Test create datetime with microsecond"
-        DateTime = Pool().get('test.datetime_required')
+        DateTime = tx.pool.get('test.datetime_required')
 
         datetime, = DateTime.create([{
                     'datetime': today.replace(microsecond=1),
@@ -153,7 +153,7 @@ class FieldDateTimeTestCase(TestCase):
     @with_transaction()
     def test_create_required_with_value(self):
         "Test create datetime required with value"
-        DateTime = Pool().get('test.datetime_required')
+        DateTime = tx.pool.get('test.datetime_required')
 
         datetime, = DateTime.create([{
                     'datetime': today,
@@ -164,7 +164,7 @@ class FieldDateTimeTestCase(TestCase):
     @with_transaction()
     def test_create_required_without_value(self):
         "Test create datetime required without value"
-        DateTime = Pool().get('test.datetime_required')
+        DateTime = tx.pool.get('test.datetime_required')
 
         with self.assertRaises(RequiredValidationError):
             DateTime.create([{}])
@@ -172,7 +172,7 @@ class FieldDateTimeTestCase(TestCase):
     @with_transaction()
     def test_create_format_valid(self):
         "Test create datetime with valid format"
-        DateTime = Pool().get('test.datetime_format')
+        DateTime = tx.pool.get('test.datetime_format')
 
         datetime_, = DateTime.create([{
                     'datetime': datetime.datetime(2009, 1, 1, 12, 30),
@@ -184,7 +184,7 @@ class FieldDateTimeTestCase(TestCase):
     @with_transaction()
     def test_create_format_invalid(self):
         "Test create datetime with invalid format"
-        DateTime = Pool().get('test.datetime_format')
+        DateTime = tx.pool.get('test.datetime_format')
 
         with self.assertRaises(TimeFormatValidationError):
             DateTime.create([{
@@ -194,7 +194,7 @@ class FieldDateTimeTestCase(TestCase):
     @with_transaction()
     def test_search_equals(self):
         "Test search datetime equals"
-        DateTime = Pool().get('test.datetime')
+        DateTime = tx.pool.get('test.datetime')
         datetime, = DateTime.create([{
                     'datetime': today,
                     }])
@@ -212,7 +212,7 @@ class FieldDateTimeTestCase(TestCase):
     @with_transaction()
     def test_search_equals_none(self):
         "Test search datetime equals None"
-        DateTime = Pool().get('test.datetime')
+        DateTime = tx.pool.get('test.datetime')
         datetime, = DateTime.create([{
                     'datetime': None,
                     }])
@@ -226,7 +226,7 @@ class FieldDateTimeTestCase(TestCase):
     @with_transaction()
     def test_search_non_equals(self):
         "Test search datetime non equals"
-        DateTime = Pool().get('test.datetime')
+        DateTime = tx.pool.get('test.datetime')
         datetime, = DateTime.create([{
                     'datetime': today,
                     }])
@@ -244,7 +244,7 @@ class FieldDateTimeTestCase(TestCase):
     @with_transaction()
     def test_search_non_equals_none(self):
         "Test search datetime non equals None"
-        DateTime = Pool().get('test.datetime')
+        DateTime = tx.pool.get('test.datetime')
         datetime, = DateTime.create([{
                     'datetime': None,
                     }])
@@ -258,7 +258,7 @@ class FieldDateTimeTestCase(TestCase):
     @with_transaction()
     def test_search_in(self):
         "Test search datetime in"
-        DateTime = Pool().get('test.datetime')
+        DateTime = tx.pool.get('test.datetime')
         datetime, = DateTime.create([{
                     'datetime': today,
                     }])
@@ -280,7 +280,7 @@ class FieldDateTimeTestCase(TestCase):
     @with_transaction()
     def test_search_in_none(self):
         "Test search datetime in [None]"
-        DateTime = Pool().get('test.datetime')
+        DateTime = tx.pool.get('test.datetime')
         datetime, = DateTime.create([{
                     'datetime': None,
                     }])
@@ -294,7 +294,7 @@ class FieldDateTimeTestCase(TestCase):
     @with_transaction()
     def test_search_not_in(self):
         "Test search datetime not in"
-        DateTime = Pool().get('test.datetime')
+        DateTime = tx.pool.get('test.datetime')
         datetime, = DateTime.create([{
                     'datetime': today,
                     }])
@@ -316,7 +316,7 @@ class FieldDateTimeTestCase(TestCase):
     @with_transaction()
     def test_search_not_in_none(self):
         "Test search datetime not in [None]"
-        DateTime = Pool().get('test.datetime')
+        DateTime = tx.pool.get('test.datetime')
         datetime, = DateTime.create([{
                     'datetime': None,
                     }])
@@ -330,7 +330,7 @@ class FieldDateTimeTestCase(TestCase):
     @with_transaction()
     def test_search_in_multi(self):
         "Test search datetime in multiple"
-        DateTime = Pool().get('test.datetime')
+        DateTime = tx.pool.get('test.datetime')
         datetimes = DateTime.create([{
                     'datetime': today,
                     }, {
@@ -346,7 +346,7 @@ class FieldDateTimeTestCase(TestCase):
     @with_transaction()
     def test_search_not_in_multi(self):
         "Test search datetime not in multiple"
-        DateTime = Pool().get('test.datetime')
+        DateTime = tx.pool.get('test.datetime')
         DateTime.create([{
                     'datetime': today,
                     }, {
@@ -362,7 +362,7 @@ class FieldDateTimeTestCase(TestCase):
     @with_transaction()
     def test_search_less(self):
         "Test search datetime less than"
-        DateTime = Pool().get('test.datetime')
+        DateTime = tx.pool.get('test.datetime')
         datetime, = DateTime.create([{
                     'datetime': today,
                     }])
@@ -384,7 +384,7 @@ class FieldDateTimeTestCase(TestCase):
     @with_transaction()
     def test_search_less_equals(self):
         "Test search datetime less than or equals"
-        DateTime = Pool().get('test.datetime')
+        DateTime = tx.pool.get('test.datetime')
         datetime, = DateTime.create([{
                     'datetime': today,
                     }])
@@ -406,7 +406,7 @@ class FieldDateTimeTestCase(TestCase):
     @with_transaction()
     def test_search_greater(self):
         "Test search datetime greater than"
-        DateTime = Pool().get('test.datetime')
+        DateTime = tx.pool.get('test.datetime')
         datetime, = DateTime.create([{
                     'datetime': today,
                     }])
@@ -428,7 +428,7 @@ class FieldDateTimeTestCase(TestCase):
     @with_transaction()
     def test_search_greater_equals(self):
         "Test search datetime greater than or equals"
-        DateTime = Pool().get('test.datetime')
+        DateTime = tx.pool.get('test.datetime')
         datetime, = DateTime.create([{
                     'datetime': today,
                     }])
@@ -450,7 +450,7 @@ class FieldDateTimeTestCase(TestCase):
     @with_transaction()
     def test_write(self):
         "Test write datetime"
-        DateTime = Pool().get('test.datetime')
+        DateTime = tx.pool.get('test.datetime')
         datetime, = DateTime.create([{
                     'datetime': today,
                     }])
@@ -464,7 +464,7 @@ class FieldDateTimeTestCase(TestCase):
     @with_transaction()
     def test_write_non_datetime(self):
         "Test write datetime with non datetime"
-        DateTime = Pool().get('test.datetime')
+        DateTime = tx.pool.get('test.datetime')
         datetime, = DateTime.create([{
                     'datetime': today,
                     }])
@@ -477,7 +477,7 @@ class FieldDateTimeTestCase(TestCase):
     @with_transaction()
     def test_write_integer(self):
         "Test write datetime with integer"
-        DateTime = Pool().get('test.datetime')
+        DateTime = tx.pool.get('test.datetime')
         datetime, = DateTime.create([{
                     'datetime': today,
                     }])
@@ -490,7 +490,7 @@ class FieldDateTimeTestCase(TestCase):
     @with_transaction()
     def test_write_date(self):
         "Test write datetime with date"
-        DateTime = Pool().get('test.datetime')
+        DateTime = tx.pool.get('test.datetime')
         datetime_, = DateTime.create([{
                     'datetime': today,
                     }])

@@ -7,15 +7,14 @@ import time
 import unittest
 from unittest.mock import call, patch
 
-from trytond import backend
+from trytond import backend, tx
 from trytond.exceptions import ConcurrencyException
 from trytond.model.exceptions import (
     AccessError, ForeignKeyError, RequiredValidationError, SQLConstraintError)
 from trytond.model.modelsql import split_subquery_domain
-from trytond.pool import Pool
 from trytond.tests.test_tryton import (
     CONTEXT, DB_NAME, USER, TestCase, activate_module, with_transaction)
-from trytond.transaction import Transaction, TransactionError
+from trytond.transaction import TransactionError
 
 
 class ModelSQLTestCase(TestCase):
@@ -29,7 +28,7 @@ class ModelSQLTestCase(TestCase):
     @with_transaction()
     def test_read(self):
         "Test simple read"
-        pool = Pool()
+        pool = tx.pool
         Model = pool.get('test.modelsql.read')
 
         foo, bar = Model.create([{'name': "Foo"}, {'name': "Bar"}])
@@ -42,7 +41,7 @@ class ModelSQLTestCase(TestCase):
     @with_transaction()
     def test_read_no_exist(self):
         "Test read ids that does not exist"
-        pool = Pool()
+        pool = tx.pool
         Model = pool.get('test.modelsql.read')
 
         with self.assertRaises(AccessError):
@@ -51,7 +50,7 @@ class ModelSQLTestCase(TestCase):
     @with_transaction()
     def test_read_context_id(self):
         "Test read with ID in context of field"
-        pool = Pool()
+        pool = tx.pool
         Model = pool.get('test.modelsql.read.context_id')
 
         record, = Model.create([{'name': "Record"}])
@@ -62,7 +61,7 @@ class ModelSQLTestCase(TestCase):
     @with_transaction()
     def test_read_function_field_bigger_than_cache(self):
         "Test reading a Function field on a list bigger then the cache size"
-        pool = Pool()
+        pool = tx.pool
         Model = pool.get('test.modelsql.read')
 
         records = Model.create([{'name': str(i)} for i in range(10)])
@@ -70,7 +69,7 @@ class ModelSQLTestCase(TestCase):
         record_ids = [r.id for r in records]
         random.shuffle(record_ids)
 
-        with Transaction().set_context(_record_cache_size=2):
+        with tx.transaction.set_context(_record_cache_size=2):
             records_read = {r['id']: r['rec_name']
                 for r in Model.read(record_ids, ['rec_name'])}
             self.assertEqual(records_read, records_created)
@@ -78,7 +77,7 @@ class ModelSQLTestCase(TestCase):
     @with_transaction()
     def test_read_related_2one(self):
         "Test read with related Many2One"
-        pool = Pool()
+        pool = tx.pool
         Model = pool.get('test.modelsql.read')
         Target = pool.get('test.modelsql.read.target')
 
@@ -97,7 +96,7 @@ class ModelSQLTestCase(TestCase):
     @with_transaction()
     def test_read_related_2one_empty(self):
         "Test read with empty related Many2One"
-        pool = Pool()
+        pool = tx.pool
         Model = pool.get('test.modelsql.read')
 
         record, = Model.create([{'target': None}])
@@ -111,7 +110,7 @@ class ModelSQLTestCase(TestCase):
     @with_transaction()
     def test_read_related_reference(self):
         "Test read with related Reference"
-        pool = Pool()
+        pool = tx.pool
         Model = pool.get('test.modelsql.read')
         Target = pool.get('test.modelsql.read.target')
 
@@ -130,7 +129,7 @@ class ModelSQLTestCase(TestCase):
     @with_transaction()
     def test_read_related_invalid_reference(self):
         "Test read with related invalid Reference"
-        pool = Pool()
+        pool = tx.pool
         Model = pool.get('test.modelsql.read')
 
         record, = Model.create(
@@ -145,7 +144,7 @@ class ModelSQLTestCase(TestCase):
     @with_transaction()
     def test_read_related_deleted_reference(self):
         "Test read with related deleted Reference"
-        pool = Pool()
+        pool = tx.pool
         Model = pool.get('test.modelsql.read')
         Target = pool.get('test.modelsql.read.target')
 
@@ -162,7 +161,7 @@ class ModelSQLTestCase(TestCase):
     @with_transaction()
     def test_read_related_reference_empty(self):
         "Test read with empty related Reference"
-        pool = Pool()
+        pool = tx.pool
         Model = pool.get('test.modelsql.read')
 
         record, = Model.create([{'name': "Foo", 'reference': None}])
@@ -176,7 +175,7 @@ class ModelSQLTestCase(TestCase):
     @with_transaction()
     def test_read_related_2many(self):
         "Test read with related One2Many"
-        pool = Pool()
+        pool = tx.pool
         Model = pool.get('test.modelsql.read')
         Target = pool.get('test.modelsql.read.target')
 
@@ -196,7 +195,7 @@ class ModelSQLTestCase(TestCase):
     @with_transaction()
     def test_read_related_2many_empty(self):
         "Test read with empty related One2Many"
-        pool = Pool()
+        pool = tx.pool
         Model = pool.get('test.modelsql.read')
 
         record, = Model.create(
@@ -211,7 +210,7 @@ class ModelSQLTestCase(TestCase):
     @with_transaction()
     def test_read_related_2many_multiple(self):
         "Test read with multiple related One2Many"
-        pool = Pool()
+        pool = tx.pool
         Model = pool.get('test.modelsql.read')
         Target = pool.get('test.modelsql.read.target')
 
@@ -236,7 +235,7 @@ class ModelSQLTestCase(TestCase):
     @with_transaction()
     def test_read_related_mixed(self):
         "Test read mixed related"
-        pool = Pool()
+        pool = tx.pool
         Model = pool.get('test.modelsql.read')
         Target = pool.get('test.modelsql.read.target')
 
@@ -289,7 +288,7 @@ class ModelSQLTestCase(TestCase):
     @with_transaction()
     def test_read_related_nested(self):
         "Test read with nested related"
-        pool = Pool()
+        pool = tx.pool
         Model = pool.get('test.modelsql.read')
         Target = pool.get('test.modelsql.read.target')
 
@@ -313,7 +312,7 @@ class ModelSQLTestCase(TestCase):
     @unittest.expectedFailure
     def test_read_limit(self):
         "Test that we limit the number or related records read"
-        pool = Pool()
+        pool = tx.pool
         Model = pool.get('test.modelsql.read')
 
         model, = Model.create([{
@@ -327,7 +326,7 @@ class ModelSQLTestCase(TestCase):
         self.assertTrue(all('id' in t and 'name' in t
                 for t in values['targets.']))
 
-        with Transaction().set_context(related_read_limit=4):
+        with tx.transaction.set_context(related_read_limit=4):
             values, = Model.read([model.id], ['targets.name'])
             self.assertTrue(all('id' in t and 'name' in t
                     for t in values['targets.'][:4]))
@@ -337,7 +336,7 @@ class ModelSQLTestCase(TestCase):
     @with_transaction()
     def test_read_limit_only_limit_related(self):
         "Test that we don't limit reading records with related_read_limit"
-        pool = Pool()
+        pool = tx.pool
         Model = pool.get('test.modelsql.read')
 
         records = Model.create([
@@ -347,7 +346,7 @@ class ModelSQLTestCase(TestCase):
                         ('create', [{'name': str(i)} for i in range(10)]),
                         ]
                     } for i in range(10)])
-        with Transaction().set_context(related_read_limit=4):
+        with tx.transaction.set_context(related_read_limit=4):
             values = Model.read(
                 [r.id for r in records], ['name', 'targets.name'])
             self.assertTrue(all('id' in v and 'name' in v for v in values))
@@ -356,7 +355,7 @@ class ModelSQLTestCase(TestCase):
     @with_transaction()
     def test_read_limit_caching(self):
         "Test that limiting the related records read plays nice with caching"
-        pool = Pool()
+        pool = tx.pool
         Model = pool.get('test.modelsql.read.limit')
 
         records = Model.create([
@@ -368,7 +367,7 @@ class ModelSQLTestCase(TestCase):
                         ],
                     } for i in range(10)])
 
-        with Transaction().set_context(read_limit=4):
+        with tx.transaction.set_context(read_limit=4):
             values = Model.read(
                 [r.id for r in records],
                 ['name', 'targets.name', 'sum_targets'])
@@ -383,9 +382,9 @@ class ModelSQLTestCase(TestCase):
     @with_transaction()
     def test_required_field_missing(self):
         'Test error message when a required field is missing'
-        pool = Pool()
+        pool = tx.pool
         Modelsql = pool.get('test.modelsql')
-        transaction = Transaction()
+        transaction = tx.transaction
 
         fields = {
             'desc': '',
@@ -406,9 +405,9 @@ class ModelSQLTestCase(TestCase):
     @with_transaction()
     def test_check_timestamp(self):
         'Test check timestamp'
-        pool = Pool()
+        pool = tx.pool
         ModelsqlTimestamp = pool.get('test.modelsql.timestamp')
-        transaction = Transaction()
+        transaction = tx.transaction
         # transaction must be committed between each changes otherwise NOW()
         # returns always the same timestamp.
         record, = ModelsqlTimestamp.create([{}])
@@ -446,7 +445,7 @@ class ModelSQLTestCase(TestCase):
     @with_transaction()
     def test_create(self):
         "Test create record"
-        pool = Pool()
+        pool = tx.pool
         Model = pool.get('test.modelsql.create')
 
         m1, = Model.create([{
@@ -460,8 +459,8 @@ class ModelSQLTestCase(TestCase):
         "Test create record without returning"
         with patch.object(backend.Database, 'has_returning') as returning:
             returning.return_value = False
-            with Transaction().start(DB_NAME, USER, context=CONTEXT):
-                pool = Pool()
+            with tx.transaction.start(DB_NAME, USER, context=CONTEXT):
+                pool = tx.pool
                 Model = pool.get('test.modelsql.create')
 
                 m1, = Model.create([{
@@ -474,7 +473,7 @@ class ModelSQLTestCase(TestCase):
     @with_transaction()
     def test_create_many_records(self):
         "Test create many records"
-        pool = Pool()
+        pool = tx.pool
         Model = pool.get('test.modelsql.create')
 
         # The order of the keys shouldn't matter
@@ -499,8 +498,8 @@ class ModelSQLTestCase(TestCase):
         "Test create many records without multirow insert"
         with patch.object(backend.Database, 'has_multirow_insert') as multirow:
             multirow.return_value = False
-            with Transaction().start(DB_NAME, USER, context=CONTEXT):
-                pool = Pool()
+            with tx.transaction.start(DB_NAME, USER, context=CONTEXT):
+                pool = tx.pool
                 Model = pool.get('test.modelsql.create')
 
                 m1, m2 = Model.create([{
@@ -522,8 +521,8 @@ class ModelSQLTestCase(TestCase):
                     backend.Database, 'has_multirow_insert') as multirow:
             returning.return_value = False
             multirow.return_value = False
-            with Transaction().start(DB_NAME, USER, context=CONTEXT):
-                pool = Pool()
+            with tx.transaction.start(DB_NAME, USER, context=CONTEXT):
+                pool = tx.pool
                 Model = pool.get('test.modelsql.create')
 
                 m1, m2 = Model.create([{
@@ -541,7 +540,7 @@ class ModelSQLTestCase(TestCase):
     @with_transaction()
     def test_create_field_set(self):
         'Test field.set in create'
-        pool = Pool()
+        pool = tx.pool
         Model = pool.get('test.modelsql.field_set')
 
         with patch.object(Model, 'set_field') as setter:
@@ -572,7 +571,7 @@ class ModelSQLTestCase(TestCase):
     @with_transaction()
     def test_integrity_error_with_created_record(self):
         "Test integrity error with created record"
-        pool = Pool()
+        pool = tx.pool
         ParentModel = pool.get('test.modelsql.one2many')
         TargetModel = pool.get('test.modelsql.one2many.target')
 
@@ -590,7 +589,7 @@ class ModelSQLTestCase(TestCase):
     @with_transaction()
     def test_write_no_exist(self):
         "Test write on ids that does not exist"
-        pool = Pool()
+        pool = tx.pool
         Model = pool.get('test.modelsql.write')
 
         with self.assertRaises(AccessError):
@@ -599,7 +598,7 @@ class ModelSQLTestCase(TestCase):
     @with_transaction()
     def test_delete_no_exist(self):
         "Test delete ids that does not exist"
-        pool = Pool()
+        pool = tx.pool
         Model = pool.get('test.modelsql.delete')
 
         Model.delete([Model(42)])
@@ -607,7 +606,7 @@ class ModelSQLTestCase(TestCase):
     @with_transaction()
     def test_foreign_key_cascade(self):
         "Test Foreign key on delete cascade"
-        pool = Pool()
+        pool = tx.pool
         Model = pool.get('test.modelsql.fk')
         Target = pool.get('test.modelsql.fk.target')
 
@@ -623,7 +622,7 @@ class ModelSQLTestCase(TestCase):
     @with_transaction()
     def test_foreign_key_cascade_tree(self):
         "Test tree Foreign key on delete cascade"
-        pool = Pool()
+        pool = tx.pool
         Model = pool.get('test.modelsql.fk.tree')
 
         parent = Model()
@@ -638,7 +637,7 @@ class ModelSQLTestCase(TestCase):
     @with_transaction()
     def test_foreign_key_null(self):
         "Test Foreign key on delete set null"
-        pool = Pool()
+        pool = tx.pool
         Model = pool.get('test.modelsql.fk')
         Target = pool.get('test.modelsql.fk.target')
 
@@ -654,7 +653,7 @@ class ModelSQLTestCase(TestCase):
     @with_transaction()
     def test_foreign_key_null_tree(self):
         "Test tree Foreign key on delete set null"
-        pool = Pool()
+        pool = tx.pool
         Model = pool.get('test.modelsql.fk.tree')
 
         parent = Model()
@@ -669,7 +668,7 @@ class ModelSQLTestCase(TestCase):
     @with_transaction()
     def test_foreign_key_null_required(self):
         "Test Foreign key on delete set null required"
-        pool = Pool()
+        pool = tx.pool
         Model = pool.get('test.modelsql.fk')
         Target = pool.get('test.modelsql.fk.target')
 
@@ -690,7 +689,7 @@ class ModelSQLTestCase(TestCase):
     @with_transaction()
     def test_foreign_key_restrict(self):
         "Test Foreign key on delete restrict"
-        pool = Pool()
+        pool = tx.pool
         Model = pool.get('test.modelsql.fk')
         Target = pool.get('test.modelsql.fk.target')
 
@@ -708,7 +707,7 @@ class ModelSQLTestCase(TestCase):
     @with_transaction()
     def test_foreign_key_restrict_inactive(self):
         "Test inactive Foreign key on delete restrict"
-        pool = Pool()
+        pool = tx.pool
         Model = pool.get('test.modelsql.fk')
         Target = pool.get('test.modelsql.fk.target')
 
@@ -726,7 +725,7 @@ class ModelSQLTestCase(TestCase):
     @with_transaction()
     def test_foreign_key_restrict_tree(self):
         "Test tree Foreign key on delete restrict"
-        pool = Pool()
+        pool = tx.pool
         Model = pool.get('test.modelsql.fk.tree')
 
         parent = Model()
@@ -740,7 +739,7 @@ class ModelSQLTestCase(TestCase):
     @with_transaction()
     def test_foreign_key_restrict_tree_branch_full(self):
         "Test tree Foreign key on delete restrict full branch"
-        pool = Pool()
+        pool = tx.pool
         Model = pool.get('test.modelsql.fk.tree')
 
         parent = Model()
@@ -753,7 +752,7 @@ class ModelSQLTestCase(TestCase):
     @with_transaction()
     def test_foreign_key_restrict_tree_branch_grouped(self):
         "Test tree Foreign key on delete restrict grouped branch"
-        pool = Pool()
+        pool = tx.pool
         Model = pool.get('test.modelsql.fk.tree')
 
         parent = Model()
@@ -766,7 +765,7 @@ class ModelSQLTestCase(TestCase):
     @with_transaction()
     def test_null_ordering(self):
         'Test NULL ordering'
-        pool = Pool()
+        pool = tx.pool
         NullOrder = pool.get('test.modelsql.null_order')
 
         NullOrder.create([{
@@ -792,7 +791,7 @@ class ModelSQLTestCase(TestCase):
     @with_transaction()
     def test_delete_translations(self):
         "Test delete record trigger delete of translations"
-        pool = Pool()
+        pool = tx.pool
         Model = pool.get('test.modelsql.translation')
         Translation = pool.get('ir.translation')
         record, = Model.create([{'name': "Translation"}])
@@ -806,7 +805,7 @@ class ModelSQLTestCase(TestCase):
     @with_transaction()
     def test_constraint_check(self):
         "Test check constraint"
-        pool = Pool()
+        pool = tx.pool
         Model = pool.get('test.modelsql.check')
 
         record, = Model.create([{'value': 50}])
@@ -816,7 +815,7 @@ class ModelSQLTestCase(TestCase):
     @with_transaction()
     def test_constraint_check_null(self):
         "Test check constraint with null"
-        pool = Pool()
+        pool = tx.pool
         Model = pool.get('test.modelsql.check')
 
         record, = Model.create([{'value': None}])
@@ -826,7 +825,7 @@ class ModelSQLTestCase(TestCase):
     @with_transaction()
     def test_constraint_check_invalid(self):
         "Test invalid check constraint"
-        pool = Pool()
+        pool = tx.pool
         Model = pool.get('test.modelsql.check')
 
         with self.assertRaises(SQLConstraintError):
@@ -835,7 +834,7 @@ class ModelSQLTestCase(TestCase):
     @with_transaction()
     def test_constraint_unique(self):
         "Test unique constraint"
-        pool = Pool()
+        pool = tx.pool
         Model = pool.get('test.modelsql.unique')
 
         records = Model.create([{'value': 1}, {'value': 2}])
@@ -845,7 +844,7 @@ class ModelSQLTestCase(TestCase):
     @with_transaction()
     def test_constraint_unique_null(self):
         "Test unique constraint with null"
-        pool = Pool()
+        pool = tx.pool
         Model = pool.get('test.modelsql.unique')
 
         records = Model.create([{'value': None}, {'value': None}])
@@ -855,7 +854,7 @@ class ModelSQLTestCase(TestCase):
     @with_transaction()
     def test_constraint_unique_invalid(self):
         "Test invalid unique constraint"
-        pool = Pool()
+        pool = tx.pool
         Model = pool.get('test.modelsql.unique')
 
         with self.assertRaises(SQLConstraintError):
@@ -864,7 +863,7 @@ class ModelSQLTestCase(TestCase):
     @with_transaction()
     def test_constraint_exclude(self):
         "Test exclude constraint"
-        pool = Pool()
+        pool = tx.pool
         Model = pool.get('test.modelsql.exclude')
 
         records = Model.create([{'value': 1}, {'value': 2}])
@@ -874,7 +873,7 @@ class ModelSQLTestCase(TestCase):
     @with_transaction()
     def test_constraint_exclude_exclusion(self):
         "Test exclude constraint exclusion"
-        pool = Pool()
+        pool = tx.pool
         Model = pool.get('test.modelsql.exclude')
 
         records = Model.create([{'value': 1, 'condition': False}] * 2)
@@ -884,7 +883,7 @@ class ModelSQLTestCase(TestCase):
     @with_transaction()
     def test_constraint_exclude_exclusion_mixed(self):
         "Test exclude constraint exclusion mixed"
-        pool = Pool()
+        pool = tx.pool
         Model = pool.get('test.modelsql.exclude')
 
         records = Model.create([
@@ -897,7 +896,7 @@ class ModelSQLTestCase(TestCase):
     @with_transaction()
     def test_constraint_exclude_invalid(self):
         "Test invalid exclude constraint"
-        pool = Pool()
+        pool = tx.pool
         Model = pool.get('test.modelsql.exclude')
 
         with self.assertRaises(SQLConstraintError):
@@ -908,9 +907,9 @@ class ModelSQLTestCase(TestCase):
     @with_transaction()
     def test_record_lock(self):
         "Test record lock"
-        pool = Pool()
+        pool = tx.pool
         Model = pool.get('test.modelsql.lock')
-        transaction = Transaction()
+        transaction = tx.transaction
         record_id = Model.create([{}])[0].id
         transaction.commit()
 
@@ -942,9 +941,9 @@ class ModelSQLTestCase(TestCase):
     @with_transaction()
     def test_table_lock(self):
         "Test table lock"
-        pool = Pool()
+        pool = tx.pool
         Model = pool.get('test.modelsql.lock')
-        transaction = Transaction()
+        transaction = tx.transaction
 
         args1 = {}
         while True:
@@ -970,9 +969,9 @@ class ModelSQLTestCase(TestCase):
     @with_transaction()
     def test_record_lock_with_table_lock(self):
         "Test not locking record when table is locked"
-        pool = Pool()
+        pool = tx.pool
         Model = pool.get('test.modelsql.lock')
-        transaction = Transaction()
+        transaction = tx.transaction
         record_id = Model.create([{}])[0].id
         transaction.commit()
 
@@ -985,7 +984,7 @@ class ModelSQLTestCase(TestCase):
         """
         Test searching for 'OR'-ed domain
         """
-        pool = Pool()
+        pool = tx.pool
         Model = pool.get('test.modelsql.search.or2union')
 
         Model.create([{
@@ -1018,7 +1017,7 @@ class ModelSQLTestCase(TestCase):
     @with_transaction()
     def test_search_or_to_union_with_in_clause(self):
         "Test searching for 'OR'-ed domain with in clause"
-        pool = Pool()
+        pool = tx.pool
         Model = pool.get('test.modelsql.search.or2union')
 
         record, = Model.create([{
@@ -1040,7 +1039,7 @@ class ModelSQLTestCase(TestCase):
         """
         Searching for 'OR'-ed domain mixed with ordering on an eager field
         """
-        pool = Pool()
+        pool = tx.pool
         Model = pool.get('test.modelsql.search.or2union')
         Target = pool.get('test.modelsql.search.or2union.target')
 
@@ -1081,7 +1080,7 @@ class ModelSQLTestCase(TestCase):
         """
         Searching for 'OR'-ed domain mixed with ordering on a lazy field
         """
-        pool = Pool()
+        pool = tx.pool
         Model = pool.get('test.modelsql.search.or2union')
         Target = pool.get('test.modelsql.search.or2union.target')
 
@@ -1122,7 +1121,7 @@ class ModelSQLTestCase(TestCase):
         """
         Searching for 'OR'-ed domain mixed with ordering on dotted field
         """
-        pool = Pool()
+        pool = tx.pool
         Model = pool.get('test.modelsql.search.or2union')
         Target = pool.get('test.modelsql.search.or2union.target')
 
@@ -1163,7 +1162,7 @@ class ModelSQLTestCase(TestCase):
         """
         Searching for 'OR'-ed domain mixed with ordering on a function
         """
-        pool = Pool()
+        pool = tx.pool
         Model = pool.get('test.modelsql.search.or2union')
         Target = pool.get('test.modelsql.search.or2union.target')
 
@@ -1207,7 +1206,7 @@ class ModelSQLTestCase(TestCase):
         """
         Test searching for 'OR'-ed domain without local clauses
         """
-        pool = Pool()
+        pool = tx.pool
         Model = pool.get('test.modelsql.search.or2union')
 
         Model.create([{
@@ -1242,7 +1241,7 @@ class ModelSQLTestCase(TestCase):
         """
         Test searching for 'OR'-ed domain when the class defines _order
         """
-        pool = Pool()
+        pool = tx.pool
         Model = pool.get('test.modelsql.search.or2union.class_order')
         Target = pool.get('test.modelsql.search.or2union.class_order.target')
 
@@ -1273,7 +1272,7 @@ class ModelSQLTestCase(TestCase):
 
     @with_transaction()
     def test_search_or_to_union_function_field(self):
-        pool = Pool()
+        pool = tx.pool
         Model = pool.get('test.modelsql.search.or2union')
 
         model_a, model_b, model_c = Model.create([{
@@ -1295,7 +1294,7 @@ class ModelSQLTestCase(TestCase):
     @with_transaction()
     def test_search_limit(self):
         "Test searching with limit"
-        pool = Pool()
+        pool = tx.pool
         Model = pool.get('test.modelsql.search')
 
         Model.create([{'name': str(i)} for i in range(10)])
@@ -1310,7 +1309,7 @@ class ModelSQLTestCase(TestCase):
     @with_transaction()
     def test_search_offset(self):
         "Test searching with offset"
-        pool = Pool()
+        pool = tx.pool
         Model = pool.get('test.modelsql.search')
 
         Model.create([{'name': str(i)} for i in range(10)])
@@ -1322,7 +1321,7 @@ class ModelSQLTestCase(TestCase):
     @with_transaction()
     def test_search_limit_predictable_order(self):
         "Test searching with LIMIT is using a predictable order"
-        pool = Pool()
+        pool = tx.pool
         Model = pool.get('test.modelsql.search')
 
         Model.create([{'name': str(i)} for i in range(10)])
@@ -1403,7 +1402,7 @@ class ModelSQLTestCase(TestCase):
     @with_transaction()
     def test_table_query_refresh(self):
         "Test refresh materialized table query"
-        pool = Pool()
+        pool = tx.pool
         Data = pool.get('test.modelsql.materialized.data')
         MaterializedView = pool.get('test.modelsql.materialized')
 
@@ -1436,7 +1435,7 @@ class TranslationTestCase(TestCase):
     @classmethod
     @with_transaction()
     def setup_language(cls):
-        pool = Pool()
+        pool = tx.pool
         Language = pool.get('ir.lang')
         Configuration = pool.get('ir.configuration')
 
@@ -1452,7 +1451,7 @@ class TranslationTestCase(TestCase):
         config.language = cls.default_language
         config.save()
 
-        Transaction().commit()
+        tx.transaction.commit()
 
     @classmethod
     def tearDownClass(cls):
@@ -1462,7 +1461,7 @@ class TranslationTestCase(TestCase):
     @classmethod
     @with_transaction()
     def restore_language(cls):
-        pool = Pool()
+        pool = tx.pool
         Language = pool.get('ir.lang')
         Configuration = pool.get('ir.configuration')
 
@@ -1478,7 +1477,7 @@ class TranslationTestCase(TestCase):
                 'translatable': False,
                 })
 
-        Transaction().commit()
+        tx.transaction.commit()
 
 
 class ModelSQLTranslationTestCase(TranslationTestCase):
@@ -1491,11 +1490,11 @@ class ModelSQLTranslationTestCase(TranslationTestCase):
     @with_transaction()
     def test_create_default_language(self):
         "Test create default language"
-        pool = Pool()
+        pool = tx.pool
         Model = pool.get('test.modelsql.translation')
         Translation = pool.get('ir.translation')
 
-        with Transaction().set_context(language=self.default_language):
+        with tx.transaction.set_context(language=self.default_language):
             record, = Model.create([{'name': "Foo"}])
         translation, = Translation.search([
                 ('name', '=', 'test.modelsql.translation,name'),
@@ -1511,11 +1510,11 @@ class ModelSQLTranslationTestCase(TranslationTestCase):
     @with_transaction()
     def test_create_other_language(self):
         "Test create other language"
-        pool = Pool()
+        pool = tx.pool
         Model = pool.get('test.modelsql.translation')
         Translation = pool.get('ir.translation')
 
-        with Transaction().set_context(language=self.other_language):
+        with tx.transaction.set_context(language=self.other_language):
             record, = Model.create([{'name': "Bar"}])
         translation, = Translation.search([
                 ('name', '=', 'test.modelsql.translation,name'),
@@ -1531,12 +1530,12 @@ class ModelSQLTranslationTestCase(TranslationTestCase):
     @with_transaction()
     def test_write_default_language(self):
         "Test write default language"
-        pool = Pool()
+        pool = tx.pool
         Model = pool.get('test.modelsql.translation')
         Translation = pool.get('ir.translation')
 
         record, = Model.create([{'name': "Foo"}])
-        with Transaction().set_context(language=self.default_language):
+        with tx.transaction.set_context(language=self.default_language):
             Model.write([record], {'name': "Bar"})
         translation, = Translation.search([
                 ('name', '=', 'test.modelsql.translation,name'),
@@ -1552,12 +1551,12 @@ class ModelSQLTranslationTestCase(TranslationTestCase):
     @with_transaction()
     def test_write_other_language(self):
         "Test write other language"
-        pool = Pool()
+        pool = tx.pool
         Model = pool.get('test.modelsql.translation')
         Translation = pool.get('ir.translation')
 
         record, = Model.create([{'name': "Foo"}])
-        with Transaction().set_context(language=self.other_language):
+        with tx.transaction.set_context(language=self.other_language):
             Model.write([record], {'name': "Bar"})
         default, = Translation.search([
                 ('name', '=', 'test.modelsql.translation,name'),
@@ -1582,13 +1581,13 @@ class ModelSQLTranslationTestCase(TranslationTestCase):
     @with_transaction()
     def test_write_ir_model(self):
         "Test writing on ir.model"
-        pool = Pool()
+        pool = tx.pool
         NameTranslated = pool.get('test.modelsql.name_translated')
         Model = pool.get('ir.model')
         Translation = pool.get('ir.translation')
 
         record, = NameTranslated.create([{'name': "Bar"}])
-        with Transaction().set_context(language=self.other_language):
+        with tx.transaction.set_context(language=self.other_language):
             NameTranslated.write([record], {'name': "Foo"})
 
             values = NameTranslated.read([record.id], ['name'])
@@ -1613,11 +1612,11 @@ class ModelSQLTranslationTestCase(TranslationTestCase):
     @with_transaction()
     def test_write_ir_model_field(self):
         "Test writing on ir.model.field"
-        pool = Pool()
+        pool = tx.pool
         ModelField = pool.get('ir.model.field')
         Translation = pool.get('ir.translation')
 
-        with Transaction().set_context(language=self.other_language):
+        with tx.transaction.set_context(language=self.other_language):
             translated_modelfield, = ModelField.search([
                     ('model', '=', 'test.modelsql.name_translated'),
                     ('name', '=', 'name'),
@@ -1636,14 +1635,14 @@ class ModelSQLTranslationTestCase(TranslationTestCase):
     @with_transaction()
     def test_write_default_language_with_other_language(self):
         "Test write default language with other language"
-        pool = Pool()
+        pool = tx.pool
         Model = pool.get('test.modelsql.translation')
         Translation = pool.get('ir.translation')
 
         record, = Model.create([{'name': "Foo"}])
-        with Transaction().set_context(language=self.other_language):
+        with tx.transaction.set_context(language=self.other_language):
             Model.write([record], {'name': "Bar"})
-        with Transaction().set_context(language=self.default_language):
+        with tx.transaction.set_context(language=self.default_language):
             Model.write([record], {'name': "FooBar"})
         default, = Translation.search([
                 ('name', '=', 'test.modelsql.translation,name'),
@@ -1668,12 +1667,12 @@ class ModelSQLTranslationTestCase(TranslationTestCase):
     @with_transaction()
     def test_clear_default_language(self):
         "Test clear default language clear others"
-        pool = Pool()
+        pool = tx.pool
         Model = pool.get('test.modelsql.translation')
         Translation = pool.get('ir.translation')
 
         record, = Model.create([{'name': "Foo"}])
-        with Transaction().set_context(language=self.other_language):
+        with tx.transaction.set_context(language=self.other_language):
             Model.write([record], {'name': "Bar"})
 
         Model.write([record], {'name': ''})
@@ -1688,15 +1687,15 @@ class ModelSQLTranslationTestCase(TranslationTestCase):
     @with_transaction()
     def test_clear_other_language(self):
         "Test clear other language"
-        pool = Pool()
+        pool = tx.pool
         Model = pool.get('test.modelsql.translation')
         Translation = pool.get('ir.translation')
 
         record, = Model.create([{'name': "Foo"}])
-        with Transaction().set_context(language=self.other_language):
+        with tx.transaction.set_context(language=self.other_language):
             Model.write([record], {'name': "Bar"})
 
-        with Transaction().set_context(language=self.other_language):
+        with tx.transaction.set_context(language=self.other_language):
             Model.write([record], {'name': ''})
 
         default, = Translation.search([
@@ -1722,12 +1721,12 @@ class ModelSQLTranslationTestCase(TranslationTestCase):
     @with_transaction()
     def test_delete(self):
         "Test delete"
-        pool = Pool()
+        pool = tx.pool
         Model = pool.get('test.modelsql.translation')
         Translation = pool.get('ir.translation')
 
         record, = Model.create([{'name': "Foo"}])
-        with Transaction().set_context(language=self.other_language):
+        with tx.transaction.set_context(language=self.other_language):
             Model.write([record], {'name': "Bar"})
         before_translations = Translation.search([
                 ('name', '=', 'test.modelsql.translation,name'),
@@ -1747,12 +1746,12 @@ class ModelSQLTranslationTestCase(TranslationTestCase):
     @with_transaction()
     def test_read(self):
         "Test read translations"
-        pool = Pool()
+        pool = tx.pool
         Model = pool.get('test.modelsql.translation')
 
-        with Transaction().set_context(language=self.default_language):
+        with tx.transaction.set_context(language=self.default_language):
             record, = Model.create([{'name': "Foo"}])
-        with Transaction().set_context(language=self.other_language):
+        with tx.transaction.set_context(language=self.other_language):
             Model.write([record], {'name': "Bar"})
             other = Model(record.id)
 
@@ -1762,13 +1761,13 @@ class ModelSQLTranslationTestCase(TranslationTestCase):
     @with_transaction()
     def test_read_last_translation(self):
         "Test read last translation record"
-        pool = Pool()
+        pool = tx.pool
         Model = pool.get('test.modelsql.translation')
         Translation = pool.get('ir.translation')
 
-        with Transaction().set_context(language=self.default_language):
+        with tx.transaction.set_context(language=self.default_language):
             record, = Model.create([{'name': "Foo"}])
-        with Transaction().set_context(language=self.other_language):
+        with tx.transaction.set_context(language=self.other_language):
             Model.write([record], {'name': "Bar"})
             other = Model(record.id)
 
@@ -1788,11 +1787,11 @@ class ModelSQLTranslationTestCase(TranslationTestCase):
     @with_transaction()
     def test_order_empty_translation(self):
         "Test order on empty translation value"
-        pool = Pool()
+        pool = tx.pool
         Model = pool.get('test.modelsql.translation')
         Translation = pool.get('ir.translation')
 
-        with Transaction().set_context(language=self.default_language):
+        with tx.transaction.set_context(language=self.default_language):
             records = Model.create(
                 [{'name': "A"}, {'name': "B"}, {'name': "C"}])
 
@@ -1805,7 +1804,7 @@ class ModelSQLTranslationTestCase(TranslationTestCase):
         translation.value = ''
         translation.save()
 
-        with Transaction().set_context(language=self.default_language):
+        with tx.transaction.set_context(language=self.default_language):
             self.assertEqual(
                 Model.search([], order=[('name', 'ASC')]),
                 records)
@@ -1813,13 +1812,13 @@ class ModelSQLTranslationTestCase(TranslationTestCase):
     @with_transaction()
     def test_search_unique_result(self):
         "Test unique result on search"
-        pool = Pool()
+        pool = tx.pool
         Model = pool.get('test.modelsql.translation')
         Translation = pool.get('ir.translation')
 
-        with Transaction().set_context(language=self.default_language):
+        with tx.transaction.set_context(language=self.default_language):
             record, = Model.create([{'name': "Foo"}])
-        with Transaction().set_context(language=self.other_language):
+        with tx.transaction.set_context(language=self.other_language):
             Model.write([record], {'name': "Bar"})
 
         translation, = Translation.search([
@@ -1830,7 +1829,7 @@ class ModelSQLTranslationTestCase(TranslationTestCase):
                 ])
         Translation.copy([translation], default={'value': "Baz"})
 
-        with Transaction().set_context(language=self.other_language):
+        with tx.transaction.set_context(language=self.other_language):
             self.assertEqual(
                 Model.search([('name', 'like', 'Ba%')]),
                 [record])
@@ -1843,13 +1842,13 @@ class ModelSQLTranslationTestCase(TranslationTestCase):
     @with_transaction()
     def test_search_last_translation(self):
         "Test unique result on search"
-        pool = Pool()
+        pool = tx.pool
         Model = pool.get('test.modelsql.translation')
         Translation = pool.get('ir.translation')
 
-        with Transaction().set_context(language=self.default_language):
+        with tx.transaction.set_context(language=self.default_language):
             record, = Model.create([{'name': "Foo"}])
-        with Transaction().set_context(language=self.other_language):
+        with tx.transaction.set_context(language=self.other_language):
             Model.write([record], {'name': "Bar"})
 
         translation, = Translation.search([
@@ -1860,7 +1859,7 @@ class ModelSQLTranslationTestCase(TranslationTestCase):
                 ])
         Translation.copy([translation], default={'value': "Baz"})
 
-        with Transaction().set_context(language=self.other_language):
+        with tx.transaction.set_context(language=self.other_language):
             self.assertEqual(
                 Model.search([('name', '=', 'Baz')]),
                 [record])
@@ -1871,12 +1870,12 @@ class ModelSQLTranslationTestCase(TranslationTestCase):
     @with_transaction()
     def test_search_fill_transaction_cache(self):
         "Test search fill the transaction cache"
-        pool = Pool()
+        pool = tx.pool
         Model = pool.get('test.modelsql.search')
         Model.create([{'name': "Foo"}])
 
         record, = Model.search([])
-        cache = Transaction().get_cache()[Model.__name__]
+        cache = tx.transaction.get_cache()[Model.__name__]
 
         self.assertIn(record.id, cache)
         self.assertEqual(cache[record.id]['name'], "Foo")

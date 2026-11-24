@@ -7,8 +7,8 @@ from unittest.mock import patch
 from sql import Join, Table
 
 import trytond.config as config
+from trytond import tx
 from trytond.model.exceptions import DomainValidationError
-from trytond.pool import Pool
 from trytond.tests.test_tryton import (
     TestCase, activate_module, with_transaction)
 
@@ -18,7 +18,7 @@ class CommonTestCaseMixin:
     @with_transaction()
     def test_create_id(self):
         "Test create many2one with id"
-        pool = Pool()
+        pool = tx.pool
         Target = pool.get('test.many2one_target')
         Many2One = pool.get('test.many2one')
         target, = Target.create([{}])
@@ -32,7 +32,7 @@ class CommonTestCaseMixin:
     @with_transaction()
     def test_create_instance(self):
         "Test create many2one with instance"
-        pool = Pool()
+        pool = tx.pool
         Target = pool.get('test.many2one_target')
         Many2One = pool.get('test.many2one')
         target, = Target.create([{}])
@@ -46,7 +46,7 @@ class CommonTestCaseMixin:
     @with_transaction()
     def test_create_no_foreign_key(self):
         "Test create many2one without foreign key"
-        pool = Pool()
+        pool = tx.pool
         Target = pool.get('test.many2one_target_storage')
         Many2One = pool.get('test.many2one_no_foreign_key')
 
@@ -58,7 +58,7 @@ class CommonTestCaseMixin:
     @with_transaction()
     def test_create_with_domain_valid(self):
         "Test create many2one with valid domain"
-        pool = Pool()
+        pool = tx.pool
         Target = pool.get('test.many2one_target')
         Many2One = pool.get('test.many2one_domain_validation')
         target, = Target.create([{'value': 6}])
@@ -72,7 +72,7 @@ class CommonTestCaseMixin:
     @with_transaction()
     def test_create_with_domain_invalid(self):
         "Test create many2one with invalid domain"
-        pool = Pool()
+        pool = tx.pool
         Target = pool.get('test.many2one_target')
         Many2One = pool.get('test.many2one_domain_validation')
         target, = Target.create([{'value': 1}])
@@ -89,7 +89,7 @@ class CommonTestCaseMixin:
     @with_transaction()
     def test_create_with_domain_inactive(self):
         "Test create many2one with domain and inactive target"
-        pool = Pool()
+        pool = tx.pool
         Target = pool.get('test.many2one_target')
         Many2One = pool.get('test.many2one_domain_validation')
         target, = Target.create([{'value': 6, 'active': False}])
@@ -103,7 +103,7 @@ class CommonTestCaseMixin:
     @with_transaction()
     def test_context_attribute(self):
         "Test context on many2one attribute"
-        pool = Pool()
+        pool = tx.pool
         Many2One = pool.get('test.many2one_context')
         Target = pool.get('test.many2one_context.target')
 
@@ -117,7 +117,7 @@ class CommonTestCaseMixin:
     @with_transaction()
     def test_context_read(self):
         "Test context on many2one read"
-        pool = Pool()
+        pool = tx.pool
         Many2One = pool.get('test.many2one_context')
         Target = pool.get('test.many2one_context.target')
 
@@ -132,7 +132,7 @@ class CommonTestCaseMixin:
     @with_transaction()
     def test_context_set(self):
         "Test context on many2one set"
-        pool = Pool()
+        pool = tx.pool
         Many2One = pool.get('test.many2one_context')
         Target = pool.get('test.many2one_context.target')
 
@@ -147,7 +147,7 @@ class SearchTestCaseMixin:
     @with_transaction()
     def test_search_order_default(self):
         "Test search order by many2one default"
-        pool = Pool()
+        pool = tx.pool
         Target = pool.get('test.many2one_target')
         Many2One = pool.get('test.many2one')
         for value in [5, 3, 2]:
@@ -162,7 +162,7 @@ class SearchTestCaseMixin:
     @with_transaction()
     def test_search_order_id(self):
         "Test search order by many2one id"
-        pool = Pool()
+        pool = tx.pool
         Target = pool.get('test.many2one_target')
         Many2One = pool.get('test.many2one')
         target_ids = []
@@ -180,7 +180,7 @@ class SearchTestCaseMixin:
     @with_transaction()
     def test_search_order_value(self):
         "Test search order by many2one value"
-        pool = Pool()
+        pool = tx.pool
         Target = pool.get('test.many2one_target')
         Many2One = pool.get('test.many2one')
         for value in [5, 3, 2]:
@@ -195,7 +195,7 @@ class SearchTestCaseMixin:
     @with_transaction()
     def test_search_id(self):
         "Test search on many2one id"
-        pool = Pool()
+        pool = tx.pool
         Target = pool.get('test.many2one_target')
         Many2One = pool.get('test.many2one')
 
@@ -208,7 +208,7 @@ class SearchTestCaseMixin:
     @with_transaction()
     def test_search_nested_null(self):
         "Test search by null many2one"
-        pool = Pool()
+        pool = tx.pool
         Many2One = pool.get('test.many2one')
 
         record, = Many2One.create([{'many2one': None}])
@@ -241,7 +241,7 @@ class SearchTestCaseMixin:
     @with_transaction()
     def test_set_instance(self):
         "Test set instance"
-        pool = Pool()
+        pool = tx.pool
         Many2One = pool.get('test.many2one')
         Target = pool.get('test.many2one_target')
 
@@ -253,7 +253,7 @@ class SearchTestCaseMixin:
     @with_transaction()
     def test_set_dict(self):
         "Test set dictionary"
-        pool = Pool()
+        pool = tx.pool
         Many2One = pool.get('test.many2one')
         Target = pool.get('test.many2one_target')
 
@@ -266,7 +266,7 @@ class SearchTestCaseMixin:
     @with_transaction()
     def test_set_integer(self):
         "Test set integer"
-        pool = Pool()
+        pool = tx.pool
         Many2One = pool.get('test.many2one')
         Target = pool.get('test.many2one_target')
 
@@ -281,7 +281,7 @@ class SearchTestCaseMixin:
     @with_transaction()
     def test_search_strategy(self):
         "Test search many2one with the right strategy"
-        pool = Pool()
+        pool = tx.pool
         Target = pool.get('test.many2one_target')
         Many2One = pool.get('test.many2one')
         target1, target2 = Target.create([
@@ -311,7 +311,7 @@ class SearchTestCaseMixin:
     @with_transaction()
     def test_search_where_strategy(self):
         "Test search on many2one using where uses the right strategy"
-        pool = Pool()
+        pool = tx.pool
         Target = pool.get('test.many2one_target')
         Many2One = pool.get('test.many2one')
         target1, target2 = Target.create([
@@ -335,7 +335,7 @@ class SearchTestCaseMixin:
     @with_transaction()
     def test_search_where_target_union(self):
         "Test search on Many2One using where and UNION-ed query on target"
-        pool = Pool()
+        pool = tx.pool
         Target = pool.get('test.many2one_target')
         Many2One = pool.get('test.many2one')
         target1, target2 = Target.create([
@@ -410,7 +410,7 @@ class FieldMany2OneTreeTestCase(TestCase):
     @with_transaction()
     def test_search_child_of_root1(self):
         "Test search many2one child of root1"
-        Many2One = Pool().get(self.model_name)
+        Many2One = tx.pool.get(self.model_name)
         self.create_tree(Many2One)
 
         with patch.object(Many2One, 'estimated_count') as ec:
@@ -428,7 +428,7 @@ class FieldMany2OneTreeTestCase(TestCase):
     @with_transaction()
     def test_search_not_child_of_root1(self):
         "Test search many2one not child of root1"
-        Many2One = Pool().get(self.model_name)
+        Many2One = tx.pool.get(self.model_name)
         self.create_tree(Many2One)
 
         with patch.object(Many2One, 'estimated_count') as ec:
@@ -444,7 +444,7 @@ class FieldMany2OneTreeTestCase(TestCase):
     @with_transaction()
     def test_search_child_of_second1(self):
         "Test search many2one child of second1"
-        Many2One = Pool().get(self.model_name)
+        Many2One = tx.pool.get(self.model_name)
         self.create_tree(Many2One)
 
         with patch.object(Many2One, 'estimated_count') as ec:
@@ -458,7 +458,7 @@ class FieldMany2OneTreeTestCase(TestCase):
     @with_transaction()
     def test_search_not_child_of_second1(self):
         "Test search many2one not child of second1"
-        Many2One = Pool().get(self.model_name)
+        Many2One = tx.pool.get(self.model_name)
         self.create_tree(Many2One)
 
         result = Many2One.search([
@@ -474,7 +474,7 @@ class FieldMany2OneTreeTestCase(TestCase):
     @with_transaction()
     def test_search_child_of_first1_second1(self):
         "Test search many2one child of first1 and second1"
-        Many2One = Pool().get(self.model_name)
+        Many2One = tx.pool.get(self.model_name)
         self.create_tree(Many2One)
 
         with patch.object(Many2One, 'estimated_count') as ec:
@@ -491,7 +491,7 @@ class FieldMany2OneTreeTestCase(TestCase):
     @with_transaction()
     def test_search_child_of_empty(self):
         "Test search many2one child of empty"
-        Many2One = Pool().get(self.model_name)
+        Many2One = tx.pool.get(self.model_name)
         self.create_tree(Many2One)
 
         with patch.object(Many2One, 'estimated_count') as ec:
@@ -505,7 +505,7 @@ class FieldMany2OneTreeTestCase(TestCase):
     @with_transaction()
     def test_search_not_child_of_empty(self):
         "Test search many2one not child of empty"
-        Many2One = Pool().get(self.model_name)
+        Many2One = tx.pool.get(self.model_name)
         self.create_tree(Many2One)
 
         with patch.object(Many2One, 'estimated_count') as ec:
@@ -523,7 +523,7 @@ class FieldMany2OneTreeTestCase(TestCase):
     @with_transaction()
     def test_search_child_of_none(self):
         "Test search many2one child of None"
-        Many2One = Pool().get(self.model_name)
+        Many2One = tx.pool.get(self.model_name)
         self.create_tree(Many2One)
 
         with patch.object(Many2One, 'estimated_count') as ec:
@@ -537,7 +537,7 @@ class FieldMany2OneTreeTestCase(TestCase):
     @with_transaction()
     def test_search_parent_of_root1(self):
         "Test search many2one parent of root1"
-        Many2One = Pool().get(self.model_name)
+        Many2One = tx.pool.get(self.model_name)
         self.create_tree(Many2One)
 
         with patch.object(Many2One, 'estimated_count') as ec:
@@ -551,7 +551,7 @@ class FieldMany2OneTreeTestCase(TestCase):
     @with_transaction()
     def test_search_not_parent_of_root1(self):
         "Test search many2one not parent of root1"
-        Many2One = Pool().get(self.model_name)
+        Many2One = tx.pool.get(self.model_name)
         self.create_tree(Many2One)
 
         with patch.object(Many2One, 'estimated_count') as ec:
@@ -569,7 +569,7 @@ class FieldMany2OneTreeTestCase(TestCase):
     @with_transaction()
     def test_search_parent_of_second4(self):
         "Test search many2one parent of second4"
-        Many2One = Pool().get(self.model_name)
+        Many2One = tx.pool.get(self.model_name)
         self.create_tree(Many2One)
 
         with patch.object(Many2One, 'estimated_count') as ec:
@@ -585,7 +585,7 @@ class FieldMany2OneTreeTestCase(TestCase):
     @with_transaction()
     def test_search_not_parent_of_second4(self):
         "Test search many2one not parent of second4"
-        Many2One = Pool().get(self.model_name)
+        Many2One = tx.pool.get(self.model_name)
         self.create_tree(Many2One)
 
         with patch.object(Many2One, 'estimated_count') as ec:
@@ -603,7 +603,7 @@ class FieldMany2OneTreeTestCase(TestCase):
     @with_transaction()
     def test_search_parent_of_empty(self):
         "Test search many2one parent of empty"
-        Many2One = Pool().get(self.model_name)
+        Many2One = tx.pool.get(self.model_name)
         self.create_tree(Many2One)
 
         with patch.object(Many2One, 'estimated_count') as ec:
@@ -617,7 +617,7 @@ class FieldMany2OneTreeTestCase(TestCase):
     @with_transaction()
     def test_search_not_parent_of_empty(self):
         "Test search many2one not parent of empty"
-        Many2One = Pool().get(self.model_name)
+        Many2One = tx.pool.get(self.model_name)
         self.create_tree(Many2One)
 
         with patch.object(Many2One, 'estimated_count') as ec:

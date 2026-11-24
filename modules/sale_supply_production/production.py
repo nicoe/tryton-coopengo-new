@@ -3,19 +3,20 @@
 from collections import defaultdict
 from functools import wraps
 
+from trytond import tx
 from trytond.i18n import gettext
 from trytond.model import Model, ModelView, Workflow
 from trytond.model.exceptions import AccessError
-from trytond.pool import Pool, PoolMeta
-from trytond.transaction import Transaction, without_check_access
+from trytond.pool import PoolMeta
+from trytond.transaction import without_check_access
 
 
 def process_sale_supply(func):
     @wraps(func)
     def wrapper(cls, productions):
-        pool = Pool()
+        pool = tx.pool
         Sale = pool.get('sale.sale')
-        transaction = Transaction()
+        transaction = tx.transaction
         context = transaction.context
 
         sales = set()
@@ -55,7 +56,7 @@ class Production(metaclass=PoolMeta):
     @ModelView.button
     @Workflow.transition('draft')
     def draft(cls, productions):
-        pool = Pool()
+        pool = tx.pool
         SaleLine = pool.get('sale.line')
         for production in productions:
             if (production.state == 'cancelled'
@@ -84,7 +85,7 @@ class Production(metaclass=PoolMeta):
             production.assign_supplied()
 
     def assign_supplied(self, grouping=('product',), filter_=None):
-        pool = Pool()
+        pool = tx.pool
         SaleLine = pool.get('sale.line')
 
         if isinstance(self.origin, SaleLine):

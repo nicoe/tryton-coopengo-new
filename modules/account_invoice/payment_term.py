@@ -4,13 +4,12 @@ from decimal import Decimal
 
 from dateutil.relativedelta import relativedelta
 
+from trytond import tx
 from trytond.i18n import gettext
 from trytond.model import (
     Check, DeactivableMixin, ModelSQL, ModelView, fields, sequence_ordered)
 from trytond.modules.currency.fields import Monetary
-from trytond.pool import Pool
 from trytond.pyson import Eval, If
-from trytond.transaction import Transaction
 from trytond.wizard import Button, StateView, Wizard
 
 from .exceptions import PaymentTermComputeError, PaymentTermValidationError
@@ -121,7 +120,7 @@ class PaymentTermLine(sequence_ordered(), ModelSQL, ModelView):
 
     @classmethod
     def default_relativedeltas(cls):
-        if Transaction().user == 0:
+        if tx.transaction.user == 0:
             return []
         return [{}]
 
@@ -156,7 +155,7 @@ class PaymentTermLine(sequence_ordered(), ModelSQL, ModelView):
         return date
 
     def get_value(self, remainder, amount, currency):
-        Currency = Pool().get('currency.currency')
+        Currency = tx.pool.get('currency.currency')
         if self.type == 'fixed':
             fixed = Currency.compute(self.currency, self.amount, currency)
             return fixed.copy_sign(amount)
@@ -273,19 +272,19 @@ class TestPaymentTermView(ModelView):
 
     @classmethod
     def default_date(cls):
-        return Pool().get('ir.date').today()
+        return tx.pool.get('ir.date').today()
 
     @staticmethod
     def default_currency():
-        pool = Pool()
+        pool = tx.pool
         Company = pool.get('company.company')
-        company = Transaction().context.get('company')
+        company = tx.transaction.context.get('company')
         if company is not None and company >= 0:
             return Company(company).currency.id
 
     @fields.depends('payment_term', 'date', 'amount', 'currency', 'result')
     def on_change_with_result(self):
-        pool = Pool()
+        pool = tx.pool
         Result = pool.get('account.invoice.payment_term.test.result')
         result = []
         if (self.payment_term and self.amount and self.currency and self.date):

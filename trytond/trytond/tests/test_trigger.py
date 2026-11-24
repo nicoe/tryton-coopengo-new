@@ -4,14 +4,13 @@
 import datetime
 from itertools import combinations
 
+from trytond import tx
 from trytond.ir.exceptions import TriggerConditionError
 from trytond.model.exceptions import DomainValidationError, SQLConstraintError
-from trytond.pool import Pool
 from trytond.pyson import Eval, PYSONEncoder
 from trytond.tests.test_tryton import (
     TestCase, activate_module, with_transaction)
 from trytond.tests.trigger import TRIGGER_LOGS
-from trytond.transaction import Transaction
 
 
 class TriggerTestCase(TestCase):
@@ -26,9 +25,9 @@ class TriggerTestCase(TestCase):
         TRIGGER_LOGS.clear()
 
     def run_tasks(self):
-        pool = Pool()
+        pool = tx.pool
         Queue = pool.get('ir.queue')
-        transaction = Transaction()
+        transaction = tx.transaction
         while transaction.tasks:
             task = Queue(transaction.tasks.pop())
             task.run()
@@ -36,10 +35,10 @@ class TriggerTestCase(TestCase):
     @with_transaction()
     def test_constraints(self):
         'Test constraints'
-        pool = Pool()
+        pool = tx.pool
         Model = pool.get('ir.model')
         Trigger = pool.get('ir.trigger')
-        transaction = Transaction()
+        transaction = tx.transaction
 
         model, = Model.search([
                 ('name', '=', 'test.triggered'),
@@ -82,7 +81,7 @@ class TriggerTestCase(TestCase):
     @with_transaction()
     def test_on_create(self):
         'Test on_create'
-        pool = Pool()
+        pool = tx.pool
         Model = pool.get('ir.model')
         Trigger = pool.get('ir.trigger')
         Triggered = pool.get('test.triggered')
@@ -159,7 +158,7 @@ class TriggerTestCase(TestCase):
     @with_transaction()
     def test_on_write(self):
         'Test on_write'
-        pool = Pool()
+        pool = tx.pool
         Model = pool.get('ir.model')
         Trigger = pool.get('ir.trigger')
         TriggerLog = pool.get('ir.trigger.log')
@@ -268,11 +267,11 @@ class TriggerTestCase(TestCase):
             self.run_tasks()
         self.assertEqual(TRIGGER_LOGS, [([triggered], trigger)])
         TRIGGER_LOGS.pop()
-        Transaction().trigger_records.clear()
+        tx.transaction.trigger_records.clear()
 
         # Make time pass by moving back in time the log creation
         trigger_log = TriggerLog.__table__()
-        cursor = Transaction().connection.cursor()
+        cursor = tx.transaction.connection.cursor()
         cursor.execute(*trigger_log.update(
                 [trigger_log.create_date],
                 [datetime.datetime.now() - datetime.timedelta(days=1)],
@@ -291,7 +290,7 @@ class TriggerTestCase(TestCase):
     @with_transaction()
     def test_on_delete(self):
         'Test on_delete'
-        pool = Pool()
+        pool = tx.pool
         Model = pool.get('ir.model')
         Trigger = pool.get('ir.trigger')
         Triggered = pool.get('test.triggered')
@@ -316,7 +315,7 @@ class TriggerTestCase(TestCase):
         Triggered.delete([triggered])
         self.assertEqual(TRIGGER_LOGS, [([triggered], trigger)])
         TRIGGER_LOGS.pop()
-        Transaction().delete = {}
+        tx.transaction.delete = {}
 
         # Trigger with condition
         condition = PYSONEncoder().encode(
@@ -333,7 +332,7 @@ class TriggerTestCase(TestCase):
         Triggered.delete([triggered])
         self.assertEqual(TRIGGER_LOGS, [([triggered], trigger)])
         TRIGGER_LOGS.pop()
-        Transaction().delete = {}
+        tx.transaction.delete = {}
 
         triggered, = Triggered.create([{
                     'name': 'Foo',
@@ -342,7 +341,7 @@ class TriggerTestCase(TestCase):
         # Non matching condition
         Triggered.delete([triggered])
         self.assertEqual(TRIGGER_LOGS, [])
-        Transaction().delete = {}
+        tx.transaction.delete = {}
 
         triggered, = Triggered.create([{
                     'name': 'Test',
@@ -356,7 +355,7 @@ class TriggerTestCase(TestCase):
         Triggered.delete([triggered])
         self.assertEqual(TRIGGER_LOGS, [([triggered], trigger)])
         TRIGGER_LOGS.pop()
-        Transaction().delete = {}
+        tx.transaction.delete = {}
         # Delete trigger logs because SQLite reuse the same triggered_id
         TriggerLog.delete(TriggerLog.search([
                     ('trigger', '=', trigger.id),
@@ -374,7 +373,7 @@ class TriggerTestCase(TestCase):
         Triggered.delete([triggered])
         self.assertEqual(TRIGGER_LOGS, [([triggered], trigger)])
         TRIGGER_LOGS.pop()
-        Transaction().delete = {}
+        tx.transaction.delete = {}
 
         # Restart the cache on the get_triggers method of ir.trigger
         Trigger._get_triggers_cache.clear()
@@ -382,7 +381,7 @@ class TriggerTestCase(TestCase):
     @with_transaction()
     def test_on_time(self):
         'Test on_time'
-        pool = Pool()
+        pool = tx.pool
         Model = pool.get('ir.model')
         Trigger = pool.get('ir.trigger')
         Triggered = pool.get('test.triggered')
@@ -453,7 +452,7 @@ class TriggerTestCase(TestCase):
         Trigger.trigger_time()
         self.assertEqual(TRIGGER_LOGS, [([triggered], trigger)])
         TRIGGER_LOGS.pop()
-        Transaction().delete = {}
+        tx.transaction.delete = {}
 
         # Delete trigger logs of previous minimum delay test
         TriggerLog.delete(TriggerLog.search([
@@ -467,7 +466,7 @@ class TriggerTestCase(TestCase):
 
         # Make time pass by moving back in time the log creation
         trigger_log = TriggerLog.__table__()
-        cursor = Transaction().connection.cursor()
+        cursor = tx.transaction.connection.cursor()
         cursor.execute(*trigger_log.update(
                 [trigger_log.create_date],
                 [datetime.datetime.now() - datetime.timedelta(days=1)],
@@ -478,7 +477,7 @@ class TriggerTestCase(TestCase):
             TRIGGER_LOGS, [([triggered], trigger), ([triggered], trigger)])
         TRIGGER_LOGS.pop()
         TRIGGER_LOGS.pop()
-        Transaction().delete = {}
+        tx.transaction.delete = {}
 
         # Restart the cache on the get_triggers method of ir.trigger
         Trigger._get_triggers_cache.clear()

@@ -6,15 +6,15 @@ from functools import wraps
 from lxml import etree
 
 import trytond.config as config
+from trytond import tx
 from trytond.cache import Cache
 from trytond.exceptions import UserError
 from trytond.i18n import gettext
-from trytond.pool import Pool
 from trytond.pyson import PYSONEncoder
 from trytond.rpc import RPC, RPCReturnException
 from trytond.server_context import ServerContext
 from trytond.tools import is_instance_method, likify
-from trytond.transaction import Transaction, check_access, without_check_access
+from trytond.transaction import check_access, without_check_access
 
 from . import fields
 from .fields import on_change_result
@@ -34,7 +34,7 @@ class ButtonActionException(RPCReturnException):
 
     def __init__(self, action, value=None):
         super().__init__()
-        pool = Pool()
+        pool = tx.pool
         ModelData = pool.get('ir.model.data')
         Action = pool.get('ir.action')
 
@@ -269,14 +269,14 @@ class ModelView(Model):
            - fields: a dictionary with the definition of each field in the view
            - field_childs: the name of the childs field for tree
         '''
-        pool = Pool()
+        pool = tx.pool
         User = pool.get('res.user')
 
         key = (User.get_groups(), cls.__name__, view_id, view_type, level)
         result = cls._fields_view_get_cache.get(key)
         if result:
             return result
-        pool = Pool()
+        pool = tx.pool
         View = pool.get('ir.ui.view')
 
         if view_id:
@@ -366,13 +366,13 @@ class ModelView(Model):
             - relate: a list of available relations
             - exports: a list of available exports
         """
-        pool = Pool()
+        pool = tx.pool
         Action = pool.get('ir.action.keyword')
         Export = pool.get('ir.export')
         Email = pool.get('ir.email.template')
         User = pool.get('res.user')
         groups = User.get_groups()
-        key = (Transaction().language, groups, cls.__name__)
+        key = (tx.transaction.language, groups, cls.__name__)
         result = cls._view_toolbar_get_cache.get(key)
         if result:
             return result
@@ -410,7 +410,7 @@ class ModelView(Model):
         """
         Return sanitized XML and the corresponding fields definition
         """
-        pool = Pool()
+        pool = tx.pool
         ModelAccess = pool.get('ir.model.access')
         FieldAccess = pool.get('ir.model.field.access')
 
@@ -425,7 +425,7 @@ class ModelView(Model):
             view_depends = []
         else:
             view_depends = view_depends.copy()
-        with Transaction().set_context(view_id=view_id):
+        with tx.transaction.set_context(view_id=view_id):
             for xpath, attribute, value, *extra in cls.view_attributes():
                 if readonly_view and attribute in {'required', 'readonly'}:
                     continue
@@ -501,9 +501,9 @@ class ModelView(Model):
                     if field._type in {'one2many', 'many2many'}})
 
         if type == 'tree':
-            user = Transaction().user
-            width, _ = Transaction().context.get('screen_size', (None, None))
-            if Transaction().context.get('view_tree_width'):
+            user = tx.transaction.user
+            width, _ = tx.transaction.context.get('screen_size', (None, None))
+            if tx.transaction.context.get('view_tree_width'):
                 ViewTreeWidth = pool.get('ir.ui.view_tree_width')
                 fields_width = ViewTreeWidth.get_width(cls.__name__, width)
 
@@ -568,7 +568,7 @@ class ModelView(Model):
     def __parse_fields(
             cls, element, type, fields_width=None, fields_optional=None,
             _fields_attrs=None):
-        pool = Pool()
+        pool = tx.pool
         ModelData = pool.get('ir.model.data')
         ModelAccess = pool.get('ir.model.access')
         Button = pool.get('ir.model.button')
@@ -753,13 +753,13 @@ class ModelView(Model):
         @wraps(func)
         def wrapper(cls, records, *args, **kwargs):
             from .modelstorage import ModelStorage
-            pool = Pool()
+            pool = tx.pool
             ModelAccess = pool.get('ir.model.access')
             Button = pool.get('ir.model.button')
             ButtonClick = pool.get('ir.model.button.click')
             User = pool.get('res.user')
 
-            transaction = Transaction()
+            transaction = tx.transaction
             check_access = transaction.check_access
             log = transaction.context.get('_log', False)
 
@@ -821,7 +821,7 @@ class ModelView(Model):
 
             @wraps(func)
             def wrapper(*args, **kwargs):
-                pool = Pool()
+                pool = tx.pool
                 ModelData = pool.get('ir.model.data')
                 Action = pool.get('ir.action')
 

@@ -3,7 +3,8 @@
 
 from decimal import Decimal
 
-from trytond.pool import Pool, PoolMeta
+from trytond import tx
+from trytond.pool import PoolMeta
 from trytond.pyson import Eval, Id, If
 
 
@@ -21,7 +22,7 @@ class ExciseTax(metaclass=PoolMeta):
                 cls.uom.domain)]
 
     def convert_quantity(self, product, quantity):
-        pool = Pool()
+        pool = tx.pool
         UoM = pool.get('product.uom')
 
         converted = super().convert_quantity(product, quantity)

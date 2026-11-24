@@ -3,8 +3,8 @@
 
 from itertools import groupby
 
-from trytond.pool import Pool, PoolMeta
-from trytond.transaction import Transaction
+from trytond import tx
+from trytond.pool import PoolMeta
 
 
 class Sale(metaclass=PoolMeta):
@@ -23,7 +23,7 @@ class Sale(metaclass=PoolMeta):
         return {'draft', 'waiting'}
 
     def _get_shipment_grouping_fields(self, shipment):
-        pool = Pool()
+        pool = tx.pool
         ShipmentOut = pool.get('stock.shipment.out')
         fields = {'customer', 'company', 'warehouse'}
         if isinstance(shipment, ShipmentOut):
@@ -55,7 +55,7 @@ class Sale(metaclass=PoolMeta):
         return shipment_domain
 
     def _get_shipment_sale(self, Shipment, values):
-        transaction = Transaction()
+        transaction = tx.transaction
         context = transaction.context
         shipment = super()._get_shipment_sale(Shipment, values)
         if (not context.get('skip_grouping', False)

@@ -9,9 +9,8 @@ from urllib.parse import quote, urljoin
 from sql.aggregate import Count
 
 import trytond.config as config
+from trytond import tx
 from trytond.model import ModelSQL, ModelView, fields
-from trytond.pool import Pool
-from trytond.transaction import Transaction
 from trytond.url import http_base
 from trytond.wsgi import Base64Converter
 
@@ -35,7 +34,7 @@ class ShortenedURL(ModelSQL, ModelView):
 
         url_parts = {
             'database': Base64Converter(None).to_url(
-                Transaction().database.name),
+                tx.transaction.database.name),
             }
         url_base = config.get('web', 'shortener_base', default=http_base())
         for shortened in shortened_urls:
@@ -46,11 +45,11 @@ class ShortenedURL(ModelSQL, ModelView):
 
     @classmethod
     def get_count(cls, shortened_urls, name):
-        pool = Pool()
+        pool = tx.pool
         URLAccess = pool.get('web.shortened_url.access')
 
         access = URLAccess.__table__()
-        cursor = Transaction().connection.cursor()
+        cursor = tx.transaction.connection.cursor()
 
         counts = defaultdict(int)
         cursor.execute(*access.select(
@@ -67,7 +66,7 @@ class ShortenedURL(ModelSQL, ModelView):
 
     @classmethod
     def get_models(cls):
-        pool = Pool()
+        pool = tx.pool
         Model = pool.get('ir.model')
         get_name = Model.get_name
         models = cls._get_models()
@@ -94,7 +93,7 @@ class ShortenedURL(ModelSQL, ModelView):
         return cls.search([('id', '=', id)], limit=1)[0]
 
     def access(self, **values):
-        pool = Pool()
+        pool = tx.pool
         URLAccess = pool.get('web.shortened_url.access')
 
         URLAccess(url=self, **values).save()

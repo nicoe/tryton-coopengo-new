@@ -1,8 +1,8 @@
 # This file is part of Tryton.  The COPYRIGHT file at the top level of
 # this repository contains the full copyright notices and license terms.
 
+from trytond import tx
 from trytond.pool import PoolMeta
-from trytond.transaction import Transaction
 
 
 class Rule(metaclass=PoolMeta):
@@ -16,7 +16,7 @@ class Rule(metaclass=PoolMeta):
                 'res.user.application',
                 'res.notification',
                 }:
-            context['user_id'] = Transaction().user
+            context['user_id'] = tx.transaction.user
         return context
 
     @classmethod
@@ -27,5 +27,5 @@ class Rule(metaclass=PoolMeta):
                 'res.user.application',
                 'res.notification',
                 }:
-            key = (*key, Transaction().user)
+            key = (*key, tx.transaction.user)
         return key

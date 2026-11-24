@@ -1,7 +1,8 @@
 # This file is part of Tryton.  The COPYRIGHT file at the top level of
 # this repository contains the full copyright notices and license terms.
+from trytond import tx
 from trytond.model import ModelView, Workflow
-from trytond.pool import Pool, PoolMeta
+from trytond.pool import PoolMeta
 
 
 class Sale(metaclass=PoolMeta):
@@ -13,7 +14,7 @@ class Sale(metaclass=PoolMeta):
     @property
     def credit_limit_amount(self):
         "Amount to check against credit limit"
-        pool = Pool()
+        pool = tx.pool
         Currency = pool.get('currency.currency')
         return Currency.compute(
             self.currency, self.untaxed_amount, self.company.currency)
@@ -35,7 +36,7 @@ class Line(metaclass=PoolMeta):
 
     @property
     def credit_limit_quantity(self):
-        pool = Pool()
+        pool = tx.pool
         UoM = pool.get('product.uom')
         if (self.type != 'line') or (self.quantity <= 0):
             return None

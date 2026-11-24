@@ -11,6 +11,7 @@ from locale import CHAR_MAX
 from simpleeval import simple_eval
 from sql import Table
 
+from trytond import tx
 from trytond.cache import Cache
 from trytond.exceptions import UserError
 from trytond.i18n import gettext
@@ -18,7 +19,6 @@ from trytond.model import (
     Check, DeactivableMixin, ModelSQL, ModelView, Unique, fields)
 from trytond.model.exceptions import AccessError
 from trytond.modules import create_graph, load_translations
-from trytond.pool import Pool
 from trytond.pyson import Eval
 from trytond.transaction import Transaction, inactive_records
 from trytond.wizard import Button, StateTransition, StateView, Wizard
@@ -160,13 +160,13 @@ class Lang(DeactivableMixin, ModelSQL, ModelView):
 
     @classmethod
     def read(cls, ids, fields_names):
-        pool = Pool()
+        pool = tx.pool
         Translation = pool.get('ir.translation')
         Config = pool.get('ir.configuration')
         res = super().read(ids, fields_names)
-        if (Transaction().context.get('translate_name')
+        if (tx.transaction.context.get('translate_name')
                 and (not fields_names or 'name' in fields_names)):
-            with Transaction().set_context(
+            with tx.transaction.set_context(
                     language=Config.get_language(),
                     translate_name=False):
                 res2 = cls.read(ids, ['id', 'code', 'name'])
@@ -259,7 +259,7 @@ class Lang(DeactivableMixin, ModelSQL, ModelView):
     @classmethod
     @ModelView.button
     def load_translations(cls, languages):
-        pool = Pool()
+        pool = tx.pool
         Module = pool.get('ir.module')
         codes = set()
         cls.write(languages, {'translatable': True})
@@ -278,7 +278,7 @@ class Lang(DeactivableMixin, ModelSQL, ModelView):
     @classmethod
     @ModelView.button
     def unload_translations(cls, languages):
-        pool = Pool()
+        pool = tx.pool
         Translation = pool.get('ir.translation')
         cls.write(languages, {'translatable': False})
         languages = [l.code for l in languages]
@@ -350,13 +350,13 @@ class Lang(DeactivableMixin, ModelSQL, ModelView):
 
     @classmethod
     def check_translatable(cls, langs, field_names=None):
-        pool = Pool()
+        pool = tx.pool
         Config = pool.get('ir.configuration')
         if field_names and 'translatable' not in field_names:
             return
         # Skip check for root because when languages are created from XML file,
         # translatable is not yet set.
-        if Transaction().user == 0:
+        if tx.transaction.user == 0:
             return True
         for lang in langs:
             if (lang.code == Config.get_language()
@@ -401,7 +401,7 @@ class Lang(DeactivableMixin, ModelSQL, ModelView):
 
     @classmethod
     def check_modification(cls, mode, languages, values=None, external=False):
-        pool = Pool()
+        pool = tx.pool
         Config = pool.get('ir.configuration')
 
         super().check_modification(
@@ -418,7 +418,7 @@ class Lang(DeactivableMixin, ModelSQL, ModelView):
 
     @classmethod
     def on_modification(cls, mode, languages, field_names=None):
-        pool = Pool()
+        pool = tx.pool
         Translation = pool.get('ir.translation')
 
         super().on_modification(mode, languages, field_names=field_names)
@@ -433,7 +433,7 @@ class Lang(DeactivableMixin, ModelSQL, ModelView):
     @inactive_records
     def get(cls, code=None):
         "Return language instance for the code or the transaction language"
-        pool = Pool()
+        pool = tx.pool
         Configuration = pool.get('ir.configuration')
 
         def languages(code):
@@ -444,7 +444,7 @@ class Lang(DeactivableMixin, ModelSQL, ModelView):
                         yield code
                         yield from languages(code)
         if code is None:
-            code = Transaction().language
+            code = tx.transaction.language
         code = code.replace('-', '_')
         lang_id = cls._code_cache.get(code)
         if lang_id is None:
@@ -625,7 +625,7 @@ class Lang(DeactivableMixin, ModelSQL, ModelView):
         '''
         Convert value to a string as specified by the format argument.
         '''
-        pool = Pool()
+        pool = tx.pool
         Month = pool.get('ir.calendar.month')
         Day = pool.get('ir.calendar.day')
         if format is None:
@@ -684,7 +684,7 @@ class LangConfigStart(ModelView):
 
     @classmethod
     def default_languages(cls):
-        pool = Pool()
+        pool = tx.pool
         Lang = pool.get('ir.lang')
         return [x.id for x in Lang.search([('translatable', '=', True)])]
 
@@ -700,7 +700,7 @@ class LangConfig(Wizard):
     load = StateTransition()
 
     def transition_load(self):
-        pool = Pool()
+        pool = tx.pool
         Lang = pool.get('ir.lang')
         Lang.load_translations(list(self.start.languages))
         untranslated_languages = Lang.search([
@@ -714,7 +714,7 @@ class LangConfig(Wizard):
 def get_parent_language(code):
     if code not in _parents:
         # Use SQL because it is used by load_module_graph
-        cursor = Transaction().connection.cursor()
+        cursor = tx.transaction.connection.cursor()
         lang = Table('ir_lang')
         cursor.execute(*lang.select(lang.code, lang.parent))
         _parents.update(cursor)

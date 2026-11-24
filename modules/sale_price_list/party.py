@@ -1,11 +1,11 @@
 # This file is part of Tryton.  The COPYRIGHT file at the top level of
 # this repository contains the full copyright notices and license terms.
+from trytond import tx
 from trytond.model import ModelSQL, fields
 from trytond.modules.company.model import (
     CompanyMultiValueMixin, CompanyValueMixin)
-from trytond.pool import Pool, PoolMeta
+from trytond.pool import PoolMeta
 from trytond.pyson import Eval
-from trytond.transaction import Transaction
 
 
 class Party(CompanyMultiValueMixin, metaclass=PoolMeta):
@@ -24,7 +24,7 @@ class Party(CompanyMultiValueMixin, metaclass=PoolMeta):
 
     @classmethod
     def default_sale_price_list(cls, **pattern):
-        pool = Pool()
+        pool = tx.pool
         Configuration = pool.get('sale.configuration')
         config = Configuration(1)
         price_list = config.get_multivalue('sale_price_list', **pattern)
@@ -33,7 +33,7 @@ class Party(CompanyMultiValueMixin, metaclass=PoolMeta):
     @classmethod
     def copy(cls, parties, default=None):
         default = default.copy() if default else {}
-        if Transaction().check_access:
+        if tx.transaction.check_access:
             fields = ['sale_price_lists', 'sale_price_list']
             default_values = cls.default_get(fields, with_rec_name=False)
             for fname in fields:

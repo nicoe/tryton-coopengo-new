@@ -3,9 +3,9 @@
 
 from sql import Literal
 
+from trytond import tx
 from trytond.model.exceptions import (
     DigitsValidationError, RequiredValidationError)
-from trytond.pool import Pool
 from trytond.tests.test_tryton import (
     TestCase, activate_module, with_transaction)
 
@@ -21,7 +21,7 @@ class FieldFloatTestCase(TestCase):
     @with_transaction()
     def test_create(self):
         "Test create float"
-        Float = Pool().get('test.float')
+        Float = tx.pool.get('test.float')
 
         float_1_1, float_none = Float.create([{
                     'float': 1.1,
@@ -35,7 +35,7 @@ class FieldFloatTestCase(TestCase):
     @with_transaction()
     def test_create_15_digits(self):
         "Test create float 15 digits"
-        Float = Pool().get('test.float')
+        Float = tx.pool.get('test.float')
 
         float_, = Float.create([{
                     'float': 0.123456789012345,
@@ -46,7 +46,7 @@ class FieldFloatTestCase(TestCase):
     @with_transaction()
     def test_create_without_default(self):
         "Test create float without default"
-        Float = Pool().get('test.float')
+        Float = tx.pool.get('test.float')
 
         float_, = Float.create([{}])
 
@@ -55,7 +55,7 @@ class FieldFloatTestCase(TestCase):
     @with_transaction()
     def test_create_with_default(self):
         "Test create float with default"
-        Float = Pool().get('test.float_default')
+        Float = tx.pool.get('test.float_default')
 
         float_, = Float.create([{}])
 
@@ -64,7 +64,7 @@ class FieldFloatTestCase(TestCase):
     @with_transaction()
     def test_create_with_sql_value(self):
         "Test create float with SQL value"
-        Float = Pool().get('test.float')
+        Float = tx.pool.get('test.float')
 
         float_, = Float.create([{'float': Literal(5.) / Literal(2.)}])
 
@@ -73,7 +73,7 @@ class FieldFloatTestCase(TestCase):
     @with_transaction()
     def test_set_sql_value(self):
         "Test cannot set SQL value"
-        Float = Pool().get('test.float')
+        Float = tx.pool.get('test.float')
 
         float_ = Float()
 
@@ -83,7 +83,7 @@ class FieldFloatTestCase(TestCase):
     @with_transaction()
     def test_create_non_float(self):
         "Test create float with non float"
-        Float = Pool().get('test.float')
+        Float = tx.pool.get('test.float')
 
         with self.assertRaises(ValueError):
             Float.create([{
@@ -93,7 +93,7 @@ class FieldFloatTestCase(TestCase):
     @with_transaction()
     def test_create_required_with_value(self):
         "Test create float required with value"
-        Float = Pool().get('test.float_required')
+        Float = tx.pool.get('test.float_required')
 
         float_, = Float.create([{
                     'float': 0,
@@ -104,7 +104,7 @@ class FieldFloatTestCase(TestCase):
     @with_transaction()
     def test_create_required_without_value(self):
         "Test create float required without value"
-        Float = Pool().get('test.float_required')
+        Float = tx.pool.get('test.float_required')
 
         with self.assertRaises(RequiredValidationError):
             Float.create([{}])
@@ -112,7 +112,7 @@ class FieldFloatTestCase(TestCase):
     @with_transaction()
     def test_create_digits_valid(self):
         "Test create float with digits"
-        Float = Pool().get('test.float_digits')
+        Float = tx.pool.get('test.float_digits')
 
         float_, = Float.create([{
                     'digits': 1,
@@ -124,7 +124,7 @@ class FieldFloatTestCase(TestCase):
     @with_transaction()
     def test_create_digits_invalid(self):
         "Test create float with invalid digits"
-        Float = Pool().get('test.float_digits')
+        Float = tx.pool.get('test.float_digits')
 
         with self.assertRaises(DigitsValidationError):
             Float.create([{
@@ -135,7 +135,7 @@ class FieldFloatTestCase(TestCase):
     @with_transaction()
     def test_float_digits_none(self):
         "Test create float with no digits"
-        Float = Pool().get('test.float_digits')
+        Float = tx.pool.get('test.float_digits')
 
         record, = Float.create([{
                     'float': 0.123456789012345,
@@ -147,7 +147,7 @@ class FieldFloatTestCase(TestCase):
     @with_transaction()
     def test_float_int_digits_valid(self):
         "Test create float with limit integer digits"
-        pool = Pool()
+        pool = tx.pool
         Float = pool.get('test.float_digits')
 
         record, = Float.create([{
@@ -159,7 +159,7 @@ class FieldFloatTestCase(TestCase):
     @with_transaction()
     def test_float_negative_int_digits_valid(self):
         "Test create negative float with limit integer digits"
-        pool = Pool()
+        pool = tx.pool
         Float = pool.get('test.float_digits')
 
         record, = Float.create([{
@@ -171,7 +171,7 @@ class FieldFloatTestCase(TestCase):
     @with_transaction()
     def test_float_int_digits_invalid(self):
         "Test create float with invalid integer digits"
-        pool = Pool()
+        pool = tx.pool
         Float = pool.get('test.float_digits')
 
         with self.assertRaises(DigitsValidationError):
@@ -182,7 +182,7 @@ class FieldFloatTestCase(TestCase):
     @with_transaction()
     def test_float_negative_int_digits_invalid(self):
         "Test create negative float with invalid integer digits"
-        pool = Pool()
+        pool = tx.pool
         Float = pool.get('test.float_digits')
 
         with self.assertRaises(DigitsValidationError):
@@ -193,7 +193,7 @@ class FieldFloatTestCase(TestCase):
     @with_transaction()
     def test_search_equals(self):
         "Test search float equals"
-        Float = Pool().get('test.float')
+        Float = tx.pool.get('test.float')
         float_, = Float.create([{
                     'float': 1.1,
                     }])
@@ -211,7 +211,7 @@ class FieldFloatTestCase(TestCase):
     @with_transaction()
     def test_search_equals_none(self):
         "Test search float equals None"
-        Float = Pool().get('test.float')
+        Float = tx.pool.get('test.float')
         float_, = Float.create([{
                     'float': None,
                     }])
@@ -225,7 +225,7 @@ class FieldFloatTestCase(TestCase):
     @with_transaction()
     def test_search_non_equals(self):
         "Test search float non equals"
-        Float = Pool().get('test.float')
+        Float = tx.pool.get('test.float')
         float_, = Float.create([{
                     'float': 1.1,
                     }])
@@ -243,7 +243,7 @@ class FieldFloatTestCase(TestCase):
     @with_transaction()
     def test_search_non_equals_none(self):
         "Test search float non equals None"
-        Float = Pool().get('test.float')
+        Float = tx.pool.get('test.float')
         float_, = Float.create([{
                     'float': None,
                     }])
@@ -257,7 +257,7 @@ class FieldFloatTestCase(TestCase):
     @with_transaction()
     def test_search_in(self):
         "Test search float in"
-        Float = Pool().get('test.float')
+        Float = tx.pool.get('test.float')
         float_, = Float.create([{
                     'float': 1.1,
                     }])
@@ -279,7 +279,7 @@ class FieldFloatTestCase(TestCase):
     @with_transaction()
     def test_search_in_none(self):
         "Test search float in [None]"
-        Float = Pool().get('test.float')
+        Float = tx.pool.get('test.float')
         float_, = Float.create([{
                     'float': None,
                     }])
@@ -293,7 +293,7 @@ class FieldFloatTestCase(TestCase):
     @with_transaction()
     def test_search_not_in(self):
         "Test search float_ not in"
-        Float = Pool().get('test.float')
+        Float = tx.pool.get('test.float')
         float_, = Float.create([{
                     'float': 1.1,
                     }])
@@ -315,7 +315,7 @@ class FieldFloatTestCase(TestCase):
     @with_transaction()
     def test_search_not_in_none(self):
         "Test search float in [None]"
-        Float = Pool().get('test.float')
+        Float = tx.pool.get('test.float')
         float_, = Float.create([{
                     'float': None,
                     }])
@@ -329,7 +329,7 @@ class FieldFloatTestCase(TestCase):
     @with_transaction()
     def test_search_in_multi(self):
         "Test search float in multiple"
-        Float = Pool().get('test.float')
+        Float = tx.pool.get('test.float')
         floats = Float.create([{
                     'float': 1.1,
                     }, {
@@ -345,7 +345,7 @@ class FieldFloatTestCase(TestCase):
     @with_transaction()
     def test_search_not_in_multi(self):
         "Test search float_ not in multiple"
-        Float = Pool().get('test.float')
+        Float = tx.pool.get('test.float')
         Float.create([{
                     'float': 1.1,
                     }, {
@@ -361,7 +361,7 @@ class FieldFloatTestCase(TestCase):
     @with_transaction()
     def test_search_less(self):
         "Test search float_ less than"
-        Float = Pool().get('test.float')
+        Float = tx.pool.get('test.float')
         float_, = Float.create([{
                     'float': 1.1,
                     }])
@@ -383,7 +383,7 @@ class FieldFloatTestCase(TestCase):
     @with_transaction()
     def test_search_less_equals(self):
         "Test search float_ less than or equals"
-        Float = Pool().get('test.float')
+        Float = tx.pool.get('test.float')
         float_, = Float.create([{
                     'float': 1.1,
                     }])
@@ -405,7 +405,7 @@ class FieldFloatTestCase(TestCase):
     @with_transaction()
     def test_search_greater(self):
         "Test search float_ greater than"
-        Float = Pool().get('test.float')
+        Float = tx.pool.get('test.float')
         float_, = Float.create([{
                     'float': 1.1,
                     }])
@@ -427,7 +427,7 @@ class FieldFloatTestCase(TestCase):
     @with_transaction()
     def test_search_greater_equals(self):
         "Test search float greater than or equals"
-        Float = Pool().get('test.float')
+        Float = tx.pool.get('test.float')
         float_, = Float.create([{
                     'float': 1.1,
                     }])
@@ -449,7 +449,7 @@ class FieldFloatTestCase(TestCase):
     @with_transaction()
     def test_write(self):
         "Test write float"
-        Float = Pool().get('test.float')
+        Float = tx.pool.get('test.float')
         float_, = Float.create([{
                     'float': 1.1,
                     }])
@@ -463,7 +463,7 @@ class FieldFloatTestCase(TestCase):
     @with_transaction()
     def test_write_non_float(self):
         "Test write float with non float"
-        Float = Pool().get('test.float')
+        Float = tx.pool.get('test.float')
         float_, = Float.create([{
                     'float': 1.1,
                     }])
@@ -476,7 +476,7 @@ class FieldFloatTestCase(TestCase):
     @with_transaction()
     def test_write_digits_invalid_value(self):
         "Test write float with invalid value for digits"
-        Float = Pool().get('test.float_digits')
+        Float = tx.pool.get('test.float_digits')
 
         float_, = Float.create([{
                     'digits': 1,
@@ -491,7 +491,7 @@ class FieldFloatTestCase(TestCase):
     @with_transaction()
     def test_write_digits_invalid_digits(self):
         "Test write float with invalid digits for value"
-        Float = Pool().get('test.float_digits')
+        Float = tx.pool.get('test.float_digits')
 
         float_, = Float.create([{
                     'digits': 1,

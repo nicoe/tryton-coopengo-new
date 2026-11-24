@@ -3,9 +3,9 @@
 
 import re
 
+from trytond import tx
 from trytond.model.exceptions import (
     DomainValidationError, RequiredValidationError, SQLConstraintError)
-from trytond.pool import Pool
 from trytond.tests.test_tryton import (
     TestCase, activate_module, with_transaction)
 
@@ -21,7 +21,7 @@ class FieldOne2OneTestCase(TestCase):
     @with_transaction()
     def test_create_id(self):
         "Test create one2one with id"
-        pool = Pool()
+        pool = tx.pool
         Target = pool.get('test.one2one.target')
         One2One = pool.get('test.one2one')
         target, = Target.create([{}])
@@ -35,7 +35,7 @@ class FieldOne2OneTestCase(TestCase):
     @with_transaction()
     def test_create_instance(self):
         "Test create one2one with instance"
-        pool = Pool()
+        pool = tx.pool
         Target = pool.get('test.one2one.target')
         One2One = pool.get('test.one2one')
         target, = Target.create([{}])
@@ -49,7 +49,7 @@ class FieldOne2OneTestCase(TestCase):
     @with_transaction()
     def test_create_with_default(self):
         "Test create one2one with instance"
-        pool = Pool()
+        pool = tx.pool
         One2One = pool.get('test.one2one')
 
         one2one, = One2One.create([{}])
@@ -59,7 +59,7 @@ class FieldOne2OneTestCase(TestCase):
     @with_transaction()
     def test_create_duplicate(self):
         "Test create one2one duplicate"
-        pool = Pool()
+        pool = tx.pool
         Target = pool.get('test.one2one.target')
         One2One = pool.get('test.one2one')
         target, = Target.create([{}])
@@ -75,7 +75,7 @@ class FieldOne2OneTestCase(TestCase):
     @with_transaction()
     def test_create_required_with_value(self):
         "Test create one2one required with value"
-        pool = Pool()
+        pool = tx.pool
         Target = pool.get('test.one2one.target')
         One2One = pool.get('test.one2one_required')
         target, = Target.create([{}])
@@ -89,7 +89,7 @@ class FieldOne2OneTestCase(TestCase):
     @with_transaction()
     def test_create_required_without_value(self):
         "Test create one2one required without value"
-        pool = Pool()
+        pool = tx.pool
         Target = pool.get('test.one2one.target')
         One2One = pool.get('test.one2one_required')
         target, = Target.create([{}])
@@ -100,7 +100,7 @@ class FieldOne2OneTestCase(TestCase):
     @with_transaction()
     def test_create_with_domain_valid(self):
         "Test create one2one with domain valid"
-        pool = Pool()
+        pool = tx.pool
         Target = pool.get('test.one2one.target')
         One2One = pool.get('test.one2one_domain')
         target, = Target.create([{
@@ -116,7 +116,7 @@ class FieldOne2OneTestCase(TestCase):
     @with_transaction()
     def test_create_with_domain_invalid(self):
         "Test create one2one with domain invalid"
-        pool = Pool()
+        pool = tx.pool
         Target = pool.get('test.one2one.target')
         One2One = pool.get('test.one2one_domain')
         target, = Target.create([{
@@ -135,7 +135,7 @@ class FieldOne2OneTestCase(TestCase):
     @with_transaction()
     def test_search_equals(self):
         "Test search one2one equals"
-        pool = Pool()
+        pool = tx.pool
         Target = pool.get('test.one2one.target')
         One2One = pool.get('test.one2one')
         target, = Target.create([{'name': "Target"}])
@@ -152,7 +152,7 @@ class FieldOne2OneTestCase(TestCase):
     @with_transaction()
     def test_search_non_equals(self):
         "Test search one2one non equals"
-        pool = Pool()
+        pool = tx.pool
         Target = pool.get('test.one2one.target')
         One2One = pool.get('test.one2one')
         target, = Target.create([{'name': "Target"}])
@@ -169,7 +169,7 @@ class FieldOne2OneTestCase(TestCase):
     @with_transaction()
     def test_search_equals_none(self):
         "Test search one2one equals None"
-        pool = Pool()
+        pool = tx.pool
         One2One = pool.get('test.one2one')
         one2one, = One2One.create([{}])
 
@@ -182,7 +182,7 @@ class FieldOne2OneTestCase(TestCase):
     @with_transaction()
     def test_search_non_equals_none(self):
         "Test search one2one non equals None"
-        pool = Pool()
+        pool = tx.pool
         One2One = pool.get('test.one2one')
         one2one, = One2One.create([{}])
 
@@ -195,7 +195,7 @@ class FieldOne2OneTestCase(TestCase):
     @with_transaction()
     def test_search_in(self):
         "Test search one2one in"
-        pool = Pool()
+        pool = tx.pool
         Target = pool.get('test.one2one.target')
         One2One = pool.get('test.one2one')
         target, = Target.create([{'name': "Target"}])
@@ -212,7 +212,7 @@ class FieldOne2OneTestCase(TestCase):
     @with_transaction()
     def test_search_not_in(self):
         "Test search one2one not in"
-        pool = Pool()
+        pool = tx.pool
         Target = pool.get('test.one2one.target')
         One2One = pool.get('test.one2one')
         target, = Target.create([{'name': "Target"}])
@@ -229,7 +229,7 @@ class FieldOne2OneTestCase(TestCase):
     @with_transaction()
     def test_search_in_none(self):
         "Test search one2one in [None]"
-        pool = Pool()
+        pool = tx.pool
         Target = pool.get('test.one2one.target')
         One2One = pool.get('test.one2one')
         target, = Target.create([{'name': "Target"}])
@@ -246,7 +246,7 @@ class FieldOne2OneTestCase(TestCase):
     @with_transaction()
     def test_search_not_in_none(self):
         "Test search one2one not in [None]"
-        pool = Pool()
+        pool = tx.pool
         Target = pool.get('test.one2one.target')
         One2One = pool.get('test.one2one')
         target, = Target.create([{'name': "Target"}])
@@ -263,7 +263,7 @@ class FieldOne2OneTestCase(TestCase):
     @with_transaction()
     def test_search_join(self):
         "Test search by one2one join"
-        pool = Pool()
+        pool = tx.pool
         Target = pool.get('test.one2one.target')
         One2One = pool.get('test.one2one')
         target, = Target.create([{'name': "Target"}])
@@ -280,7 +280,7 @@ class FieldOne2OneTestCase(TestCase):
     @with_transaction()
     def test_write_integer(self):
         "Test write one2one integer"
-        pool = Pool()
+        pool = tx.pool
         Target = pool.get('test.one2one.target')
         One2One = pool.get('test.one2one')
         target, = Target.create([{}])
@@ -295,7 +295,7 @@ class FieldOne2OneTestCase(TestCase):
     @with_transaction()
     def test_write_none(self):
         "Test write one2one None"
-        pool = Pool()
+        pool = tx.pool
         Target = pool.get('test.one2one.target')
         One2One = pool.get('test.one2one')
         target, = Target.create([{}])
@@ -312,7 +312,7 @@ class FieldOne2OneTestCase(TestCase):
     @with_transaction()
     def test_write_duplicate(self):
         "Test write one2one duplicate"
-        pool = Pool()
+        pool = tx.pool
         Target = pool.get('test.one2one.target')
         One2One = pool.get('test.one2one')
         target, = Target.create([{}])
@@ -328,7 +328,7 @@ class FieldOne2OneTestCase(TestCase):
     @with_transaction()
     def test_set_instance(self):
         "Test set instance"
-        pool = Pool()
+        pool = tx.pool
         One2One = pool.get('test.one2one')
         Target = pool.get('test.one2one.target')
 
@@ -340,7 +340,7 @@ class FieldOne2OneTestCase(TestCase):
     @with_transaction()
     def test_set_dict(self):
         "Test set dictionary"
-        pool = Pool()
+        pool = tx.pool
         One2One = pool.get('test.one2one')
         Target = pool.get('test.one2one.target')
 
@@ -353,7 +353,7 @@ class FieldOne2OneTestCase(TestCase):
     @with_transaction()
     def test_set_integer(self):
         "Test set integer"
-        pool = Pool()
+        pool = tx.pool
         One2One = pool.get('test.one2one')
         Target = pool.get('test.one2one.target')
 
@@ -368,7 +368,7 @@ class FieldOne2OneTestCase(TestCase):
     @with_transaction()
     def test_context_attribute(self):
         "Test context on one2one attribute"
-        pool = Pool()
+        pool = tx.pool
         One2One = pool.get('test.one2one_context')
         Target = pool.get('test.one2one_context.target')
 
@@ -382,7 +382,7 @@ class FieldOne2OneTestCase(TestCase):
     @with_transaction()
     def test_context_read(self):
         "Test context on one2one read"
-        pool = Pool()
+        pool = tx.pool
         One2One = pool.get('test.one2one_context')
         Target = pool.get('test.one2one_context.target')
 
@@ -397,7 +397,7 @@ class FieldOne2OneTestCase(TestCase):
     @with_transaction()
     def test_context_set(self):
         "Test context on one2one set"
-        pool = Pool()
+        pool = tx.pool
         One2One = pool.get('test.one2one_context')
         Target = pool.get('test.one2one_context.target')
 

@@ -3,11 +3,11 @@
 
 from decimal import Decimal
 
+from trytond import tx
 from trytond.model import fields
 from trytond.modules.currency.fields import Monetary
-from trytond.pool import Pool, PoolMeta
+from trytond.pool import PoolMeta
 from trytond.pyson import Eval, If
-from trytond.transaction import Transaction
 
 from .party import IDENTIFIER_TYPES
 
@@ -105,7 +105,7 @@ class Line(metaclass=PoolMeta):
         'get_eu_excise_duty_amount')
 
     def get_eu_excise_duty_amount(self, name):
-        pool = Pool()
+        pool = tx.pool
         Date = pool.get('ir.date')
         Currency = pool.get('currency.currency')
 
@@ -118,7 +118,7 @@ class Line(metaclass=PoolMeta):
                 country = self.warehouse.address.country
             if eu_excise_tax := self.product.get_eu_excise_tax(country):
                 if not (date := self.sale.sale_date):
-                    with Transaction().set_context(
+                    with tx.transaction.set_context(
                             company=self.sale.company.id):
                         date = Date.today()
                 if tax_rate := eu_excise_tax.get_tax_rate({
@@ -127,7 +127,7 @@ class Line(metaclass=PoolMeta):
                     amount = tax_rate.compute(
                         self.product, self.quantity, self.unit)
                     if amount is not None:
-                        with Transaction().set_context(date=date):
+                        with tx.transaction.set_context(date=date):
                             amount = Currency.compute(
                                 eu_excise_tax.currency, amount, self.currency)
         return amount

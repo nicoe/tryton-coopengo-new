@@ -2,12 +2,12 @@
 # this repository contains the full copyright notices and license terms.
 from sql.functions import CharLength
 
+from trytond import tx
 from trytond.i18n import gettext
 from trytond.model import (
     DeactivableMixin, ModelSQL, ModelView, Workflow, fields, tree)
-from trytond.pool import Pool, PoolMeta
+from trytond.pool import PoolMeta
 from trytond.pyson import Bool, Eval, Id, If
-from trytond.transaction import Transaction
 from trytond.wizard import (
     Button, StateAction, StateTransition, StateView, Wizard)
 
@@ -27,7 +27,7 @@ class Configuration(metaclass=PoolMeta):
 
     @classmethod
     def multivalue_model(cls, field):
-        pool = Pool()
+        pool = tx.pool
         if field == 'package_sequence':
             return pool.get('stock.configuration.sequence')
         return super().multivalue_model(field)
@@ -50,7 +50,7 @@ class ConfigurationSequence(metaclass=PoolMeta):
 
     @classmethod
     def default_package_sequence(cls):
-        pool = Pool()
+        pool = tx.pool
         ModelData = pool.get('ir.model.data')
         try:
             return ModelData.get_id('stock_package', 'sequence_package')
@@ -126,7 +126,7 @@ class MeasurementsMixin:
         'height', 'height_uom',
         'width', 'width_uom')
     def on_change_with_packaging_volume(self):
-        pool = Pool()
+        pool = tx.pool
         ModelData = pool.get('ir.model.data')
         Uom = pool.get('product.uom')
 
@@ -260,7 +260,7 @@ class Package(tree(), MeasurementsMixin, ModelSQL, ModelView):
 
     @classmethod
     def default_company(cls):
-        return Transaction().context.get('company')
+        return tx.transaction.context.get('company')
 
     @staticmethod
     def _get_shipment():
@@ -273,7 +273,7 @@ class Package(tree(), MeasurementsMixin, ModelSQL, ModelView):
 
     @classmethod
     def get_shipment(cls):
-        pool = Pool()
+        pool = tx.pool
         Model = pool.get('ir.model')
         get_name = Model.get_name
         models = cls._get_shipment()
@@ -311,7 +311,7 @@ class Package(tree(), MeasurementsMixin, ModelSQL, ModelView):
             package.check_volume()
 
     def check_volume(self):
-        pool = Pool()
+        pool = tx.pool
         Uom = pool.get('product.uom')
         Lang = pool.get('ir.lang')
         lang = Lang.get()
@@ -334,7 +334,7 @@ class Package(tree(), MeasurementsMixin, ModelSQL, ModelView):
 
     @classmethod
     def preprocess_values(cls, mode, values):
-        pool = Pool()
+        pool = tx.pool
         Configuration = pool.get('stock.configuration')
         values = super().preprocess_values(mode, values)
         if mode == 'create' and not values.get('number'):
@@ -492,7 +492,7 @@ class ShipmentOut(PackageMixin, object, metaclass=PoolMeta):
 
     @fields.depends('carrier')
     def _parcel_weight(self, parcel):
-        pool = Pool()
+        pool = tx.pool
         Uom = pool.get('product.uom')
         weight = super()._parcel_weight(parcel)
         if self.carrier:
@@ -622,11 +622,11 @@ class PackagePack(Wizard):
             }
 
     def transition_add_move(self):
-        pool = Pool()
+        pool = tx.pool
         Move = pool.get('stock.move')
         move = self.move.source
         if self.move.quantity and self.move.quantity != move.quantity:
-            with Transaction().set_context(_stock_move_split=True):
+            with tx.transaction.set_context(_stock_move_split=True):
                 Move.copy([move], {
                         'quantity': move.quantity - self.move.quantity,
                         })

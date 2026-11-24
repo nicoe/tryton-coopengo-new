@@ -1,11 +1,11 @@
 # This file is part of Tryton.  The COPYRIGHT file at the top level of
 # this repository contains the full copyright notices and license terms.
+from trytond import tx
 from trytond.i18n import gettext
 from trytond.model import ModelSQL, ModelView, fields
 from trytond.modules.product import round_price
-from trytond.pool import Pool, PoolMeta
+from trytond.pool import PoolMeta
 from trytond.pyson import Eval
-from trytond.transaction import Transaction
 
 from .common import (
     AmendmentLineMixin, get_moves, get_shipments_returns,
@@ -121,7 +121,7 @@ class LineComponent(
 
     def get_move(self, shipment_type):
         from trytond.modules.sale.exceptions import PartyLocationError
-        pool = Pool()
+        pool = tx.pool
         Move = pool.get('stock.move')
         Date = pool.get('ir.date')
 
@@ -142,7 +142,7 @@ class LineComponent(
                     sale=self.sale.rec_name,
                     party=self.sale.party.rec_name))
 
-        with Transaction().set_context(company=self.line.sale.company.id):
+        with tx.transaction.set_context(company=self.line.sale.company.id):
             today = Date.today()
 
         move = Move()
@@ -168,7 +168,7 @@ class LineComponent(
 
     def _get_move_quantity(self, shipment_type):
         'Return the quantity that should be shipped'
-        pool = Pool()
+        pool = tx.pool
         Uom = pool.get('product.uom')
 
         if self.line.sale.shipment_method == 'order':
@@ -184,7 +184,7 @@ class LineComponent(
 
     @property
     def _move_remaining_quantity(self):
-        pool = Pool()
+        pool = tx.pool
         UoM = pool.get('product.uom')
         quantity = super()._move_remaining_quantity
         if self.line.sale.shipment_method == 'invoice':
@@ -201,7 +201,7 @@ class LineComponent(
 
     def check_move_quantity(self):
         from trytond.modules.sale.exceptions import SaleMoveQuantity
-        pool = Pool()
+        pool = tx.pool
         Lang = pool.get('ir.lang')
         Warning = pool.get('res.user.warning')
         lang = Lang.get()

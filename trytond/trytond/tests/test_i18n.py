@@ -3,8 +3,8 @@
 
 from unittest.mock import patch
 
+from trytond import tx
 from trytond.i18n import gettext, lazy_gettext, lazy_ngettext, ngettext
-from trytond.pool import Pool
 from trytond.tests.test_tryton import (
     TestCase, activate_module, with_transaction)
 from trytond.tools.string_ import LazyString
@@ -21,7 +21,7 @@ class I18nTestCase(TestCase):
     @with_transaction()
     def test_gettext_with_translation(self):
         "gettext returns the translated text"
-        pool = Pool()
+        pool = tx.pool
         Lang = pool.get('ir.lang')
         Translation = pool.get('ir.translation')
         ModelData = pool.get('ir.model.data')
@@ -45,7 +45,7 @@ class I18nTestCase(TestCase):
     @with_transaction()
     def test_gettext_with_translation_format(self):
         "gettext returns the translated and formatted text"
-        pool = Pool()
+        pool = tx.pool
         Lang = pool.get('ir.lang')
         Translation = pool.get('ir.translation')
         ModelData = pool.get('ir.model.data')
@@ -73,7 +73,7 @@ class I18nTestCase(TestCase):
     @with_transaction()
     def test_gettext_no_translation(self):
         "gettext returns original string when no translation"
-        pool = Pool()
+        pool = tx.pool
         Lang = pool.get('ir.lang')
 
         lang, = Lang.search([('code', '!=', 'en')], limit=1)
@@ -115,7 +115,7 @@ class I18nTestCase(TestCase):
     @with_transaction()
     def test_ngettext(self):
         "ngettext returns the translated text"
-        pool = Pool()
+        pool = tx.pool
         Lang = pool.get('ir.lang')
         Translation = pool.get('ir.translation')
         ModelData = pool.get('ir.model.data')

@@ -3,10 +3,11 @@
 
 from collections import defaultdict
 
+from trytond import tx
 from trytond.i18n import gettext, lazy_gettext
 from trytond.model import ModelSQL, ModelView, Unique, Workflow, fields
 from trytond.model.exceptions import AccessError
-from trytond.pool import Pool, PoolMeta
+from trytond.pool import PoolMeta
 
 from . import graphql
 from .common import IdentifierMixin, id2gid
@@ -102,7 +103,7 @@ class ShipmentOut(metaclass=PoolMeta):
                 return record.shopify_identifier
 
     def set_shopify_identifier(self, sale, identifier=None):
-        pool = Pool()
+        pool = tx.pool
         Identifier = pool.get('stock.shipment.shopify_identifier')
         for record in self.shopify_identifiers:
             if record.sale == sale:
@@ -245,7 +246,7 @@ class Move(metaclass=PoolMeta):
     __name__ = 'stock.move'
 
     def get_shopify(self, fulfillment_orders, location_id):
-        pool = Pool()
+        pool = tx.pool
         SaleLine = pool.get('sale.line')
         Uom = pool.get('product.uom')
         if (not isinstance(self.origin, SaleLine)
@@ -285,7 +286,7 @@ class Move_Kit(metaclass=PoolMeta):
     __name__ = 'stock.move'
 
     def get_shopify(self, fulfillment_orders, location_id):
-        pool = Pool()
+        pool = tx.pool
         SaleLineComponent = pool.get('sale.line.component')
         UoM = pool.get('product.uom')
         yield from super().get_shopify(fulfillment_orders, location_id)

@@ -8,14 +8,13 @@ from functools import partial
 
 from sql.aggregate import Count
 
+from trytond import tx
 from trytond.bus import Bus
 from trytond.i18n import ngettext
 from trytond.ir.ui.menu import CLIENT_ICONS
 from trytond.model import Index, ModelSQL, ModelView, fields
-from trytond.pool import Pool
 from trytond.pyson import Bool, Eval
 from trytond.rpc import RPC
-from trytond.transaction import Transaction
 
 
 class Notification(
@@ -83,10 +82,10 @@ class Notification(
 
     @classmethod
     def on_modification(cls, mode, notifications, field_names=None):
-        pool = Pool()
+        pool = tx.pool
         Lang = pool.get('ir.lang')
         lang = Lang.get()
-        cursor = Transaction().connection.cursor()
+        cursor = tx.transaction.connection.cursor()
         table = cls.__table__()
 
         super().on_modification(mode, notifications, field_names=field_names)
@@ -136,7 +135,7 @@ class Notification(
 
     @classmethod
     def list_icons(cls):
-        pool = Pool()
+        pool = tx.pool
         Icon = pool.get('ir.ui.icon')
         return sorted(CLIENT_ICONS
             + [(name, name) for _, name in Icon.list_icons()]
@@ -156,7 +155,7 @@ class Notification(
     def get(cls, count=10):
         "Get the last count notifications"
         notifications = cls.search([
-                ('user', '=', Transaction().user),
+                ('user', '=', tx.transaction.user),
                 ],
             limit=count, order=[('create_date', 'DESC'), ('id', 'DESC')])
         return [{
@@ -173,10 +172,10 @@ class Notification(
     @classmethod
     def get_count(cls):
         notification = cls.__table__()
-        cursor = Transaction().connection.cursor()
+        cursor = tx.transaction.connection.cursor()
         cursor.execute(*notification.select(
                 Count(),
-                where=((notification.user == Transaction().user)
+                where=((notification.user == tx.transaction.user)
                     & notification.unread)))
         return cursor.fetchone()[0]
 

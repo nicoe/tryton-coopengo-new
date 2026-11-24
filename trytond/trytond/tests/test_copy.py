@@ -4,12 +4,11 @@
 
 from unittest.mock import patch
 
+from trytond import tx
 from trytond.model import fields
 from trytond.model.exceptions import AccessError
-from trytond.pool import Pool
 from trytond.tests.test_tryton import (
     TestCase, activate_module, with_transaction)
-from trytond.transaction import Transaction
 
 from .test_modelsql import TranslationTestCase
 
@@ -25,7 +24,7 @@ class CopyTestCase(TestCase):
     @with_transaction()
     def test_copy(self):
         "Test copy"
-        pool = Pool()
+        pool = tx.pool
         Copy = pool.get('test.copy')
         record = Copy(name="Name")
         record.save()
@@ -38,7 +37,7 @@ class CopyTestCase(TestCase):
     @with_transaction()
     def test_copy_default(self):
         "Test copy with default value"
-        pool = Pool()
+        pool = tx.pool
         Copy = pool.get('test.copy')
         record = Copy(name="Name")
         record.save()
@@ -51,7 +50,7 @@ class CopyTestCase(TestCase):
     @with_transaction()
     def test_copy_default_callable(self):
         "Test copy with default callable"
-        pool = Pool()
+        pool = tx.pool
         Copy = pool.get('test.copy')
         record = Copy(name="Name")
         record.save()
@@ -68,7 +67,7 @@ class CopyTestCase(TestCase):
     @with_transaction()
     def test_one2many(self):
         'Test copy one2many'
-        pool = Pool()
+        pool = tx.pool
         One2many_ = pool.get('test.copy.one2many')
         One2manyTarget = pool.get('test.copy.one2many.target')
         One2manyReference = pool.get('test.copy.one2many_reference')
@@ -98,7 +97,7 @@ class CopyTestCase(TestCase):
     @with_transaction()
     def test_one2many_readonly(self):
         "Test copy one2many readonly"
-        pool = Pool()
+        pool = tx.pool
         Model = pool.get('test.copy.one2many')
         Target = pool.get('test.copy.one2many.target')
 
@@ -114,7 +113,7 @@ class CopyTestCase(TestCase):
     @with_transaction()
     def test_one2many_filter(self):
         "Test not copy one2many with filter"
-        pool = Pool()
+        pool = tx.pool
         Model = pool.get('test.copy.one2many')
         Target = pool.get('test.copy.one2many.target')
 
@@ -133,7 +132,7 @@ class CopyTestCase(TestCase):
     @with_transaction()
     def test_one2many_default(self):
         "Test copy one2many with default"
-        pool = Pool()
+        pool = tx.pool
         One2many = pool.get('test.copy.one2many')
         Target = pool.get('test.copy.one2many.target')
 
@@ -151,7 +150,7 @@ class CopyTestCase(TestCase):
     @with_transaction()
     def test_one2many_default_nested(self):
         "Test copy one2many with default nested"
-        pool = Pool()
+        pool = tx.pool
         One2many = pool.get('test.copy.one2many')
         Target = pool.get('test.copy.one2many.target')
 
@@ -168,7 +167,7 @@ class CopyTestCase(TestCase):
     @with_transaction()
     def test_many2many(self):
         'Test copy many2many'
-        pool = Pool()
+        pool = tx.pool
         Many2many_ = pool.get('test.copy.many2many')
         Many2manyTarget = pool.get('test.copy.many2many.target')
         Many2manyReference = pool.get('test.copy.many2many_reference')
@@ -198,7 +197,7 @@ class CopyTestCase(TestCase):
     @with_transaction()
     def test_many2many_readonly(self):
         "test copy many2many readonly"
-        pool = Pool()
+        pool = tx.pool
         Model = pool.get('test.copy.many2many')
         Target = pool.get('test.copy.many2many.target')
 
@@ -214,7 +213,7 @@ class CopyTestCase(TestCase):
     @with_transaction()
     def test_many2many_filter(self):
         "Test not copy many2many with filter"
-        pool = Pool()
+        pool = tx.pool
         Model = pool.get('test.copy.many2many')
         Target = pool.get('test.copy.many2many.target')
 
@@ -233,7 +232,7 @@ class CopyTestCase(TestCase):
     @with_transaction()
     def test_many2many_default(self):
         "Test copy many2many with default"
-        pool = Pool()
+        pool = tx.pool
         Many2many = pool.get('test.copy.many2many')
         Target = pool.get('test.copy.many2many.target')
 
@@ -250,7 +249,7 @@ class CopyTestCase(TestCase):
     @with_transaction()
     def test_binary(self):
         "Test copy binary"
-        pool = Pool()
+        pool = tx.pool
         Binary = pool.get('test.copy.binary')
         record = Binary(binary=fields.Binary.cast(b'data'))
         record.save()
@@ -262,7 +261,7 @@ class CopyTestCase(TestCase):
     @with_transaction()
     def test_binary_file_id(self):
         "Test copy binary with file_id"
-        pool = Pool()
+        pool = tx.pool
         Binary = pool.get('test.copy.binary')
         record = Binary(binary_id=fields.Binary.cast(b'data'))
         record.save()
@@ -275,7 +274,7 @@ class CopyTestCase(TestCase):
     @with_transaction(context={'_check_access': True})
     def test_no_acccess_copy_with_custom_value(self):
         "Test copying field with no access and custom value"
-        pool = Pool()
+        pool = tx.pool
         FieldAccess = pool.get('ir.model.field.access')
         TestAccess = pool.get('test.copy.access')
 
@@ -295,7 +294,7 @@ class CopyTestCase(TestCase):
     @with_transaction(context={'_check_access': True})
     def test_no_acccess_copy_with_default(self):
         "Test copying field with no access but default value"
-        pool = Pool()
+        pool = tx.pool
         FieldAccess = pool.get('ir.model.field.access')
         TestAccess = pool.get('test.copy.access')
 
@@ -315,7 +314,7 @@ class CopyTestCase(TestCase):
     @with_transaction(context={'_check_access': True})
     def test_no_acccess_copy_with_defaults(self):
         "Test copying field with no access and defaults"
-        pool = Pool()
+        pool = tx.pool
         FieldAccess = pool.get('ir.model.field.access')
         TestAccess = pool.get('test.copy.access')
 
@@ -336,7 +335,7 @@ class CopyTestCase(TestCase):
     @with_transaction(context={'_check_access': True})
     def test_copy_with_no_read_access(self):
         "Test copying field with no read access"
-        pool = Pool()
+        pool = tx.pool
         FieldAccess = pool.get('ir.model.field.access')
         TestAccess = pool.get('test.copy.access')
 
@@ -356,7 +355,7 @@ class CopyTestCase(TestCase):
     @with_transaction()
     def test_copy_empty(self):
         "Test copy without records"
-        pool = Pool()
+        pool = tx.pool
         Copy = pool.get('test.copy')
 
         self.assertEqual(Copy.copy([]), [])
@@ -368,47 +367,47 @@ class CopyTranslationTestCase(TranslationTestCase):
     @with_transaction()
     def test_copy(self):
         "Test copy"
-        pool = Pool()
+        pool = tx.pool
         Translate = pool.get('test.copy.translate')
 
-        with Transaction().set_context(language=self.default_language):
+        with tx.transaction.set_context(language=self.default_language):
             record, = Translate.create([{'name': "Foo"}])
-        with Transaction().set_context(language=self.other_language):
+        with tx.transaction.set_context(language=self.other_language):
             Translate.write([record], {'name': "Bar"})
 
         record_copy, = Translate.copy([record])
 
-        with Transaction().set_context(language=self.default_language):
+        with tx.transaction.set_context(language=self.default_language):
             record_copy = Translate(record_copy.id)
             self.assertEqual(record_copy.name, "Foo")
-        with Transaction().set_context(language=self.other_language):
+        with tx.transaction.set_context(language=self.other_language):
             record_copy = Translate(record_copy.id)
             self.assertEqual(record_copy.name, "Bar")
 
     @with_transaction()
     def test_copy_multiple(self):
         "Test copy multiple"
-        pool = Pool()
+        pool = tx.pool
         Translate = pool.get('test.copy.translate')
 
-        with Transaction().set_context(language=self.default_language):
+        with tx.transaction.set_context(language=self.default_language):
             record, = Translate.create([{'name': "Foo"}])
-        with Transaction().set_context(language=self.other_language):
+        with tx.transaction.set_context(language=self.other_language):
             Translate.write([record], {'name': "Bar"})
 
         record_copies = Translate.copy([record, record])
 
-        with Transaction().set_context(language=self.default_language):
+        with tx.transaction.set_context(language=self.default_language):
             record_copies = Translate.browse(record_copies)
             self.assertEqual({r.name for r in record_copies}, {"Foo"})
-        with Transaction().set_context(language=self.other_language):
+        with tx.transaction.set_context(language=self.other_language):
             record_copies = Translate.browse(record_copies)
             self.assertEqual({r.name for r in record_copies}, {"Bar"})
 
     @with_transaction()
     def test_copy_empty(self):
         "Test copy without records"
-        pool = Pool()
+        pool = tx.pool
         Copy = pool.get('test.copy.translate')
 
         self.assertEqual(Copy.copy([]), [])

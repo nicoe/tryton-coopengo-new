@@ -4,11 +4,10 @@
 from sql import Literal
 from sql.conditionals import Case
 
+from trytond import tx
 from trytond.model import ModelSQL, ModelView, fields
-from trytond.pool import Pool
 from trytond.pyson import Eval
 from trytond.rpc import RPC
-from trytond.transaction import Transaction
 
 
 class _ClearCache(ModelSQL):
@@ -75,7 +74,7 @@ class Export(_ClearCache, ModelSQL, ModelView):
     def __register__(cls, module):
         table_h = cls.__table_handler__(module)
         table = cls.__table__()
-        cursor = Transaction().connection.cursor()
+        cursor = tx.transaction.connection.cursor()
 
         user_exists = table_h.column_exist('user')
         migrate_header = (
@@ -112,13 +111,13 @@ class Export(_ClearCache, ModelSQL, ModelView):
 
     @classmethod
     def get(cls, resource, fields_names):
-        pool = Pool()
+        pool = tx.pool
         User = pool.get('res.user')
         return cls.search_read([
                 ('resource', '=', resource),
                 ['OR',
                     ('groups', 'in', User.get_groups()),
-                    ('user', '=', Transaction().user),
+                    ('user', '=', tx.transaction.user),
                     ],
                 ],
                 fields_names=fields_names)
@@ -126,19 +125,19 @@ class Export(_ClearCache, ModelSQL, ModelView):
     @classmethod
     def set(cls, values):
         export = cls(**values)
-        export.user = Transaction().user
+        export.user = tx.transaction.user
         export.save()
         return export.id
 
     @classmethod
     def update(cls, id, values, fields):
-        pool = Pool()
+        pool = tx.pool
         User = pool.get('res.user')
         exports = cls.search([
                 ('id', '=', id),
                 ['OR',
                     ('write_groups', 'in', User.get_groups()),
-                    ('user', '=', Transaction().user),
+                    ('user', '=', tx.transaction.user),
                     ],
                 ])
         try:
@@ -155,13 +154,13 @@ class Export(_ClearCache, ModelSQL, ModelView):
 
     @classmethod
     def unset(cls, id):
-        pool = Pool()
+        pool = tx.pool
         User = pool.get('res.user')
         cls.delete(cls.search([
                     ('id', '=', id),
                     ['OR',
                         ('write_groups', 'in', User.get_groups()),
-                        ('user', '=', Transaction().user),
+                        ('user', '=', tx.transaction.user),
                         ],
                     ]))
 

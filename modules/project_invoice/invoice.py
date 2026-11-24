@@ -5,12 +5,12 @@ import datetime as dt
 
 from sql.aggregate import Sum
 
+from trytond import tx
 from trytond.i18n import gettext
 from trytond.model import fields
 from trytond.modules.account_invoice.exceptions import (
     InvoiceLineValidationError)
-from trytond.pool import Pool, PoolMeta
-from trytond.transaction import Transaction
+from trytond.pool import PoolMeta
 
 
 class InvoiceLine(metaclass=PoolMeta):
@@ -28,7 +28,7 @@ class InvoiceLine(metaclass=PoolMeta):
 
     @classmethod
     def check_validate_project_invoice_quantity(cls, lines, field_names):
-        pool = Pool()
+        pool = tx.pool
         Lang = pool.get('ir.lang')
         if field_names and not (field_names & {
                     'quantity', 'project_invoice_works'}):
@@ -81,9 +81,9 @@ class InvoiceLine(metaclass=PoolMeta):
 
     @classmethod
     def get_project_invoice_timesheet_duration(cls, lines, name):
-        pool = Pool()
+        pool = tx.pool
         TimesheetLine = pool.get('timesheet.line')
-        cursor = Transaction().connection.cursor()
+        cursor = tx.transaction.connection.cursor()
         ts_line = TimesheetLine.__table__()
 
         durations = dict.fromkeys(map(int, lines))

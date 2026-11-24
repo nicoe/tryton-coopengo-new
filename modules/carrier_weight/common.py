@@ -1,10 +1,10 @@
 # This file is part of Tryton.  The COPYRIGHT file at the top level of
 # this repository contains the full copyright notices and license terms.
-from trytond.pool import Pool
+from trytond import tx
 
 
 def parcel_weight(parcel, carrier_uom, uom_field='unit'):
-    pool = Pool()
+    pool = tx.pool
     Uom = pool.get('product.uom')
 
     weight = 0

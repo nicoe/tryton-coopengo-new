@@ -5,11 +5,10 @@ import datetime
 import json
 from decimal import Decimal
 
+from trytond import tx
 from trytond.model.exceptions import AccessError
-from trytond.pool import Pool
 from trytond.tests.test_tryton import (
     TestCase, activate_module, with_transaction)
-from trytond.transaction import Transaction
 
 
 class ExportDataTestCase(TestCase):
@@ -23,7 +22,7 @@ class ExportDataTestCase(TestCase):
     @with_transaction()
     def test_boolean(self):
         'Test export_data boolean'
-        pool = Pool()
+        pool = tx.pool
         ExportData = pool.get('test.export_data')
 
         export1, = ExportData.create([{
@@ -47,7 +46,7 @@ class ExportDataTestCase(TestCase):
     @with_transaction()
     def test_integer(self):
         'Test export_data integer'
-        pool = Pool()
+        pool = tx.pool
         ExportData = pool.get('test.export_data')
 
         export1, = ExportData.create([{
@@ -69,7 +68,7 @@ class ExportDataTestCase(TestCase):
     @with_transaction()
     def test_float(self):
         'Test export_data float'
-        pool = Pool()
+        pool = tx.pool
         ExportData = pool.get('test.export_data')
 
         export1, = ExportData.create([{
@@ -91,7 +90,7 @@ class ExportDataTestCase(TestCase):
     @with_transaction()
     def test_numeric(self):
         'Test export_data numeric'
-        pool = Pool()
+        pool = tx.pool
         ExportData = pool.get('test.export_data')
 
         export1, = ExportData.create([{
@@ -115,7 +114,7 @@ class ExportDataTestCase(TestCase):
     @with_transaction()
     def test_char(self):
         'Test export_data char'
-        pool = Pool()
+        pool = tx.pool
         ExportData = pool.get('test.export_data')
 
         export1, = ExportData.create([{
@@ -137,7 +136,7 @@ class ExportDataTestCase(TestCase):
     @with_transaction()
     def test_char_translated(self):
         "Test export_data char translated"
-        pool = Pool()
+        pool = tx.pool
         ExportData = pool.get('test.export_data')
         Language = pool.get('ir.lang')
 
@@ -149,9 +148,9 @@ class ExportDataTestCase(TestCase):
         french.translatable = True
         french.save()
 
-        with Transaction().set_context(language='en'):
+        with tx.transaction.set_context(language='en'):
             record, = ExportData.create([{'char_translated': 'foo'}])
-        with Transaction().set_context(language='fr'):
+        with tx.transaction.set_context(language='fr'):
             ExportData.write([record], {'char_translated': 'bar'})
 
         self.assertEqual(
@@ -163,7 +162,7 @@ class ExportDataTestCase(TestCase):
     @with_transaction()
     def test_text(self):
         'Test export_data text'
-        pool = Pool()
+        pool = tx.pool
         ExportData = pool.get('test.export_data')
 
         export1, = ExportData.create([{
@@ -185,7 +184,7 @@ class ExportDataTestCase(TestCase):
     @with_transaction()
     def test_date(self):
         'Test export_data date'
-        pool = Pool()
+        pool = tx.pool
         ExportData = pool.get('test.export_data')
 
         export1, = ExportData.create([{
@@ -207,7 +206,7 @@ class ExportDataTestCase(TestCase):
     @with_transaction()
     def test_datetime(self):
         'Test export_data datetime'
-        pool = Pool()
+        pool = tx.pool
         ExportData = pool.get('test.export_data')
 
         export1, = ExportData.create([{
@@ -231,7 +230,7 @@ class ExportDataTestCase(TestCase):
     @with_transaction()
     def test_timedelta(self):
         'Test export_data timedelta'
-        pool = Pool()
+        pool = tx.pool
         ExportData = pool.get('test.export_data')
 
         export1, = ExportData.create([{
@@ -258,7 +257,7 @@ class ExportDataTestCase(TestCase):
     @with_transaction()
     def test_selection(self):
         'Test export_data selection'
-        pool = Pool()
+        pool = tx.pool
         ExportData = pool.get('test.export_data')
 
         export1, = ExportData.create([{
@@ -283,7 +282,7 @@ class ExportDataTestCase(TestCase):
     @with_transaction()
     def test_multiselection(self):
         'Test export_data multiselection'
-        pool = Pool()
+        pool = tx.pool
         ExportData = pool.get('test.export_data')
 
         export1, = ExportData.create([{
@@ -310,7 +309,7 @@ class ExportDataTestCase(TestCase):
     @with_transaction()
     def test_many2one(self):
         'Test export_data many2one'
-        pool = Pool()
+        pool = tx.pool
         ExportData = pool.get('test.export_data')
         ExportDataTarget = pool.get('test.export_data.target')
 
@@ -343,7 +342,7 @@ class ExportDataTestCase(TestCase):
     @with_transaction()
     def test_many2many(self):
         'Test export_data many2many'
-        pool = Pool()
+        pool = tx.pool
         ExportData = pool.get('test.export_data')
         ExportDataTarget = pool.get('test.export_data.target')
 
@@ -387,7 +386,7 @@ class ExportDataTestCase(TestCase):
     @with_transaction()
     def test_one2many(self):
         'Test export_data one2many'
-        pool = Pool()
+        pool = tx.pool
         ExportData = pool.get('test.export_data')
         ExportDataTarget = pool.get('test.export_data.target')
 
@@ -426,7 +425,7 @@ class ExportDataTestCase(TestCase):
     @with_transaction()
     def test_one2many_empty_value(self):
         "Test export_data one2many with first child with 0 value"
-        pool = Pool()
+        pool = tx.pool
         ExportData = pool.get('test.export_data')
         ExportDataTarget = pool.get('test.export_data.target')
 
@@ -446,7 +445,7 @@ class ExportDataTestCase(TestCase):
     @with_transaction()
     def test_reference(self):
         'Test export_data reference'
-        pool = Pool()
+        pool = tx.pool
         ExportData = pool.get('test.export_data')
         ExportDataTarget = pool.get('test.export_data.target')
 
@@ -480,7 +479,7 @@ class ExportDataTestCase(TestCase):
     @with_transaction()
     def test_domain(self):
         "Test export data with domain"
-        pool = Pool()
+        pool = tx.pool
         ExportData = pool.get('test.export_data')
 
         ExportData.create([{
@@ -497,7 +496,7 @@ class ExportDataTestCase(TestCase):
     @with_transaction()
     def test_header(self):
         "Test export data with header"
-        pool = Pool()
+        pool = tx.pool
         ExportData = pool.get('test.export_data')
 
         export1, = ExportData.create([{
@@ -514,7 +513,7 @@ class ExportDataTestCase(TestCase):
     @with_transaction()
     def test_nested_header(self):
         "Test export data with header and nested fields"
-        pool = Pool()
+        pool = tx.pool
         ExportData = pool.get('test.export_data')
 
         fields_names = [
@@ -530,7 +529,7 @@ class ExportDataTestCase(TestCase):
     @with_transaction()
     def test_header_domain(self):
         "Test export data with header and domain"
-        pool = Pool()
+        pool = tx.pool
         ExportData = pool.get('test.export_data')
         ExportData.create([{
                     'boolean': True,
@@ -546,7 +545,7 @@ class ExportDataTestCase(TestCase):
     @with_transaction()
     def test_header_field_names(self):
         "Test export data with header using field names"
-        pool = Pool()
+        pool = tx.pool
         ExportData = pool.get('test.export_data')
 
         export1, = ExportData.create([{
@@ -565,7 +564,7 @@ class ExportDataTestCase(TestCase):
     @with_transaction()
     def test_nested_header_field_names(self):
         "Test export data with header and nested fields using field names"
-        pool = Pool()
+        pool = tx.pool
         ExportData = pool.get('test.export_data')
 
         fields_names = [
@@ -579,7 +578,7 @@ class ExportDataTestCase(TestCase):
     @with_transaction()
     def test_header_domain_field_names(self):
         "Test export data with header and domain using field names"
-        pool = Pool()
+        pool = tx.pool
         ExportData = pool.get('test.export_data')
         ExportData.create([{
                     'boolean': True,
@@ -595,7 +594,7 @@ class ExportDataTestCase(TestCase):
     @with_transaction(context={'_check_access': True})
     def test_model_access(self):
         "Test export without model access"
-        pool = Pool()
+        pool = tx.pool
         ExportData = pool.get('test.export_data')
         ModelAccess = pool.get('ir.model.access')
 
@@ -613,7 +612,7 @@ class ExportDataTestCase(TestCase):
     @with_transaction(context={'_check_access': True})
     def test_field_access(self):
         "Test export without field access"
-        pool = Pool()
+        pool = tx.pool
         ExportData = pool.get('test.export_data')
         FieldAccess = pool.get('ir.model.field.access')
 
@@ -632,7 +631,7 @@ class ExportDataTestCase(TestCase):
     @with_transaction(context={'_check_access': True})
     def test_rule_access(self):
         "Test export with rule access"
-        pool = Pool()
+        pool = tx.pool
         ExportData = pool.get('test.export_data')
         RuleGroup = pool.get('ir.rule.group')
 

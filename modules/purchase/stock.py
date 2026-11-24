@@ -2,22 +2,23 @@
 # this repository contains the full copyright notices and license terms.
 from functools import wraps
 
+from trytond import tx
 from trytond.i18n import gettext
 from trytond.model import ModelView, Workflow, fields
 from trytond.model.exceptions import AccessError
-from trytond.pool import Pool, PoolMeta
+from trytond.pool import PoolMeta
 from trytond.pyson import Eval
 from trytond.tools import cached_property
-from trytond.transaction import Transaction, without_check_access
+from trytond.transaction import without_check_access
 
 
 def process_purchase(moves_field):
     def _process_purchase(func):
         @wraps(func)
         def wrapper(cls, shipments):
-            pool = Pool()
+            pool = tx.pool
             Purchase = pool.get('purchase.purchase')
-            transaction = Transaction()
+            transaction = tx.transaction
             context = transaction.context
             with without_check_access():
                 purchases = set(m.purchase for s in cls.browse(shipments)
@@ -70,7 +71,7 @@ class ShipmentIn(metaclass=PoolMeta):
     @Workflow.transition('received')
     @process_purchase('incoming_moves')
     def receive(cls, shipments):
-        pool = Pool()
+        pool = tx.pool
         PurchaseLine = pool.get('purchase.line')
         for shipment in shipments:
             for move in shipment.incoming_moves:
@@ -116,9 +117,9 @@ def process_purchase_move(without_shipment=False):
     def _process_purchase_move(func):
         @wraps(func)
         def wrapper(cls, moves):
-            pool = Pool()
+            pool = tx.pool
             Purchase = pool.get('purchase.purchase')
-            transaction = Transaction()
+            transaction = tx.transaction
             context = transaction.context
             with without_check_access():
                 p_moves = cls.browse(moves)
@@ -174,7 +175,7 @@ class Move(metaclass=PoolMeta):
         return types
 
     def get_purchase(self, name):
-        PurchaseLine = Pool().get('purchase.line')
+        PurchaseLine = tx.pool.get('purchase.line')
         if isinstance(self.origin, PurchaseLine):
             return self.origin.purchase.id
 
@@ -184,7 +185,7 @@ class Move(metaclass=PoolMeta):
             + ('purchase.line',) + tuple(clause[3:])]
 
     def get_purchase_exception_state(self, name):
-        PurchaseLine = Pool().get('purchase.line')
+        PurchaseLine = tx.pool.get('purchase.line')
         if not isinstance(self.origin, PurchaseLine):
             return ''
         if self in self.origin.moves_recreated:
@@ -193,13 +194,13 @@ class Move(metaclass=PoolMeta):
             return 'ignored'
 
     def get_supplier(self, name):
-        PurchaseLine = Pool().get('purchase.line')
+        PurchaseLine = tx.pool.get('purchase.line')
         if isinstance(self.origin, PurchaseLine):
             return self.origin.purchase.party.id
 
     @cached_property
     def product_name(self):
-        pool = Pool()
+        pool = tx.pool
         PurchaseLine = pool.get('purchase.line')
         name = super().product_name
         if (isinstance(self.origin, PurchaseLine)
@@ -209,7 +210,7 @@ class Move(metaclass=PoolMeta):
 
     @fields.depends('origin')
     def on_change_with_product_uom_category(self, name=None):
-        pool = Pool()
+        pool = tx.pool
         PurchaseLine = pool.get('purchase.line')
         category = super().on_change_with_product_uom_category(
             name=name)
@@ -223,7 +224,7 @@ class Move(metaclass=PoolMeta):
 
     @property
     def origin_name(self):
-        pool = Pool()
+        pool = tx.pool
         PurchaseLine = pool.get('purchase.line')
         name = super().origin_name
         if isinstance(self.origin, PurchaseLine) and self.origin.id >= 0:

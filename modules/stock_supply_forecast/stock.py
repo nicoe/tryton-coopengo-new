@@ -1,13 +1,14 @@
 # This file is part of Tryton.  The COPYRIGHT file at the top level of
 # this repository contains the full copyright notices and license terms.
-from trytond.pool import Pool, PoolMeta
+from trytond import tx
+from trytond.pool import PoolMeta
 
 
 class Supply(metaclass=PoolMeta):
     __name__ = 'stock.supply'
 
     def transition_create_(self):
-        pool = Pool()
+        pool = tx.pool
         Forecast = pool.get('stock.forecast')
         Date = pool.get('ir.date')
 

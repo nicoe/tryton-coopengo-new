@@ -5,11 +5,10 @@ from itertools import chain
 
 from sql.conditionals import Case
 
-from trytond.pool import Pool
+from trytond import tx
 from trytond.rpc import RPC
 from trytond.tools import cached_property, is_instance_method
 from trytond.tools.string_ import LazyString
-from trytond.transaction import Transaction
 
 from .field import Field, order_method
 
@@ -31,7 +30,7 @@ class SelectionMixin(Field):
         return TranslatedSelection(name)
 
     def definition(self, model, language):
-        pool = Pool()
+        pool = tx.pool
         Translation = pool.get('ir.translation')
         definition = super().definition(model, language)
         name = '%s,%s' % (model.__name__, self.name)
@@ -178,7 +177,7 @@ class TranslatedSelection(object):
         if inst is None:
             return self
         field = cls._fields[self.name]
-        with Transaction().set_context(getattr(inst, '_context', {})):
+        with tx.transaction.set_context(getattr(inst, '_context', {})):
             selection = field.get_selection(cls, self.name, inst)
         value = getattr(inst, self.name)
         # Use Model __name__ for Reference field

@@ -2,10 +2,11 @@
 # this repository contains the full copyright notices and license terms.
 from functools import wraps
 
+from trytond import tx
 from trytond.model import ModelView, Workflow, fields
-from trytond.pool import Pool, PoolMeta
+from trytond.pool import PoolMeta
 from trytond.pyson import Eval
-from trytond.transaction import Transaction, inactive_records
+from trytond.transaction import inactive_records
 
 
 class Location(metaclass=PoolMeta):
@@ -60,7 +61,7 @@ def set_origin_consignment(state):
     def decorator(func):
         @wraps(func)
         def wrapper(cls, moves):
-            pool = Pool()
+            pool = tx.pool
             InvoiceLine = pool.get('account.invoice.line')
             to_save = []
             move2line = {}
@@ -94,7 +95,7 @@ def unset_origin_consignment(state):
     def decorator(func):
         @wraps(func)
         def wrapper(cls, moves):
-            pool = Pool()
+            pool = tx.pool
             InvoiceLine = pool.get('account.invoice.line')
             lines, to_save = [], set()
             for move in moves:
@@ -165,7 +166,7 @@ class Move(metaclass=PoolMeta):
 
     @classmethod
     def search_assignation_required(cls, name, clause):
-        pool = Pool()
+        pool = tx.pool
         Location = pool.get('stock.location')
         _, operator, operand = clause
         domain = super().search_assignation_required(name, clause)
@@ -218,12 +219,12 @@ class Move(metaclass=PoolMeta):
         return lines
 
     def _get_supplier_invoice_line_consignment(self):
-        pool = Pool()
+        pool = tx.pool
         InvoiceLine = pool.get('account.invoice.line')
         Product = pool.get('product.product')
         ProductSupplier = pool.get('purchase.product_supplier')
 
-        with Transaction().set_context(
+        with tx.transaction.set_context(
                 supplier=self.from_location.consignment_party.id):
             pattern = ProductSupplier.get_pattern()
         for product_supplier in self.product.product_suppliers_used(**pattern):
@@ -245,7 +246,7 @@ class Move(metaclass=PoolMeta):
         line.origin = self
         line.on_change_product()
 
-        with Transaction().set_context(
+        with tx.transaction.set_context(
                 currency=line.currency.id,
                 supplier=line.party.id,
                 uom=line.unit.id,
@@ -255,7 +256,7 @@ class Move(metaclass=PoolMeta):
         return line
 
     def _get_customer_invoice_line_consignment(self):
-        pool = Pool()
+        pool = tx.pool
         InvoiceLine = pool.get('account.invoice.line')
         Product = pool.get('product.product')
 
@@ -272,7 +273,7 @@ class Move(metaclass=PoolMeta):
         line.origin = self
         line.on_change_product()
 
-        with Transaction().set_context(
+        with tx.transaction.set_context(
                 currency=line.currency.id,
                 customer=line.party.id,
                 uom=line.unit.id,
@@ -311,7 +312,7 @@ class Move(metaclass=PoolMeta):
 
     @classmethod
     def copy(cls, moves, default=None):
-        pool = Pool()
+        pool = tx.pool
         InvoiceLine = pool.get('account.invoice.line')
 
         default = default.copy() if default is not None else {}
@@ -338,7 +339,7 @@ class Move(metaclass=PoolMeta):
         default['currency'] = consigment_moves_cleared('currency', default)
 
         moves = super().copy(moves, default=default)
-        if not Transaction().context.get('_stock_move_split'):
+        if not tx.transaction.context.get('_stock_move_split'):
             to_save = []
             for move in moves:
                 if isinstance(move.origin, InvoiceLine):

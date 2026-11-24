@@ -3,11 +3,11 @@
 
 from sql import Literal
 
+from trytond import tx
 from trytond.i18n import gettext
 from trytond.model import fields
-from trytond.pool import Pool, PoolMeta
+from trytond.pool import PoolMeta
 from trytond.pyson import Eval
-from trytond.transaction import Transaction
 
 
 class Template(metaclass=PoolMeta):
@@ -26,7 +26,7 @@ class Template(metaclass=PoolMeta):
     def __register__(cls, module):
         table_h = cls.__table_handler__(module)
         table = cls.__table__()
-        cursor = Transaction().connection.cursor()
+        cursor = tx.transaction.connection.cursor()
 
         migrate_supply_on_sale = (
             table_h.column_exist('supply_on_sale')
@@ -67,7 +67,7 @@ class Template(metaclass=PoolMeta):
 
     @fields.depends('id', 'supply_on_sale')
     def _notify_order_point(self):
-        pool = Pool()
+        pool = tx.pool
         try:
             OrderPoint = pool.get('stock.order_point')
         except KeyError:

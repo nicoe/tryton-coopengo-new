@@ -4,13 +4,13 @@ from collections import defaultdict
 
 from sql import Literal
 
+from trytond import tx
 from trytond.cache import Cache
 from trytond.i18n import gettext
 from trytond.model import Check, Index, ModelSQL, ModelView, fields
 from trytond.model.exceptions import AccessError, ValidationError
-from trytond.pool import Pool
 from trytond.pyson import Eval, If, PYSONDecoder
-from trytond.transaction import Transaction, inactive_records
+from trytond.transaction import inactive_records
 
 
 class DomainError(ValidationError):
@@ -97,9 +97,9 @@ class RuleGroup(
 
     @classmethod
     def __register__(cls, module):
-        pool = Pool()
+        pool = tx.pool
         Model = pool.get('ir.model')
-        transaction = Transaction()
+        transaction = tx.transaction
         cursor = transaction.connection.cursor()
         table_h = cls.__table_handler__(module)
         table = cls.__table__()
@@ -144,7 +144,7 @@ class RuleGroup(
 
     @classmethod
     def on_modification(cls, mode, groups, field_names=None):
-        pool = Pool()
+        pool = tx.pool
         Rule = pool.get('ir.rule')
         super().on_modification(mode, groups, field_names=field_names)
         Rule._domain_get_cache.clear()
@@ -206,7 +206,7 @@ class Rule(ModelSQL, ModelView):
 
     @classmethod
     def _get_context(cls, model_name):
-        pool = Pool()
+        pool = tx.pool
         User = pool.get('res.user')
         return {
             'groups': User.get_groups()
@@ -214,22 +214,22 @@ class Rule(ModelSQL, ModelView):
 
     @classmethod
     def _get_cache_key(cls, model_names):
-        pool = Pool()
+        pool = tx.pool
         User = pool.get('res.user')
         # _datetime value will be added to the domain
-        return (Transaction().context.get('_datetime'), User.get_groups())
+        return (tx.transaction.context.get('_datetime'), User.get_groups())
 
     @classmethod
     def get(cls, model_name, mode='read'):
         "Return dictionary of non-global and global rules"
-        pool = Pool()
+        pool = tx.pool
         RuleGroup = pool.get('ir.rule.group')
         RuleGroup_Group = pool.get('ir.rule.group-res.group')
         User = pool.get('res.user')
         rule_table = cls.__table__()
         rule_group = RuleGroup.__table__()
         rule_group_group = RuleGroup_Group.__table__()
-        transaction = Transaction()
+        transaction = tx.transaction
 
         assert mode in cls.modes
 
@@ -294,8 +294,8 @@ class Rule(ModelSQL, ModelView):
 
     @classmethod
     def domain_get(cls, model_name, mode='read'):
-        pool = Pool()
-        transaction = Transaction()
+        pool = tx.pool
+        transaction = tx.transaction
         # root user above constraint
         if transaction.user == 0 or not transaction.check_access:
             return []
@@ -329,20 +329,20 @@ class Rule(ModelSQL, ModelView):
 
     @classmethod
     def query_get(cls, model_name, mode='read'):
-        pool = Pool()
+        pool = tx.pool
         Model = pool.get(model_name)
 
         domain = cls.domain_get(model_name, mode=mode)
 
         # Use root to prevent infinite recursion
-        with Transaction().set_user(0, set_context=True), inactive_records():
+        with tx.transaction.set_user(0, set_context=True), inactive_records():
             return Model.search(domain, order=[], query=True)
 
     @classmethod
     def check(cls, model_name, ids, mode='read'):
-        pool = Pool()
+        pool = tx.pool
         Model = pool.get(model_name)
-        transaction = Transaction()
+        transaction = tx.transaction
 
         def test_domain(ids, domain):
             # Use root to prevent infinite recursion

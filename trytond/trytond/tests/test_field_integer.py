@@ -3,9 +3,9 @@
 
 from sql import Literal
 
+from trytond import tx
 from trytond.model.exceptions import (
     DomainValidationError, RequiredValidationError)
-from trytond.pool import Pool
 from trytond.tests.test_tryton import (
     TestCase, activate_module, with_transaction)
 
@@ -21,7 +21,7 @@ class FieldIntegerTestCase(TestCase):
     @with_transaction()
     def test_create(self):
         "Test create integer"
-        Integer = Pool().get('test.integer')
+        Integer = tx.pool.get('test.integer')
 
         integer_1, integer_none = Integer.create([{
                     'integer': 1,
@@ -35,7 +35,7 @@ class FieldIntegerTestCase(TestCase):
     @with_transaction()
     def test_create_without_default(self):
         "Test create integer without default"
-        Integer = Pool().get('test.integer')
+        Integer = tx.pool.get('test.integer')
 
         integer, = Integer.create([{}])
 
@@ -44,7 +44,7 @@ class FieldIntegerTestCase(TestCase):
     @with_transaction()
     def test_create_with_default(self):
         "Test create integer with default"
-        Integer = Pool().get('test.integer_default')
+        Integer = tx.pool.get('test.integer_default')
 
         integer, = Integer.create([{}])
 
@@ -53,7 +53,7 @@ class FieldIntegerTestCase(TestCase):
     @with_transaction()
     def test_create_with_sql_value(self):
         "Test create integer with SQL value"
-        Integer = Pool().get('test.integer_default')
+        Integer = tx.pool.get('test.integer_default')
 
         integer, = Integer.create([{'integer': Literal(5)}])
 
@@ -62,7 +62,7 @@ class FieldIntegerTestCase(TestCase):
     @with_transaction()
     def test_set_sql_value(self):
         "Test cannot set SQL value"
-        Integer = Pool().get('test.integer_default')
+        Integer = tx.pool.get('test.integer_default')
 
         integer = Integer()
 
@@ -72,7 +72,7 @@ class FieldIntegerTestCase(TestCase):
     @with_transaction()
     def test_create_non_integer(self):
         "Test create integer with non integer"
-        Integer = Pool().get('test.integer')
+        Integer = tx.pool.get('test.integer')
 
         with self.assertRaises(ValueError):
             Integer.create([{
@@ -82,7 +82,7 @@ class FieldIntegerTestCase(TestCase):
     @with_transaction()
     def test_create_required_with_value(self):
         "Test create integer required with value"
-        Integer = Pool().get('test.integer_required')
+        Integer = tx.pool.get('test.integer_required')
 
         integer, = Integer.create([{
                     'integer': 0,
@@ -93,7 +93,7 @@ class FieldIntegerTestCase(TestCase):
     @with_transaction()
     def test_create_required_without_value(self):
         "Test create integer required without value"
-        Integer = Pool().get('test.integer_required')
+        Integer = tx.pool.get('test.integer_required')
 
         with self.assertRaises(RequiredValidationError):
             Integer.create([{}])
@@ -101,7 +101,7 @@ class FieldIntegerTestCase(TestCase):
     @with_transaction()
     def test_create_with_domain_valid(self):
         "Test create integer with domain valid"
-        Integer = Pool().get('test.integer_domain')
+        Integer = tx.pool.get('test.integer_domain')
 
         integer, = Integer.create([{
                     'integer': 100,
@@ -112,7 +112,7 @@ class FieldIntegerTestCase(TestCase):
     @with_transaction()
     def test_create_with_domain_invalid(self):
         "Test create integer with domain invalid"
-        Integer = Pool().get('test.integer_domain')
+        Integer = tx.pool.get('test.integer_domain')
 
         with self.assertRaisesRegex(
                 DomainValidationError,
@@ -125,7 +125,7 @@ class FieldIntegerTestCase(TestCase):
     @with_transaction()
     def test_search_equals(self):
         "Test search integer equals"
-        Integer = Pool().get('test.integer')
+        Integer = tx.pool.get('test.integer')
         integer, = Integer.create([{
                     'integer': 1,
                     }])
@@ -143,7 +143,7 @@ class FieldIntegerTestCase(TestCase):
     @with_transaction()
     def test_search_non_equals(self):
         "Test search integer non equals"
-        Integer = Pool().get('test.integer')
+        Integer = tx.pool.get('test.integer')
         integer, = Integer.create([{
                     'integer': 1,
                     }])
@@ -161,7 +161,7 @@ class FieldIntegerTestCase(TestCase):
     @with_transaction()
     def test_search_in(self):
         "Test search integer in"
-        Integer = Pool().get('test.integer')
+        Integer = tx.pool.get('test.integer')
         integer, = Integer.create([{
                     'integer': 1,
                     }])
@@ -183,7 +183,7 @@ class FieldIntegerTestCase(TestCase):
     @with_transaction()
     def test_search_not_in(self):
         "Test search integer not in"
-        Integer = Pool().get('test.integer')
+        Integer = tx.pool.get('test.integer')
         integer, = Integer.create([{
                     'integer': 1,
                     }])
@@ -205,7 +205,7 @@ class FieldIntegerTestCase(TestCase):
     @with_transaction()
     def test_search_in_multi(self):
         "Test search integer in multiple"
-        Integer = Pool().get('test.integer')
+        Integer = tx.pool.get('test.integer')
         integers = Integer.create([{
                     'integer': 1,
                     }, {
@@ -221,7 +221,7 @@ class FieldIntegerTestCase(TestCase):
     @with_transaction()
     def test_search_not_in_multi(self):
         "Test search integer not in multiple"
-        Integer = Pool().get('test.integer')
+        Integer = tx.pool.get('test.integer')
         Integer.create([{
                     'integer': 1,
                     }, {
@@ -237,7 +237,7 @@ class FieldIntegerTestCase(TestCase):
     @with_transaction()
     def test_search_less(self):
         "Test search integer less than"
-        Integer = Pool().get('test.integer')
+        Integer = tx.pool.get('test.integer')
         integer, = Integer.create([{
                     'integer': 1,
                     }])
@@ -259,7 +259,7 @@ class FieldIntegerTestCase(TestCase):
     @with_transaction()
     def test_search_less_equals(self):
         "Test search integer less than or equals"
-        Integer = Pool().get('test.integer')
+        Integer = tx.pool.get('test.integer')
         integer, = Integer.create([{
                     'integer': 1,
                     }])
@@ -281,7 +281,7 @@ class FieldIntegerTestCase(TestCase):
     @with_transaction()
     def test_search_greater(self):
         "Test search integer greater than"
-        Integer = Pool().get('test.integer')
+        Integer = tx.pool.get('test.integer')
         integer, = Integer.create([{
                     'integer': 1,
                     }])
@@ -303,7 +303,7 @@ class FieldIntegerTestCase(TestCase):
     @with_transaction()
     def test_search_greater_equals(self):
         "Test search integer greater than or equals"
-        Integer = Pool().get('test.integer')
+        Integer = tx.pool.get('test.integer')
         integer, = Integer.create([{
                     'integer': 1,
                     }])
@@ -325,7 +325,7 @@ class FieldIntegerTestCase(TestCase):
     @with_transaction()
     def test_write(self):
         "Test write integer"
-        Integer = Pool().get('test.integer')
+        Integer = tx.pool.get('test.integer')
         integer, = Integer.create([{
                     'integer': 1,
                     }])
@@ -339,7 +339,7 @@ class FieldIntegerTestCase(TestCase):
     @with_transaction()
     def test_write_non_integer(self):
         "Test write integer with non integer"
-        Integer = Pool().get('test.integer')
+        Integer = tx.pool.get('test.integer')
         integer, = Integer.create([{
                     'integer': 1,
                     }])

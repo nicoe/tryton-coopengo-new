@@ -1,8 +1,9 @@
 # This file is part of Tryton.  The COPYRIGHT file at the top level of
 # this repository contains the full copyright notices and license terms.
+from trytond import tx
 from trytond.model import (
     DeactivableMixin, ModelStorage, ModelView, fields, tree)
-from trytond.pool import Pool, PoolMeta
+from trytond.pool import PoolMeta
 
 
 class ClassificationMixin(DeactivableMixin):
@@ -53,7 +54,7 @@ class Template(metaclass=PoolMeta):
 
     @classmethod
     def get_classification(cls):
-        pool = Pool()
+        pool = tx.pool
         Model = pool.get('ir.model')
         get_name = Model.get_name
         models = cls._get_classification()
@@ -65,7 +66,7 @@ class Product(metaclass=PoolMeta):
 
     @classmethod
     def get_classification(cls):
-        pool = Pool()
+        pool = tx.pool
         Template = pool.get('product.template')
         return Template.get_classification()
 

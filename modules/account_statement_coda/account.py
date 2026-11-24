@@ -4,9 +4,10 @@ from io import BytesIO, TextIOWrapper
 
 from coda import CODA
 
+from trytond import tx
 from trytond.i18n import gettext
 from trytond.modules.account_statement.exceptions import ImportStatementError
-from trytond.pool import Pool, PoolMeta
+from trytond.pool import PoolMeta
 
 
 class StatementImportStart(metaclass=PoolMeta):
@@ -33,7 +34,7 @@ class StatementImport(metaclass=PoolMeta):
             yield statement
 
     def coda_statement(self, coda_statement):
-        pool = Pool()
+        pool = tx.pool
         Statement = pool.get('account.statement')
         Journal = pool.get('account.statement.journal')
 
@@ -56,7 +57,7 @@ class StatementImport(metaclass=PoolMeta):
         return statement
 
     def coda_origin(self, coda_statement, move):
-        pool = Pool()
+        pool = tx.pool
         Origin = pool.get('account.statement.origin')
 
         origin = Origin()
@@ -70,7 +71,7 @@ class StatementImport(metaclass=PoolMeta):
         return [origin]
 
     def coda_party(self, coda_statement, move):
-        pool = Pool()
+        pool = tx.pool
         AccountNumber = pool.get('bank.account.number')
 
         if not move.counterparty_account:

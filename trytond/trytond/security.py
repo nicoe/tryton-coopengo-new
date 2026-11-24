@@ -16,11 +16,10 @@ from sql import Table
 from sql.conditionals import Coalesce
 from werkzeug.exceptions import abort
 
-from trytond import backend, config
+from trytond import backend, config, tx
 from trytond.exceptions import LoginException, RateLimitException
 from trytond.pool import Pool
 from trytond.tools import sqlite_apply_types
-from trytond.transaction import Transaction
 
 logger = logging.getLogger(__name__)
 
@@ -28,7 +27,7 @@ logger = logging.getLogger(__name__)
 def _get_pool(dbname):
     database_list = Pool.database_list()
     if dbname not in database_list:
-        databases = dict(Transaction().database.list())
+        databases = dict(tx.transaction.database.list())
         if dbname not in databases:
             abort(HTTPStatus.NOT_FOUND)
     pool = Pool(dbname)
@@ -44,7 +43,7 @@ def _get_remote_addr(context):
 
 def login(dbname, loginname, parameters, cache=True, context=None):
     for count in range(config.getint('database', 'retry'), -1, -1):
-        with Transaction().start(dbname, 0, context=context) as transaction:
+        with tx.transaction.start(dbname, 0, context=context) as transaction:
             pool = _get_pool(dbname)
             User = pool.get('res.user')
             try:
@@ -63,7 +62,7 @@ def login(dbname, loginname, parameters, cache=True, context=None):
         if not cache:
             session = user_id
         else:
-            with Transaction().start(dbname, user_id, context=context):
+            with tx.transaction.start(dbname, user_id, context=context):
                 Session = pool.get('ir.session')
                 session = user_id, Session.new()
         logger.info("login succeeded for '%s' from '%s' on database '%s'",
@@ -76,7 +75,7 @@ def login(dbname, loginname, parameters, cache=True, context=None):
 
 def logout(dbname, user, session, context=None):
     for count in range(config.getint('database', 'retry'), -1, -1):
-        with Transaction().start(dbname, 0, context=context):
+        with tx.transaction.start(dbname, 0, context=context):
             pool = _get_pool(dbname)
             Session = pool.get('ir.session')
             try:
@@ -99,7 +98,7 @@ def reset_password(dbname, user, context=None):
     # Prevent guessing code execution path
     time.sleep(random.random())
     for count in range(config.getint('database', 'retry'), -1, -1):
-        with Transaction().start(dbname, 0, context=context):
+        with tx.transaction.start(dbname, 0, context=context):
             pool = _get_pool(dbname)
             User = pool.get('res.user')
             try:
@@ -130,7 +129,7 @@ def check(dbname, user, session, context=None):
     database_list = Pool.database_list()
     if dbname in database_list:
         for count in range(config.getint('database', 'retry'), -1, -1):
-            with Transaction().start(dbname, user, context=context) \
+            with tx.transaction.start(dbname, user, context=context) \
                     as transaction:
                 pool = Pool(dbname)
                 Session = pool.get('ir.session')
@@ -193,7 +192,8 @@ def check(dbname, user, session, context=None):
 
 def check_timeout(dbname, user, session, context=None):
     for count in range(config.getint('database', 'retry'), -1, -1):
-        with Transaction().start(dbname, user, context=context) as transaction:
+        with tx.transaction.start(dbname, user, context=context) \
+                as transaction:
             pool = _get_pool(dbname)
             Session = pool.get('ir.session')
             try:
@@ -213,7 +213,7 @@ def check_timeout(dbname, user, session, context=None):
 
 def reset(dbname, session, context):
     try:
-        with Transaction().start(dbname, 0, context=context, autocommit=True):
+        with tx.transaction.start(dbname, 0, context=context, autocommit=True):
             pool = _get_pool(dbname)
             Session = pool.get('ir.session')
             Session.reset(session)

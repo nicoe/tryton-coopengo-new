@@ -6,14 +6,13 @@ from sql import For, Literal, Null
 from sql.aggregate import Sum
 from sql.conditionals import Case, Coalesce
 
-from trytond import backend
+from trytond import backend, tx
 from trytond.i18n import gettext
 from trytond.model import fields
 from trytond.modules.currency.fields import Monetary
 from trytond.modules.party.exceptions import EraseError
-from trytond.pool import Pool, PoolMeta
+from trytond.pool import PoolMeta
 from trytond.tools import sqlite_apply_types
-from trytond.transaction import Transaction
 
 
 class Party(metaclass=PoolMeta):
@@ -25,12 +24,12 @@ class Party(metaclass=PoolMeta):
 
     @classmethod
     def get_deposit(cls, parties, name):
-        pool = Pool()
+        pool = tx.pool
         MoveLine = pool.get('account.move.line')
         Account = pool.get('account.account')
         AccountType = pool.get('account.account.type')
         User = pool.get('res.user')
-        cursor = Transaction().connection.cursor()
+        cursor = tx.transaction.connection.cursor()
 
         line = MoveLine.__table__()
         account = Account.__table__()
@@ -38,7 +37,7 @@ class Party(metaclass=PoolMeta):
 
         values = {p.id: Decimal(0) for p in parties}
 
-        user = User(Transaction().user)
+        user = User(tx.transaction.user)
         if not user.company:
             return values
         currency = user.company.currency
@@ -68,7 +67,7 @@ class Party(metaclass=PoolMeta):
 
     @classmethod
     def search_deposit(cls, name, clause):
-        pool = Pool()
+        pool = tx.pool
         MoveLine = pool.get('account.move.line')
         Account = pool.get('account.account')
         AccountType = pool.get('account.account.type')
@@ -78,7 +77,7 @@ class Party(metaclass=PoolMeta):
         account = Account.__table__()
         account_type = AccountType.__table__()
 
-        user = User(Transaction().user)
+        user = User(tx.transaction.user)
         if not user.company:
             return []
 
@@ -104,9 +103,9 @@ class Party(metaclass=PoolMeta):
 
     def get_deposit_balance(self, deposit_account, currency=None):
         'Return the deposit account balance (debit - credit) for the party'
-        pool = Pool()
+        pool = tx.pool
         MoveLine = pool.get('account.move.line')
-        transaction = Transaction()
+        transaction = tx.transaction
         cursor = transaction.connection.cursor()
 
         line = MoveLine.__table__()

@@ -3,9 +3,9 @@
 from sql import Literal, Null
 from sql.operators import Concat
 
+from trytond import tx
 from trytond.model import fields
-from trytond.pool import Pool, PoolMeta
-from trytond.transaction import Transaction
+from trytond.pool import PoolMeta
 
 
 class Address(metaclass=PoolMeta):
@@ -17,10 +17,10 @@ class Address(metaclass=PoolMeta):
 
     @classmethod
     def __register__(cls, module):
-        pool = Pool()
+        pool = tx.pool
         Party = pool.get('party.party')
         Identifier = pool.get('party.identifier')
-        cursor = Transaction().connection.cursor()
+        cursor = tx.transaction.connection.cursor()
         party = Party.__table__()
         address = cls.__table__()
         identifier = Identifier.__table__()

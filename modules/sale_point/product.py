@@ -1,10 +1,11 @@
 # This file is part of Tryton.  The COPYRIGHT file at the top level of
 # this repository contains the full copyright notices and license terms.
+from trytond import tx
 from trytond.model import ModelSQL, fields
 from trytond.modules.company.model import CompanyValueMixin
 from trytond.modules.product import (
     copy_product_filtered, copy_template_filtered, price_digits, round_price)
-from trytond.pool import Pool, PoolMeta
+from trytond.pool import PoolMeta
 from trytond.pyson import Eval
 
 
@@ -15,7 +16,7 @@ class _GrossPriceMixin:
         'gross_price', 'account_category', '_parent_account_category.id',
         methods=['customer_taxes_used'])
     def on_change_gross_price(self):
-        pool = Pool()
+        pool = tx.pool
         Date = pool.get('ir.date')
         Tax = pool.get('account.tax')
         if self.gross_price is None or not self.account_category:
@@ -43,7 +44,7 @@ class Template(
 
     @classmethod
     def multivalue_model(cls, field):
-        pool = Pool()
+        pool = tx.pool
         if field == 'gross_price':
             return pool.get('product.gross_price')
         return super().multivalue_model(field)
@@ -70,7 +71,7 @@ class Product(
 
     @classmethod
     def multivalue_model(cls, field):
-        pool = Pool()
+        pool = tx.pool
         if field == 'gross_price':
             return pool.get('product.gross_price')
         return super().multivalue_model(field)

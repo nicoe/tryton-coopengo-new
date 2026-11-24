@@ -1,5 +1,6 @@
 # This file is part of Tryton.  The COPYRIGHT file at the top level of
 # this repository contains the full copyright notices and license terms.
+from trytond import tx
 from trytond.model import ModelSQL, MultiValueMixin, ValueMixin, fields
 from trytond.pool import Pool
 
@@ -27,7 +28,7 @@ class ModelMultiValue(ModelSQL, MultiValueMixin):
 
     @classmethod
     def multivalue_model(cls, field):
-        pool = Pool()
+        pool = tx.pool
         multivalue_fields = {
             'value',
             'value_default',

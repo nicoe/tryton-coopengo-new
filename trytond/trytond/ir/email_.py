@@ -9,10 +9,10 @@ from email.utils import getaddresses
 from genshi.template import TextTemplate
 
 import trytond.config as config
+from trytond import tx
 from trytond.i18n import gettext
 from trytond.model import EvalEnvironment, ModelSQL, ModelView, fields
 from trytond.model.exceptions import AccessError, ValidationError
-from trytond.pool import Pool
 from trytond.pyson import Bool, Eval, PYSONDecoder
 from trytond.report import Report, html_to_text
 from trytond.rpc import RPC
@@ -21,7 +21,6 @@ from trytond.tools import escape_wildcard, slugify
 from trytond.tools.email_ import (
     convert_ascii_email, format_address, set_from_header)
 from trytond.tools.string_ import StringMatcher
-from trytond.transaction import Transaction
 
 from .resource import ResourceAccessMixin
 
@@ -86,11 +85,11 @@ class Email(ResourceAccessMixin, ModelSQL, ModelView):
     @classmethod
     def send(cls, to='', cc='', bcc='', subject='', body='',
             files=None, record=None, reports=None, attachments=None):
-        pool = Pool()
+        pool = tx.pool
         User = pool.get('res.user')
         ActionReport = pool.get('ir.action.report')
         Attachment = pool.get('ir.attachment')
-        transaction = Transaction()
+        transaction = tx.transaction
         user = User(transaction.user)
 
         Model = pool.get(record[0])
@@ -199,7 +198,7 @@ class Email(ResourceAccessMixin, ModelSQL, ModelView):
 
     @classmethod
     def _match(cls, name, email):
-        pool = Pool()
+        pool = tx.pool
         User = pool.get('res.user')
         domain = ['OR']
         for field in ['name', 'login', 'email']:
@@ -398,7 +397,7 @@ class EmailTemplate(ModelSQL, ModelView):
                             ))
 
     def get(self, record):
-        pool = Pool()
+        pool = tx.pool
         Model = pool.get(self.model.name)
         record = Model(int(record))
 
@@ -445,11 +444,11 @@ class EmailTemplate(ModelSQL, ModelView):
         return values
 
     def get_context(self, record):
-        pool = Pool()
+        pool = tx.pool
         User = pool.get('res.user')
         return {
-            'context': Transaction().context,
-            'user': User(Transaction().user),
+            'context': tx.transaction.context,
+            'user': User(tx.transaction.user),
             'record': record,
             'format_date': Report.format_date,
             'format_datetime': Report.format_datetime,
@@ -464,7 +463,7 @@ class EmailTemplate(ModelSQL, ModelView):
             env = {}
         else:
             env = _env.copy()
-        env['context'] = Transaction().context
+        env['context'] = tx.transaction.context
         env['self'] = EvalEnvironment(record, record.__class__)
         return PYSONDecoder(env).decode(pyson)
 
@@ -474,7 +473,7 @@ class EmailTemplate(ModelSQL, ModelView):
 
     @classmethod
     def get_default(cls, model, record):
-        pool = Pool()
+        pool = tx.pool
         Field = pool.get('ir.model.field')
         Model = pool.get(model)
         record = Model(int(record))
@@ -527,7 +526,7 @@ class EmailTemplate(ModelSQL, ModelView):
 
     @classmethod
     def _get_address(cls, record):
-        pool = Pool()
+        pool = tx.pool
         User = pool.get('res.user')
         if isinstance(record, str):
             return (None, record)
@@ -536,7 +535,7 @@ class EmailTemplate(ModelSQL, ModelView):
 
     @classmethod
     def get_languages(cls, value):
-        pool = Pool()
+        pool = tx.pool
         Configuration = pool.get('ir.configuration')
         Lang = pool.get('ir.lang')
         if isinstance(value, (list, tuple)):
@@ -552,7 +551,7 @@ class EmailTemplate(ModelSQL, ModelView):
 
     @classmethod
     def _get_language(cls, record):
-        pool = Pool()
+        pool = tx.pool
         User = pool.get('res.user')
         if isinstance(record, User) and record.language:
             return record.language

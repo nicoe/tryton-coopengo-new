@@ -8,9 +8,9 @@ from sql import Null
 from sql.aggregate import Sum
 from sql.conditionals import Coalesce
 
+from trytond import tx
 from trytond.model import fields
-from trytond.pool import Pool, PoolMeta
-from trytond.transaction import Transaction
+from trytond.pool import PoolMeta
 
 
 class Production(metaclass=PoolMeta):
@@ -27,7 +27,7 @@ class Production(metaclass=PoolMeta):
 
     @classmethod
     def get_ethanol_volume(cls, productions, name):
-        pool = Pool()
+        pool = tx.pool
         Configuration = pool.get('stock.configuration')
         configuration = Configuration(1)
         UoM = pool.get('product.uom')
@@ -35,7 +35,7 @@ class Production(metaclass=PoolMeta):
         Move = pool.get('stock.move')
 
         move = Move.__table__()
-        cursor = Transaction().connection.cursor()
+        cursor = tx.transaction.connection.cursor()
 
         liter = UoM(ModelData.get_id('product', 'uom_liter'))
         production = Coalesce(move.production_input, move.production_output)
@@ -69,7 +69,7 @@ class Production(metaclass=PoolMeta):
 
     @classmethod
     def get_ethanol_volume_unit(cls, productions, name):
-        pool = Pool()
+        pool = tx.pool
         Configuration = pool.get('stock.configuration')
         configuration = Configuration(1)
         units = {}

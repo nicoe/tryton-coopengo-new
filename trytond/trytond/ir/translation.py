@@ -18,16 +18,15 @@ from sql.functions import CharLength, Position, Substring
 from sql.operators import Concat
 
 import trytond.config as config
+from trytond import tx
 from trytond.cache import Cache
 from trytond.exceptions import UserError
 from trytond.i18n import gettext
 from trytond.model import Index, ModelSQL, ModelView, fields
-from trytond.pool import Pool
 from trytond.pyson import Eval, PYSONEncoder
 from trytond.tools import cursor_dict, file_open
 from trytond.tools.string_ import LazyString, StringPartitioned
-from trytond.transaction import (
-    Transaction, inactive_records, without_check_access)
+from trytond.transaction import inactive_records, without_check_access
 from trytond.wizard import (
     Button, StateAction, StateTransition, StateView, Wizard)
 
@@ -161,7 +160,7 @@ class Translation(
             table.drop_column('src_md5')
 
         # Migration from 7.2
-        cursor = Transaction().connection.cursor()
+        cursor = tx.transaction.connection.cursor()
         ir_translation = cls.__table__()
         cursor.execute(*ir_translation.update(
                 [ir_translation.res_id], [Null],
@@ -171,7 +170,7 @@ class Translation(
 
     @classmethod
     def register_model(cls, model, module_name):
-        cursor = Transaction().connection.cursor()
+        cursor = tx.transaction.connection.cursor()
         ir_translation = cls.__table__()
 
         name = model.__name__ + ',string'
@@ -209,7 +208,7 @@ class Translation(
 
     @classmethod
     def register_fields(cls, model, module_name):
-        cursor = Transaction().connection.cursor()
+        cursor = tx.transaction.connection.cursor()
         ir_translation = cls.__table__()
 
         # Prefetch field translations
@@ -265,7 +264,7 @@ class Translation(
 
     @classmethod
     def register_wizard(cls, wizard, module_name):
-        cursor = Transaction().connection.cursor()
+        cursor = tx.transaction.connection.cursor()
         ir_translation = cls.__table__()
 
         # Prefetch button translations
@@ -326,7 +325,7 @@ class Translation(
 
     @classmethod
     def domain_model_ref(cls, clause, tables):
-        pool = Pool()
+        pool = tx.pool
         IrModel = pool.get('ir.model')
         table, _ = tables[None]
         if 'model_ref' not in tables:
@@ -366,7 +365,7 @@ class Translation(
 
     @classmethod
     def domain_field_ref(cls, clause, tables):
-        pool = Pool()
+        pool = tx.pool
         Field = pool.get('ir.model.field')
         table, _ = tables[None]
         if 'field_ref' not in tables:
@@ -401,11 +400,11 @@ class Translation(
 
     @classmethod
     def get_language(cls):
-        language = Transaction().language
+        language = tx.transaction.language
         result = cls._get_language_cache.get(language)
         if result is not None:
             return result
-        pool = Pool()
+        pool = tx.pool
         Lang = pool.get('ir.lang')
         langs = Lang.search([])
         result = [(lang.code, lang.name) for lang in langs]
@@ -425,10 +424,10 @@ class Translation(
     @without_check_access
     def get_ids(cls, name, ttype, lang, ids, cached_after=None):
         "Return translation for each id"
-        pool = Pool()
+        pool = tx.pool
         ModelFields = pool.get('ir.model.field')
         Model = pool.get('ir.model')
-        context = Transaction().context
+        context = tx.transaction.context
         fuzzy_translation = context.get('fuzzy_translation', False)
 
         translations, to_fetch = {}, []
@@ -463,7 +462,7 @@ class Translation(
                     name = record.name + ',' + field_name
                 translations[record.id] = cls.get_source(name, ttype, lang)
                 if translations[record.id] is None:
-                    with Transaction().set_context(language=lang):
+                    with tx.transaction.set_context(language=lang):
                         if ttype in {'field', 'help'}:
                             try:
                                 field = getattr(
@@ -534,7 +533,7 @@ class Translation(
     @without_check_access
     def set_ids(cls, name, ttype, lang, ids, values):
         "Set translation for each id"
-        pool = Pool()
+        pool = tx.pool
         ModelFields = pool.get('ir.model.field')
         Model = pool.get('ir.model')
         Config = pool.get('ir.configuration')
@@ -546,11 +545,11 @@ class Translation(
                     ttype = 'field'
                 else:
                     ttype = 'help'
-                with Transaction().set_context(language=INTERNAL_LANG):
+                with tx.transaction.set_context(language=INTERNAL_LANG):
                     records = ModelFields.browse(ids)
             else:
                 ttype = 'model'
-                with Transaction().set_context(language=INTERNAL_LANG):
+                with tx.transaction.set_context(language=INTERNAL_LANG):
                     records = Model.browse(ids)
 
             def get_name(record):
@@ -596,7 +595,7 @@ class Translation(
             return
 
         Model = pool.get(model_name)
-        with Transaction().set_context(language=Config.get_language()):
+        with tx.transaction.set_context(language=Config.get_language()):
             records = Model.browse(ids)
 
         id2translations = defaultdict(list)
@@ -610,7 +609,7 @@ class Translation(
             id2translations[translation.res_id].append(translation)
 
         if (lang == Config.get_language()
-                and Transaction().context.get('fuzzy_translation', True)):
+                and tx.transaction.context.get('fuzzy_translation', True)):
             for translation in cls.search([
                         ('lang', '!=', lang),
                         ('type', '=', ttype),
@@ -737,9 +736,9 @@ class Translation(
 
     @classmethod
     def get_report(cls, report_name, text, text_plural=None, n=0):
-        pool = Pool()
+        pool = tx.pool
         Lang = pool.get('ir.lang')
-        language = Transaction().language
+        language = tx.transaction.language
         lang = Lang.get(language)
         key = (report_name, language)
         if cls._translation_report_cache.get(key) is None:
@@ -784,7 +783,7 @@ class Translation(
 
     @classmethod
     def preprocess_values(cls, mode, values):
-        context = Transaction().context
+        context = tx.transaction.context
         values = super().preprocess_values(mode, values)
         if mode == 'create' and not values.get('module'):
             values['module'] = context.get('module')
@@ -805,7 +804,7 @@ class Translation(
 
     @classmethod
     def _clear_cache_for(cls, types, models):
-        pool = Pool()
+        pool = tx.pool
         if 'model' in types and 'ir.message' in models:
             pool.get('ir.message')._message_cache.clear()
         if 'field' in types and 'ir.model' in models:
@@ -869,7 +868,7 @@ class Translation(
 
     @classmethod
     def translation_import(cls, lang, module, po_path):
-        pool = Pool()
+        pool = tx.pool
         ModelData = pool.get('ir.model.data')
         if isinstance(po_path, str):
             po_path = [po_path]
@@ -914,7 +913,7 @@ class Translation(
                 res_id = model_data.db_id
             else:
                 res_id = None
-            with Transaction().set_context(module=res_id_module):
+            with tx.transaction.set_context(module=res_id_module):
                 domain = [
                     ('name', '=', new_translation.name),
                     ('res_id', '=', res_id),
@@ -1040,7 +1039,7 @@ class Translation(
 
     @classmethod
     def translation_export(cls, lang, module):
-        pool = Pool()
+        pool = tx.pool
         ModelData = pool.get('ir.model.data')
         Config = pool.get('ir.configuration')
 
@@ -1060,7 +1059,7 @@ class Translation(
             'Content-Type': 'text/plain; charset=utf-8',
             }
 
-        with Transaction().set_context(language=Config.get_language()):
+        with tx.transaction.set_context(language=Config.get_language()):
             translations = cls.search([
                 ('lang', '=', lang),
                 ('module', '=', module),
@@ -1208,7 +1207,7 @@ class TranslationSet(Wizard):
 
     @inactive_records
     def set_report(self):
-        pool = Pool()
+        pool = tx.pool
         Report = pool.get('ir.action.report')
         Translation = pool.get('ir.translation')
 
@@ -1219,7 +1218,7 @@ class TranslationSet(Wizard):
         else:
             return
 
-        cursor = Transaction().connection.cursor()
+        cursor = tx.transaction.connection.cursor()
         translation = Translation.__table__()
         report_strings = defaultdict(set)
         for report in reports:
@@ -1301,7 +1300,7 @@ class TranslationSet(Wizard):
 
     @inactive_records
     def set_view(self):
-        pool = Pool()
+        pool = tx.pool
         View = pool.get('ir.ui.view')
         Translation = pool.get('ir.translation')
 
@@ -1312,7 +1311,7 @@ class TranslationSet(Wizard):
         else:
             return
 
-        cursor = Transaction().connection.cursor()
+        cursor = tx.transaction.connection.cursor()
         translation = Translation.__table__()
         for view in views:
             cursor.execute(*translation.select(
@@ -1369,7 +1368,7 @@ class TranslationSet(Wizard):
                         & ~translation.src.in_(strings)))
 
     def transition_set_(self):
-        pool = Pool()
+        pool = tx.pool
         Config = pool.get('ir.configuration')
         default_lang = Config.get_language()
         if default_lang != INTERNAL_LANG:
@@ -1404,7 +1403,7 @@ class TranslationClean(Wizard):
 
     @staticmethod
     def _clean_field(translation):
-        pool = Pool()
+        pool = tx.pool
         try:
             model_name, field_name = translation.name.split(',', 1)
         except ValueError:
@@ -1421,7 +1420,7 @@ class TranslationClean(Wizard):
 
     @staticmethod
     def _clean_model(translation):
-        pool = Pool()
+        pool = tx.pool
         try:
             model_name, field_name = translation.name.split(',', 1)
         except ValueError:
@@ -1443,7 +1442,7 @@ class TranslationClean(Wizard):
     @staticmethod
     @inactive_records
     def _clean_report(translation):
-        pool = Pool()
+        pool = tx.pool
         Report = pool.get('ir.action.report')
         if not Report.search([
                     ('report_name', '=', translation.name),
@@ -1453,7 +1452,7 @@ class TranslationClean(Wizard):
 
     @staticmethod
     def _clean_selection(translation):
-        pool = Pool()
+        pool = tx.pool
         try:
             model_name, field_name = translation.name.split(',', 1)
         except ValueError:
@@ -1475,7 +1474,7 @@ class TranslationClean(Wizard):
 
     @staticmethod
     def _clean_view(translation):
-        pool = Pool()
+        pool = tx.pool
         model_name = translation.name
         try:
             pool.get(model_name)
@@ -1484,7 +1483,7 @@ class TranslationClean(Wizard):
 
     @staticmethod
     def _clean_wizard_button(translation):
-        pool = Pool()
+        pool = tx.pool
         try:
             wizard_name, state_name, button_name = \
                 translation.name.split(',', 2)
@@ -1505,7 +1504,7 @@ class TranslationClean(Wizard):
 
     @staticmethod
     def _clean_help(translation):
-        pool = Pool()
+        pool = tx.pool
         try:
             model_name, field_name = translation.name.split(',', 1)
         except ValueError:
@@ -1528,7 +1527,7 @@ class TranslationClean(Wizard):
             return True
 
     def transition_clean(self):
-        pool = Pool()
+        pool = tx.pool
         Translation = pool.get('ir.translation')
         ModelData = pool.get('ir.model.data')
 
@@ -1579,8 +1578,8 @@ class TranslationUpdateStart(ModelView):
 
     @staticmethod
     def default_language():
-        Lang = Pool().get('ir.lang')
-        code = Transaction().context.get('language')
+        Lang = tx.pool.get('ir.lang')
+        code = tx.transaction.context.get('language')
         try:
             lang, = Lang.search([
                     ('code', '=', code),
@@ -1610,13 +1609,13 @@ class TranslationUpdate(Wizard):
         return 'end'
 
     def do_update(self, action):
-        pool = Pool()
+        pool = tx.pool
         Config = pool.get('ir.configuration')
         Translation = pool.get('ir.translation')
         Report = pool.get('ir.action.report')
         View = pool.get('ir.ui.view')
-        cursor = Transaction().connection.cursor()
-        cursor_update = Transaction().connection.cursor()
+        cursor = tx.transaction.connection.cursor()
+        cursor_update = tx.transaction.connection.cursor()
         translation = Translation.__table__()
         lang = self.start.language.code
         parent_lang = get_parent(lang)
@@ -1804,8 +1803,8 @@ class TranslationExportStart(ModelView):
 
     @classmethod
     def default_language(cls):
-        Lang = Pool().get('ir.lang')
-        code = Transaction().context.get('language')
+        Lang = tx.pool.get('ir.lang')
+        code = tx.transaction.context.get('language')
         domain = [('code', '=', code)] + cls.language.domain
         try:
             lang, = Lang.search(domain, limit=1)
@@ -1838,7 +1837,7 @@ class TranslationExport(Wizard):
             ])
 
     def transition_export(self):
-        pool = Pool()
+        pool = tx.pool
         Translation = pool.get('ir.translation')
         Config = pool.get('ir.configuration')
         default_lang = Config.get_language()
@@ -1867,7 +1866,7 @@ class TranslationReport(Wizard):
     open_ = StateAction('ir.act_translation_report')
 
     def do_open_(self, action):
-        context = Transaction().context
+        context = tx.transaction.context
         reports = self.records
         action['pyson_domain'] = PYSONEncoder().encode([
                 ('type', '=', 'report'),

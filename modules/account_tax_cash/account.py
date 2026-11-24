@@ -6,13 +6,13 @@ from itertools import groupby
 from sql import Literal, Null
 from sql.operators import Equal
 
+from trytond import tx
 from trytond.i18n import gettext
 from trytond.model import (
     Exclude, ModelSQL, ModelView, Workflow, dualmethod, fields)
-from trytond.pool import Pool, PoolMeta
+from trytond.pool import PoolMeta
 from trytond.pyson import Eval
 from trytond.tools import sortable_values
-from trytond.transaction import Transaction
 
 from .exceptions import ClosePeriodWarning
 
@@ -51,7 +51,7 @@ class Period(metaclass=PoolMeta):
     @ModelView.button
     @Workflow.transition('closed')
     def close(cls, periods):
-        pool = Pool()
+        pool = tx.pool
         MoveLine = pool.get('account.move.line')
         Warning = pool.get('res.user.warning')
         super().close(periods)
@@ -99,7 +99,7 @@ class Tax(metaclass=PoolMeta):
 
     @classmethod
     def _amount_where(cls, tax_line, move_line, move):
-        context = Transaction().context
+        context = tx.transaction.context
         periods = context.get('periods', [])
         where = super()._amount_where(tax_line, move_line, move)
         return ((where
@@ -110,7 +110,7 @@ class Tax(metaclass=PoolMeta):
 
     @classmethod
     def _amount_domain(cls):
-        context = Transaction().context
+        context = tx.transaction.context
         periods = context.get('periods', [])
         domain = super()._amount_domain()
         return ['OR',
@@ -214,7 +214,7 @@ class Move(metaclass=PoolMeta):
     @dualmethod
     @ModelView.button
     def post(cls, moves):
-        pool = Pool()
+        pool = tx.pool
         TaxLine = pool.get('account.tax.line')
         super().post(moves)
 
@@ -302,7 +302,7 @@ class Invoice(metaclass=PoolMeta):
 
     @classmethod
     def _update_tax_cash_basis(cls, invoices):
-        pool = Pool()
+        pool = tx.pool
         TaxLine = pool.get('account.tax.line')
         Date = pool.get('ir.date')
         Period = pool.get('account.period')
@@ -315,8 +315,8 @@ class Invoice(metaclass=PoolMeta):
             if not invoice.move:
                 continue
             if invoice.company not in periods:
-                with Transaction().set_context(company=invoice.company.id):
-                    date = Transaction().context.get(
+                with tx.transaction.set_context(company=invoice.company.id):
+                    date = tx.transaction.context.get(
                         'payment_date', Date.today())
                 periods[invoice.company] = Period.find(
                     invoice.company, date=date)
@@ -333,7 +333,7 @@ class InvoiceTax(metaclass=PoolMeta):
 
     @property
     def on_cash_basis(self):
-        pool = Pool()
+        pool = tx.pool
         Period = pool.get('account.period')
         if self.invoice and self.tax:
             if self.tax.group in self.invoice.tax_group_on_cash_basis:

@@ -1,7 +1,8 @@
 # This file is part of Tryton.  The COPYRIGHT file at the top level of
 # this repository contains the full copyright notices and license terms.
+from trytond import tx
 from trytond.model import fields
-from trytond.pool import Pool, PoolMeta
+from trytond.pool import PoolMeta
 
 sale_shipment_grouping_method = fields.Selection(
     'get_sale_shipment_grouping_methods', "Sale Shipment Grouping Method",
@@ -10,7 +11,7 @@ sale_shipment_grouping_method = fields.Selection(
 
 @classmethod
 def get_sale_shipment_grouping_methods(cls):
-    pool = Pool()
+    pool = tx.pool
     Party = pool.get('party.party')
     field_name = 'sale_shipment_grouping_method'
     return Party.fields_get([field_name])[field_name]['selection']
@@ -25,7 +26,7 @@ class Configuration(metaclass=PoolMeta):
 
     @classmethod
     def multivalue_model(cls, field):
-        pool = Pool()
+        pool = tx.pool
         if field == 'sale_shipment_grouping_method':
             return pool.get('sale.configuration.sale_method')
         return super().multivalue_model(field)

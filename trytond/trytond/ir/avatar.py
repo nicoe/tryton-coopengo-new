@@ -14,11 +14,10 @@ except ImportError:
     PIL = None
 
 import trytond.config as config
+from trytond import tx
 from trytond.i18n import gettext
 from trytond.model import ModelSQL, Unique, fields
 from trytond.model.exceptions import SQLConstraintError, ValidationError
-from trytond.pool import Pool
-from trytond.transaction import Transaction
 from trytond.wsgi import Base64Converter
 
 from .resource import ResourceMixin
@@ -92,7 +91,7 @@ class Avatar(ImageMixin, ResourceMixin, ModelSQL):
             return urljoin(
                 url_base, quote('avatar/%(database)s/%(uuid)s' % {
                         'database': Base64Converter(None).to_url(
-                            Transaction().database.name),
+                            tx.transaction.database.name),
                         'uuid': self.uuid,
                         }))
 
@@ -112,7 +111,7 @@ class Avatar(ImageMixin, ResourceMixin, ModelSQL):
         if PIL:
             resized = self._resize(size)
             try:
-                with Transaction().new_transaction():
+                with tx.transaction.new_transaction():
                     cache = self._store_cache(size, resized)
                     # Save cache only if record is already committed
                     if self.__class__.search([('id', '=', self.id)]):
@@ -163,7 +162,7 @@ class Avatar(ImageMixin, ResourceMixin, ModelSQL):
         return data.getvalue()
 
     def _store_cache(self, size, image):
-        pool = Pool()
+        pool = tx.pool
         Cache = pool.get('ir.avatar.cache')
         return Cache(
             avatar=self,
@@ -172,7 +171,7 @@ class Avatar(ImageMixin, ResourceMixin, ModelSQL):
 
     @classmethod
     def clear_cache(cls, avatars):
-        pool = Pool()
+        pool = tx.pool
         Cache = pool.get('ir.avatar.cache')
         caches = [c for a in avatars for c in a.cache]
         Cache.delete(caches)

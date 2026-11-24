@@ -7,14 +7,13 @@ from unittest.mock import Mock, sentinel
 
 from werkzeug.routing import Map, Rule
 
-from trytond import security
+from trytond import security, tx
 from trytond.exceptions import TrytonException
 from trytond.pool import Pool
 from trytond.protocols.wrappers import (
     TRYTON_SESSION_COOKIE, Response, decode_session_cookie,
     encode_session_cookie)
 from trytond.tests.test_tryton import Client, RouteTestCase, TestCase
-from trytond.transaction import Transaction
 from trytond.wsgi import Base64Converter, TrytondWSGI, app
 
 
@@ -147,7 +146,7 @@ class TrytonWSGITestCase(RouteTestCase):
 
     @classmethod
     def setUpDatabase(cls):
-        pool = Pool()
+        pool = tx.pool
         User = pool.get('res.user')
         User.create([{
                     'name': 'user',
@@ -295,8 +294,8 @@ class TrytonWSGITestCase(RouteTestCase):
             TRYTON_SESSION_COOKIE, path=f'/{self.db_name}').value
         _, _, token = session_cookie.rsplit(':', 2)
 
-        with Transaction().start(self.db_name, 0):
-            pool = Pool()
+        with tx.transaction.start(self.db_name, 0):
+            pool = tx.pool
             Session = pool.get('ir.session')
             sessions = Session.search([('key', '=', token)])
             self.assertEqual(len(sessions), 1)
@@ -315,8 +314,8 @@ class TrytonWSGITestCase(RouteTestCase):
 
         self.assertIsNone(
             client.get_cookie(TRYTON_SESSION_COOKIE, path=f'/{self.db_name}'))
-        with Transaction().start(self.db_name, 0):
-            pool = Pool()
+        with tx.transaction.start(self.db_name, 0):
+            pool = tx.pool
             Session = pool.get('ir.session')
             sessions = Session.search([('key', '=', token)])
             self.assertEqual(len(sessions), 0)

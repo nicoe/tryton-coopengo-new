@@ -3,11 +3,11 @@
 from collections import defaultdict
 from itertools import groupby
 
+from trytond import tx
 from trytond.model import ModelView, Workflow, fields
 from trytond.modules.product import round_price
-from trytond.pool import Pool, PoolMeta
+from trytond.pool import PoolMeta
 from trytond.pyson import Eval
-from trytond.transaction import Transaction
 
 
 class Invoice(metaclass=PoolMeta):
@@ -37,7 +37,7 @@ class Invoice(metaclass=PoolMeta):
 
     @classmethod
     def create_commissions(cls, invoices):
-        pool = Pool()
+        pool = tx.pool
         Commission = pool.get('commission')
         all_commissions = []
         for invoice in invoices:
@@ -51,20 +51,22 @@ class Invoice(metaclass=PoolMeta):
 
     @classmethod
     def set_commissions_date(cls, invoices):
-        pool = Pool()
+        pool = tx.pool
         Date = pool.get('ir.date')
         Commission = pool.get('commission')
         InvoiceLine = pool.get('account.invoice.line')
 
         date2commissions = defaultdict(list)
         for company, c_invoices in groupby(invoices, key=lambda i: i.company):
-            with Transaction().set_context(company=company.id):
+            with tx.transaction.set_context(company=company.id):
                 today = Date.today()
             # JMO : Query optimization
             for commission in Commission.search([
                         ('date', '=', None),
-                        ('origin', 'in', [str(x) for x in InvoiceLine.search(
-                                    [('invoice', 'in', map(int, c_invoices))])]),
+                        ('origin', 'in', [str(x)
+                                for x in InvoiceLine.search([
+                                        ('invoice', 'in', map(int, c_invoices))
+                                        ])]),
                         ]):
                 date = commission.origin.invoice.reconciled or today
                 date2commissions[date].append(commission)
@@ -87,7 +89,7 @@ class Invoice(metaclass=PoolMeta):
     def _get_commissions_to_delete(cls, invoices):
         # Declared to be overloaded for performances improvements
         # We should improve or overload the field `reference`
-        Commission = Pool().get('commission')
+        Commission = tx.pool.get('commission')
         return Commission.search([
                 ('invoice_line', '=', None),
                 ('origin.invoice', 'in', map(int, invoices),
@@ -98,7 +100,7 @@ class Invoice(metaclass=PoolMeta):
     def _get_commissions_to_cancel(cls, invoices):
         # Declared to be overloaded for performances improvements
         # We should improve or overload the field `reference`
-        Commission = Pool().get('commission')
+        Commission = tx.pool.get('commission')
         return Commission.search([
                 ('invoice_line', '!=', None),
                 ('origin.invoice', 'in', map(int, invoices),
@@ -113,7 +115,7 @@ class Invoice(metaclass=PoolMeta):
         # a non-optimized query: we temporary created two function to be
         # overloaded
         # Issue: 2913
-        pool = Pool()
+        pool = tx.pool
         Commission = pool.get('commission')
 
         # invoices_to_revert_commission = []
@@ -172,7 +174,7 @@ class InvoiceLine(metaclass=PoolMeta):
         return used
 
     def get_commissions(self):
-        pool = Pool()
+        pool = tx.pool
         Commission = pool.get('commission')
         Currency = pool.get('currency.currency')
         Date = pool.get('ir.date')
@@ -180,13 +182,13 @@ class InvoiceLine(metaclass=PoolMeta):
         if self.type != 'line':
             return []
 
-        with Transaction().set_context(company=self.invoice.company.id):
+        with tx.transaction.set_context(company=self.invoice.company.id):
             today = Date.today()
         commissions = []
         for agent, plan in self.agent_plans_used:
             if not plan:
                 continue
-            with Transaction().set_context(date=self.invoice.currency_date):
+            with tx.transaction.set_context(date=self.invoice.currency_date):
                 base_amount = Currency.compute(self.invoice.currency,
                     self.amount, agent.currency, round=False)
             base_amount = round_price(base_amount)

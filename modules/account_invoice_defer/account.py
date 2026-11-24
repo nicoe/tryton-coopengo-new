@@ -1,14 +1,15 @@
 # This file is part of Tryton.  The COPYRIGHT file at the top level of
 # this repository contains the full copyright notices and license terms.
 
+from trytond import tx
 from trytond.i18n import gettext
 from trytond.model import Index, ModelSQL, ModelView, Unique, Workflow, fields
 from trytond.model.exceptions import AccessError
 from trytond.modules.account.exceptions import AccountMissing
 from trytond.modules.currency.fields import Monetary
-from trytond.pool import Pool, PoolMeta
+from trytond.pool import PoolMeta
 from trytond.pyson import Eval, If
-from trytond.transaction import Transaction, check_access
+from trytond.transaction import check_access
 from trytond.wizard import StateTransition, Wizard
 
 
@@ -30,7 +31,7 @@ class Configuration(metaclass=PoolMeta):
 
     @classmethod
     def multivalue_model(cls, field):
-        pool = Pool()
+        pool = tx.pool
         if field in {'deferred_account_revenue', 'deferred_account_expense'}:
             return pool.get('account.configuration.default_account')
         return super().multivalue_model(field)
@@ -169,7 +170,7 @@ class InvoiceDeferred(Workflow, ModelSQL, ModelView):
 
     @fields.depends('type')
     def set_journal(self, pattern=None):
-        pool = Pool()
+        pool = tx.pool
         Journal = pool.get('account.journal')
         pattern = pattern.copy() if pattern is not None else {}
         pattern.setdefault('type', {
@@ -180,14 +181,14 @@ class InvoiceDeferred(Workflow, ModelSQL, ModelView):
 
     @fields.depends('invoice_line', 'start_date', 'company')
     def on_change_invoice_line(self):
-        pool = Pool()
+        pool = tx.pool
         Currency = pool.get('currency.currency')
         if self.invoice_line:
             if not self.start_date:
                 self.start_date = self.invoice_line.invoice.invoice_date
             invoice = self.invoice_line.invoice
             if self.company and invoice.currency != self.company.currency:
-                with Transaction().set_context(date=invoice.currency_date):
+                with tx.transaction.set_context(date=invoice.currency_date):
                     self.amount = Currency.compute(
                         invoice.currency, self.invoice_line.amount,
                         self.company.currency)
@@ -196,7 +197,7 @@ class InvoiceDeferred(Workflow, ModelSQL, ModelView):
 
     @classmethod
     def default_company(cls):
-        return Transaction().context.get('company')
+        return tx.transaction.context.get('company')
 
     @classmethod
     def default_state(cls):
@@ -210,7 +211,7 @@ class InvoiceDeferred(Workflow, ModelSQL, ModelView):
     @ModelView.button
     @Workflow.transition('running')
     def run(cls, deferrals):
-        pool = Pool()
+        pool = tx.pool
         Period = pool.get('account.period')
         # Ensure it starts at an opened period
         for deferral in deferrals:
@@ -253,7 +254,7 @@ class InvoiceDeferred(Workflow, ModelSQL, ModelView):
 
     @classmethod
     def defer_amount(cls, deferrals):
-        pool = Pool()
+        pool = tx.pool
         Move = pool.get('account.move')
         moves = []
         for deferral in deferrals:
@@ -265,7 +266,7 @@ class InvoiceDeferred(Workflow, ModelSQL, ModelView):
 
     @classmethod
     def create_moves(cls, deferrals, _exclude=None):
-        pool = Pool()
+        pool = tx.pool
         Period = pool.get('account.period')
         Move = pool.get('account.move')
         exclude = set(_exclude or [])
@@ -317,7 +318,7 @@ class InvoiceDeferred(Workflow, ModelSQL, ModelView):
         return balance
 
     def get_move(self, period=None):
-        pool = Pool()
+        pool = tx.pool
         Move = pool.get('account.move')
         Line = pool.get('account.move.line')
         Configuration = pool.get('account.configuration')
@@ -400,7 +401,7 @@ class InvoiceDeferredCreateMoves(Wizard):
     create_moves = StateTransition()
 
     def transition_create_moves(self):
-        pool = Pool()
+        pool = tx.pool
         InvoiceDeferred = pool.get('account.invoice.deferred')
         with check_access():
             deferrals = InvoiceDeferred.search([
@@ -434,7 +435,7 @@ class Period(metaclass=PoolMeta):
         Check if it exists any invoice deferred
         without account move for the period.
         """
-        pool = Pool()
+        pool = tx.pool
         InvoiceDeferred = pool.get('account.invoice.deferred')
         deferrals = InvoiceDeferred.search([
                 ('state', '=', 'running'),
@@ -471,7 +472,7 @@ class Invoice(metaclass=PoolMeta):
 
     @classmethod
     def _post(cls, invoices):
-        pool = Pool()
+        pool = tx.pool
         InvoiceDeferred = pool.get('account.invoice.deferred')
         # defer invoices only the first time post is called
         invoices_to_defer = [i for i in invoices if not i.move]

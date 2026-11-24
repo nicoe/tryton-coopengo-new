@@ -1,8 +1,9 @@
 # This file is part of Tryton.  The COPYRIGHT file at the top level of
 # this repository contains the full copyright notices and license terms.
+from trytond import tx
 from trytond.model import fields
 from trytond.modules.analytic_account import AnalyticMixin
-from trytond.pool import Pool, PoolMeta
+from trytond.pool import PoolMeta
 from trytond.pyson import Eval
 
 
@@ -21,7 +22,7 @@ class PurchaseLine(AnalyticMixin, metaclass=PoolMeta):
             }
 
     def get_invoice_line(self):
-        pool = Pool()
+        pool = tx.pool
         AnalyticAccountEntry = pool.get('analytic.account.entry')
 
         invoice_lines = super().get_invoice_line()
@@ -44,7 +45,7 @@ class AnalyticAccountEntry(metaclass=PoolMeta):
 
     @fields.depends('origin')
     def on_change_with_company(self, name=None):
-        pool = Pool()
+        pool = tx.pool
         PurchaseLine = pool.get('purchase.line')
         company = super().on_change_with_company(name)
         if isinstance(self.origin, PurchaseLine) and self.origin.purchase:
@@ -63,7 +64,7 @@ class AnalyticAccountEntry(metaclass=PoolMeta):
 
     @fields.depends('origin')
     def on_change_with_editable(self, name=None):
-        pool = Pool()
+        pool = tx.pool
         PurchaseLine = pool.get('purchase.line')
         editable = super().on_change_with_editable(name=name)
         if isinstance(self.origin, PurchaseLine):

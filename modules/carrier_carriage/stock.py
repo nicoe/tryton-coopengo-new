@@ -1,12 +1,13 @@
 # This file is part of Tryton.  The COPYRIGHT file at the top level of
 # this repository contains the full copyright notices and license terms.
 
+from trytond import tx
 from trytond.i18n import gettext
 from trytond.model import (
     ModelSQL, ModelView, Workflow, fields, sequence_ordered)
 from trytond.model.exceptions import AccessError
 from trytond.modules.stock_shipment_cost import ShipmentCostMixin
-from trytond.pool import Pool, PoolMeta
+from trytond.pool import PoolMeta
 from trytond.pyson import Eval
 
 try:
@@ -54,7 +55,7 @@ class Carriage(sequence_ordered(), ShipmentCostMixin, ModelSQL, ModelView):
 
     @classmethod
     def get_shipments(cls):
-        pool = Pool()
+        pool = tx.pool
         IrModel = pool.get('ir.model')
         get_name = IrModel.get_name
         models = cls._get_shipments()
@@ -69,7 +70,7 @@ class Carriage(sequence_ordered(), ShipmentCostMixin, ModelSQL, ModelView):
 
     @fields.depends('shipment')
     def on_change_with_shipment_cost_readonly(self, name=None):
-        pool = Pool()
+        pool = tx.pool
         ShipmentOut = pool.get('stock.shipment.out')
         ShipmentOutReturn = pool.get('stock.shipment.out.return')
         if isinstance(self.shipment, (ShipmentOut, ShipmentOutReturn)):
@@ -130,7 +131,7 @@ class _ShipmentMixin:
 
     @classmethod
     def on_delete(cls, shipments):
-        pool = Pool()
+        pool = tx.pool
         Carriage = pool.get('stock.shipment.carriage')
         callback = super().on_delete(shipments)
         carriages = sum((s.carriages for s in shipments), ())
@@ -163,7 +164,7 @@ class Carriage_Sale(ShipmentCostSaleMixin, metaclass=PoolMeta):
 
     @fields.depends('shipment')
     def on_change_with_shipment_cost_sale_readonly(self, name=None):
-        pool = Pool()
+        pool = tx.pool
         ShipmentOut = pool.get('stock.shipment.out')
         if isinstance(self.shipment, ShipmentOut):
             return self.shipment.shipment_cost_readonly
@@ -197,7 +198,7 @@ class _ShipmentOutMixin(_ShipmentMixin):
     @ModelView.button
     @Workflow.transition('done')
     def do(cls, shipments):
-        pool = Pool()
+        pool = tx.pool
         Carriage = pool.get('stock.shipment.carriage')
         has_cost_sale = hasattr(Carriage, 'cost_sale')
         carriages = []
@@ -231,7 +232,7 @@ class Carriage_Purchase(metaclass=PoolMeta):
 
     @fields.depends('shipment')
     def on_change_with_shipment_cost_readonly(self, name=None):
-        pool = Pool()
+        pool = tx.pool
         ShipmentIn = pool.get('stock.shipment.in')
         readonly = super().on_change_with_shipment_cost_readonly(name=name)
         if isinstance(self.shipment, ShipmentIn):
@@ -246,7 +247,7 @@ class ShipmentIn(_ShipmentMixin, metaclass=PoolMeta):
     @ModelView.button
     @Workflow.transition('received')
     def receive(cls, shipments):
-        pool = Pool()
+        pool = tx.pool
         Carriage = pool.get('stock.shipment.carriage')
         carriages = []
         for shipment in shipments:

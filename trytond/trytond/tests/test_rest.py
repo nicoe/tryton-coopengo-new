@@ -10,7 +10,7 @@ try:
 except ImportError:
     from http import client as HTTPStatus
 
-from trytond.pool import Pool
+from trytond import tx
 from trytond.tests.test_tryton import RouteTestCase
 
 
@@ -27,7 +27,7 @@ class RESTTestCase(RouteTestCase):
 
     @classmethod
     def setUpDatabase(cls):
-        pool = Pool()
+        pool = tx.pool
         User = pool.get('res.user')
         UserApplication = pool.get('res.user.application')
         admin, = User.search([('login', '=', 'admin')])

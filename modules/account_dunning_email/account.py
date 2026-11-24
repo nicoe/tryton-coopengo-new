@@ -2,13 +2,13 @@
 # this repository contains the full copyright notices and license terms.
 
 import trytond.config as config
+from trytond import tx
 from trytond.model import fields
-from trytond.pool import Pool, PoolMeta
+from trytond.pool import PoolMeta
 from trytond.pyson import Bool, Eval
 from trytond.report import get_email
 from trytond.sendmail import SMTPDataManager, send_message_transactional
 from trytond.tools.email_ import format_address, has_rcpt, set_from_header
-from trytond.transaction import Transaction
 from trytond.wizard import StateTransition
 
 
@@ -51,7 +51,7 @@ class DunningLevel(metaclass=PoolMeta):
 
     @classmethod
     def default_email_template(cls):
-        pool = Pool()
+        pool = tx.pool
         Data = pool.get('ir.model.data')
         try:
             return Data.get_id('account_dunning_email', 'report_email')
@@ -60,7 +60,7 @@ class DunningLevel(metaclass=PoolMeta):
 
     @classmethod
     def get_contact_mechanisms(cls):
-        pool = Pool()
+        pool = tx.pool
         ContactMechanism = pool.get('party.contact_mechanism')
         return ContactMechanism.usages()
 
@@ -83,11 +83,11 @@ class ProcessDunning(metaclass=PoolMeta):
         cls._actions.append('send_email')
 
     def transition_send_email(self):
-        pool = Pool()
+        pool = tx.pool
         Email = pool.get('ir.email')
         datamanager = SMTPDataManager()
         if not pool.test:
-            Transaction().join(datamanager)
+            tx.transaction.join(datamanager)
         emails = []
         for dunning in self.records:
             if dunning.level.send_email:
@@ -103,7 +103,7 @@ class Dunning(metaclass=PoolMeta):
     __name__ = 'account.dunning'
 
     def send_email(self, datamanager=None):
-        pool = Pool()
+        pool = tx.pool
         Configuration = pool.get('ir.configuration')
         AccountConfig = pool.get('account.configuration')
         Lang = pool.get('ir.lang')
@@ -144,7 +144,7 @@ class Dunning(metaclass=PoolMeta):
         msg, title = get_email(self.level.email_template, self, languages)
         language = list(languages)[-1]
         from_ = sender
-        with Transaction().set_context(language=language.code):
+        with tx.transaction.set_context(language=language.code):
             dunning = self.__class__(self.id)
             if dunning.level.email_from:
                 from_ = dunning.level.email_from

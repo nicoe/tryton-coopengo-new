@@ -1,9 +1,9 @@
 # This file is part of Tryton.  The COPYRIGHT file at the top level of
 # this repository contains the full copyright notices and license terms.
 
+from trytond import tx
 from trytond.model import DeactivableMixin, ModelSQL, ModelStorage, fields
 from trytond.pool import Pool
-from trytond.transaction import Transaction
 
 
 class Many2OneTarget(DeactivableMixin, ModelSQL):
@@ -76,7 +76,7 @@ class Many2OneTargetContext(ModelSQL):
     context = fields.Function(fields.Char("context"), 'get_context')
 
     def get_context(self, name):
-        context = Transaction().context
+        context = tx.transaction.context
         return context.get('test')
 
 

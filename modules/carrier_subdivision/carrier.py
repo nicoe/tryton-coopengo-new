@@ -2,8 +2,9 @@
 # this repository contains the full copyright notices and license terms.
 import re
 
+from trytond import tx
 from trytond.model import fields
-from trytond.pool import Pool, PoolMeta
+from trytond.pool import PoolMeta
 from trytond.pyson import Eval
 
 
@@ -42,7 +43,7 @@ class Selection(metaclass=PoolMeta):
         "Leave empty to allow delivery to any postal code.")
 
     def match(self, pattern, match_none=False):
-        pool = Pool()
+        pool = tx.pool
         Subdivision = pool.get('country.subdivision')
 
         def parents(subdivision):

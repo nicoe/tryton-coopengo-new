@@ -1,8 +1,9 @@
 # This file is part of Tryton.  The COPYRIGHT file at the top level of
 # this repository contains the full copyright notices and license terms.
+from trytond import tx
 from trytond.i18n import gettext
 from trytond.model import fields
-from trytond.pool import Pool, PoolMeta
+from trytond.pool import PoolMeta
 from trytond.pyson import Eval
 
 from .exceptions import PartyIdentificationdError
@@ -31,7 +32,7 @@ class Party(metaclass=PoolMeta):
                 return identifier.code_compact
 
     def get_sepa_identifier(self, name):
-        pool = Pool()
+        pool = tx.pool
         Identifier = pool.get('party.identifier')
         for identifier in self.identifiers:
             if identifier.type == name:

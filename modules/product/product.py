@@ -12,6 +12,7 @@ from sql.conditionals import Coalesce
 from sql.functions import CharLength
 from sql.operators import Equal
 
+from trytond import tx
 from trytond.i18n import gettext
 from trytond.model import (
     DeactivableMixin, Exclude, Index, Model, ModelSQL, ModelView, UnionMixin,
@@ -19,10 +20,9 @@ from trytond.model import (
 from trytond.model.exceptions import AccessError
 from trytond.modules.company.model import (
     CompanyMultiValueMixin, CompanyValueMixin)
-from trytond.pool import Pool
 from trytond.pyson import Eval, Get, If
 from trytond.tools import is_full_text, lstrip_wildcard
-from trytond.transaction import Transaction, inactive_records
+from trytond.transaction import inactive_records
 from trytond.wizard import Button, StateTransition, StateView, Wizard
 
 try:
@@ -216,7 +216,7 @@ class Template(
 
     @classmethod
     def multivalue_model(cls, field):
-        pool = Pool()
+        pool = tx.pool
         if field == 'list_price':
             return pool.get('product.list_price')
         elif field == 'cost_price_method':
@@ -291,14 +291,14 @@ class Template(
 
     @classmethod
     def default_cost_price_method(cls, **pattern):
-        pool = Pool()
+        pool = tx.pool
         Configuration = pool.get('product.configuration')
         return Configuration(1).get_multivalue(
             'default_cost_price_method', **pattern)
 
     @classmethod
     def default_products(cls):
-        transaction = Transaction()
+        transaction = tx.transaction
         if (transaction.user == 0
                 or not transaction.context.get('default_products', True)):
             return []
@@ -306,7 +306,7 @@ class Template(
 
     @classmethod
     def default_code_readonly(cls):
-        pool = Pool()
+        pool = tx.pool
         Configuration = pool.get('product.configuration')
         config = Configuration(1)
         return bool(config.template_sequence)
@@ -329,7 +329,7 @@ class Template(
 
     @classmethod
     def _code_sequence(cls):
-        pool = Pool()
+        pool = tx.pool
         Configuration = pool.get('product.configuration')
         config = Configuration(1)
         return config.template_sequence
@@ -346,7 +346,7 @@ class Template(
 
     @classmethod
     def on_modification(cls, mode, templates, field_names=None):
-        pool = Pool()
+        pool = tx.pool
         Product = pool.get('product.product')
         super().on_modification(mode, templates, field_names=field_names)
         if mode in {'create', 'write'}:
@@ -388,7 +388,7 @@ class TemplateFunction(fields.Function):
     def order(name):
         @classmethod
         def order(cls, tables):
-            pool = Pool()
+            pool = tx.pool
             Template = pool.get('product.template')
             product, _ = tables[None]
             if 'template' not in tables:
@@ -401,7 +401,7 @@ class TemplateFunction(fields.Function):
         return order
 
     def searchable(self, model):
-        pool = Pool()
+        pool = tx.pool
         Template = pool.get('product.template')
         return super().searchable(model) and self._field.searchable(Template)
 
@@ -411,7 +411,7 @@ class TemplateDeactivatableMixin(DeactivableMixin):
 
     @classmethod
     def _active_expression(cls, tables):
-        pool = Pool()
+        pool = tx.pool
         Template = pool.get('product.template')
         table, _ = tables[None]
         if 'template' not in tables:
@@ -447,7 +447,7 @@ class ProductDeactivatableMixin(TemplateDeactivatableMixin):
 
     @classmethod
     def _active_expression(cls, tables):
-        pool = Pool()
+        pool = tx.pool
         Product = pool.get('product.product')
         table, _ = tables[None]
         if 'product' not in tables:
@@ -556,7 +556,7 @@ class Product(
 
     @classmethod
     def __setup__(cls):
-        pool = Pool()
+        pool = tx.pool
         Template = pool.get('product.template')
 
         if not hasattr(cls, '_no_template_field'):
@@ -640,7 +640,7 @@ class Product(
 
     @classmethod
     def order_code(cls, tables):
-        pool = Pool()
+        pool = tx.pool
         Template = pool.get('product.template')
         table, _ = tables[None]
         if cls.default_code_readonly() or Template.default_code_readonly():
@@ -678,7 +678,7 @@ class Product(
 
     @classmethod
     def multivalue_model(cls, field):
-        pool = Pool()
+        pool = tx.pool
         if field == 'list_price':
             return pool.get('product.list_price')
         elif field == 'cost_price':
@@ -686,7 +686,7 @@ class Product(
         return super().multivalue_model(field)
 
     def set_multivalue(self, name, value, save=True, **pattern):
-        context = Transaction().context
+        context = tx.transaction.context
         if name in {'cost_price', 'list_price'} and not value:
             if not pattern.get('company', context.get('company')):
                 return []
@@ -704,7 +704,7 @@ class Product(
 
     @classmethod
     def default_cost_price(cls, **pattern):
-        context = Transaction().context
+        context = tx.transaction.context
         if pattern.get('company', context.get('company')):
             return Decimal(0)
 
@@ -714,7 +714,7 @@ class Product(
 
     @classmethod
     def order_rec_name(cls, tables):
-        pool = Pool()
+        pool = tx.pool
         Template = pool.get('product.template')
         product, _ = tables[None]
         if 'template' not in tables:
@@ -752,11 +752,11 @@ class Product(
 
     @staticmethod
     def get_price_uom(products, name):
-        Uom = Pool().get('product.uom')
+        Uom = tx.pool.get('product.uom')
         res = {}
         field = name[:-4]
-        if Transaction().context.get('uom'):
-            to_uom = Uom(Transaction().context['uom'])
+        if tx.transaction.context.get('uom'):
+            to_uom = Uom(tx.transaction.context['uom'])
         else:
             to_uom = None
         for product in products:
@@ -776,7 +776,7 @@ class Product(
 
     @classmethod
     def default_code_readonly(cls):
-        pool = Pool()
+        pool = tx.pool
         Configuration = pool.get('product.configuration')
         config = Configuration(1)
         return bool(config.product_sequence)
@@ -794,7 +794,7 @@ class Product(
 
     @classmethod
     def _code_sequence(cls):
-        pool = Pool()
+        pool = tx.pool
         Configuration = pool.get('product.configuration')
         config = Configuration(1)
         return config.product_sequence
@@ -924,7 +924,7 @@ class ProductCostPriceMethod(ModelSQL, CompanyValueMixin):
 
     @classmethod
     def get_cost_price_methods(cls):
-        pool = Pool()
+        pool = tx.pool
         Template = pool.get('product.template')
         field_name = 'cost_price_method'
         methods = Template.fields_get([field_name])[field_name]['selection']
@@ -1093,7 +1093,7 @@ class ProductReplaceAsk(ModelView):
 
     @classmethod
     def default_source(cls):
-        context = Transaction().context
+        context = tx.transaction.context
         if context.get('active_model') == 'product.product':
             return context.get('active_id')
 
@@ -1104,7 +1104,7 @@ class ProductReplaceAsk(ModelView):
 
     @classmethod
     def get_types(cls):
-        pool = Pool()
+        pool = tx.pool
         Product = pool.get('product.product')
         return Product.fields_get(['type'])['type']['selection']
 

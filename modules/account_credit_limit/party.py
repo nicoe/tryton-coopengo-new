@@ -1,12 +1,13 @@
 # This file is part of Tryton.  The COPYRIGHT file at the top level of
 # this repository contains the full copyright notices and license terms.
+
+from trytond import tx
 from trytond.i18n import gettext
 from trytond.model import ModelSQL, fields
 from trytond.modules.company.model import CompanyValueMixin
 from trytond.modules.currency.fields import Monetary
-from trytond.pool import Pool, PoolMeta
+from trytond.pool import PoolMeta
 from trytond.pyson import Eval
-from trytond.transaction import Transaction
 
 from .exceptions import CreditLimitError, CreditLimitWarning
 
@@ -24,7 +25,7 @@ class Party(metaclass=PoolMeta):
 
     @classmethod
     def default_credit_limit_amount(cls, **pattern):
-        pool = Pool()
+        pool = tx.pool
         Configuration = pool.get('account.configuration')
         config = Configuration(1)
         return config.get_multivalue(
@@ -45,7 +46,7 @@ class Party(metaclass=PoolMeta):
         If origin is set and user is in group credit_limit then a warning will
         be raised
         '''
-        pool = Pool()
+        pool = tx.pool
         ModelData = pool.get('ir.model.data')
         try:
             Dunning = pool.get('account.dunning')
@@ -67,7 +68,7 @@ class Party(metaclass=PoolMeta):
         def in_group():
             group = Group(ModelData.get_id('account_credit_limit',
                     'group_credit_limit'))
-            transaction = Transaction()
+            transaction = tx.transaction
             user_id = transaction.user
             if user_id == 0:
                 user_id = transaction.context.get('user', user_id)

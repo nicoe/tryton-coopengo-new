@@ -1,8 +1,9 @@
 # This file is part of Tryton.  The COPYRIGHT file at the top level of
 # this repository contains the full copyright notices and license terms.
 
+from trytond import tx
 from trytond.model import fields
-from trytond.pool import Pool, PoolMeta
+from trytond.pool import PoolMeta
 
 from .common import IncotermMixin
 
@@ -22,7 +23,7 @@ class InvoiceLine(metaclass=PoolMeta):
 
     @property
     def incoterm_name(self):
-        pool = Pool()
+        pool = tx.pool
         try:
             SaleLine = pool.get('sale.line')
         except KeyError:

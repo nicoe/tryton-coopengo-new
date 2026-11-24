@@ -1,8 +1,9 @@
 # This file is part of Tryton.  The COPYRIGHT file at the top level of
 # this repository contains the full copyright notices and license terms.
 
+from trytond import tx
 from trytond.model import ModelSQL, ModelView, Unique, fields
-from trytond.pool import Pool, PoolMeta
+from trytond.pool import PoolMeta
 from trytond.pyson import Eval, If
 
 
@@ -53,7 +54,7 @@ class ProductLocationPlace(ModelSQL, ModelView):
 
     @classmethod
     def default_location(cls):
-        pool = Pool()
+        pool = tx.pool
         Location = pool.get('stock.location')
         warehouse = Location.get_default_warehouse()
         if warehouse:

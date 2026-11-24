@@ -3,11 +3,10 @@
 
 from copy import copy
 
+from trytond import tx
 from trytond.model.model import humanize, record
-from trytond.pool import Pool
 from trytond.tests.test_tryton import (
     TestCase, activate_module, with_transaction)
-from trytond.transaction import Transaction
 
 
 class ModelTestCase(TestCase):
@@ -21,21 +20,21 @@ class ModelTestCase(TestCase):
     @with_transaction()
     def test_repr(self):
         'Test repr'
-        pool = Pool()
+        pool = tx.pool
         Model = pool.get('test.model')
 
         record = Model(name='foo')
         self.assertEqual(
-            repr(record), "Pool().get('test.model')(**{'name': 'foo'})")
+            repr(record), "tx.pool.get('test.model')(**{'name': 'foo'})")
 
         record.save()
         self.assertEqual(
-            repr(record), "Pool().get('test.model')(%s)" % record.id)
+            repr(record), "tx.pool.get('test.model')(%s)" % record.id)
 
     @with_transaction()
     def test_eq(self):
         "Test equal"
-        pool = Pool()
+        pool = tx.pool
         Model = pool.get('test.model')
 
         record1 = Model(id=1)
@@ -48,7 +47,7 @@ class ModelTestCase(TestCase):
     @with_transaction()
     def test_eq_other_model(self):
         "Test equal between different models"
-        pool = Pool()
+        pool = tx.pool
 
         Model = pool.get('test.model')
         ModelContext = pool.get('test.model_context')
@@ -61,7 +60,7 @@ class ModelTestCase(TestCase):
     @with_transaction()
     def test_eq_other_object(self):
         "Test equal with another object"
-        pool = Pool()
+        pool = tx.pool
         Model = pool.get('test.model')
 
         record = Model(id=1)
@@ -74,7 +73,7 @@ class ModelTestCase(TestCase):
     @with_transaction()
     def test_lt(self):
         "Test less than"
-        pool = Pool()
+        pool = tx.pool
         Model = pool.get('test.model')
 
         record1 = Model(id=1)
@@ -85,7 +84,7 @@ class ModelTestCase(TestCase):
     @with_transaction()
     def test_lt_other_model(self):
         "Test less than between different models"
-        pool = Pool()
+        pool = tx.pool
 
         Model = pool.get('test.model')
         ModelContext = pool.get('test.model_context')
@@ -99,7 +98,7 @@ class ModelTestCase(TestCase):
     @with_transaction()
     def test_hash_with_id(self):
         "Test hash with id"
-        pool = Pool()
+        pool = tx.pool
         Model = pool.get('test.model')
 
         record1 = Model(id=1)
@@ -112,7 +111,7 @@ class ModelTestCase(TestCase):
     @with_transaction()
     def test_hash_without_id(self):
         "Test hash without id"
-        pool = Pool()
+        pool = tx.pool
         Model = pool.get('test.model')
 
         record1 = Model()
@@ -123,7 +122,7 @@ class ModelTestCase(TestCase):
     @with_transaction()
     def test_init_parent(self):
         "Test __init__ with _parent_"
-        pool = Pool()
+        pool = tx.pool
         Model = pool.get('test.model_child')
 
         values = {
@@ -136,7 +135,7 @@ class ModelTestCase(TestCase):
     @with_transaction()
     def test_init_parent_parent(self):
         "Test __init__ with _parent_._parent_"
-        pool = Pool()
+        pool = tx.pool
         Model = pool.get('test.model_child_child')
 
         values = {
@@ -151,7 +150,7 @@ class ModelTestCase(TestCase):
     @with_transaction()
     def test_init_context(self):
         "Test __init__ for field with context"
-        pool = Pool()
+        pool = tx.pool
         Model = pool.get('test.model')
         ModelContext = pool.get('test.model_context')
 
@@ -168,7 +167,7 @@ class ModelTestCase(TestCase):
     @with_transaction()
     def test_init_parent_context(self):
         "Test __init__ with _parent for field with context"
-        pool = Pool()
+        pool = tx.pool
         ModelContext = pool.get('test.model_context')
 
         # The dictionary order is important
@@ -183,7 +182,7 @@ class ModelTestCase(TestCase):
     @with_transaction()
     def test_init_context_parent(self):
         "Test __init__ for field with context from _parent"
-        pool = Pool()
+        pool = tx.pool
         Model = pool.get('test.model')
         ModelContext = pool.get('test.model_context_parent')
 
@@ -200,7 +199,7 @@ class ModelTestCase(TestCase):
     @with_transaction()
     def test_init_parent_context_parent(self):
         "Test __init__ with _parent for field with context from _parent"
-        pool = Pool()
+        pool = tx.pool
         ModelContext = pool.get('test.model_context_parent')
 
         # The dictionary order is important
@@ -216,7 +215,7 @@ class ModelTestCase(TestCase):
     @with_transaction()
     def test_names_model(self):
         "Test __names__ for model only"
-        pool = Pool()
+        pool = tx.pool
         Model = pool.get('test.model')
 
         names = Model.__names__()
@@ -226,7 +225,7 @@ class ModelTestCase(TestCase):
     @with_transaction()
     def test_names_field(self):
         "Test __names__ with field"
-        pool = Pool()
+        pool = tx.pool
         Model = pool.get('test.model')
 
         names = Model.__names__('name')
@@ -236,7 +235,7 @@ class ModelTestCase(TestCase):
     @with_transaction()
     def test_names_record(self):
         "test __names__ with record"
-        pool = Pool()
+        pool = tx.pool
         Model = pool.get('test.model')
 
         record = Model(name="Test")
@@ -248,7 +247,7 @@ class ModelTestCase(TestCase):
     @with_transaction()
     def test_names_unsaved_record(self):
         "test __names__ with unsaved record"
-        pool = Pool()
+        pool = tx.pool
         Model = pool.get('test.model')
 
         record = Model()
@@ -259,7 +258,7 @@ class ModelTestCase(TestCase):
     @with_transaction()
     def test_names_value(self):
         "test __names__ with value"
-        pool = Pool()
+        pool = tx.pool
         Model = pool.get('test.model')
 
         record = Model(name="Test")
@@ -273,7 +272,7 @@ class ModelTestCase(TestCase):
     @with_transaction()
     def test_names_value_selection(self):
         "test __names__ with selection value"
-        pool = Pool()
+        pool = tx.pool
         Model = pool.get('test.model')
 
         record = Model(selection='foo')
@@ -287,7 +286,7 @@ class ModelTestCase(TestCase):
     @with_transaction()
     def test_names_value_multiselection(self):
         "test __names__ with multiselection value"
-        pool = Pool()
+        pool = tx.pool
         Model = pool.get('test.model')
 
         record = Model(multiselection=['foo', 'bar'])
@@ -301,7 +300,7 @@ class ModelTestCase(TestCase):
     @with_transaction()
     def test_names_value_list(self):
         "Test __names__ with value as list"
-        pool = Pool()
+        pool = tx.pool
         Model = pool.get('test.model_parent')
         Child = pool.get('test.model_child')
 
@@ -318,7 +317,7 @@ class ModelTestCase(TestCase):
     @with_transaction()
     def test_names_unset_value(self):
         "test __names__ with unset value"
-        pool = Pool()
+        pool = tx.pool
         Model = pool.get('test.model')
 
         record = Model()
@@ -332,7 +331,7 @@ class ModelTestCase(TestCase):
     @with_transaction()
     def test_fields_get_no_write_access(self):
         "Test field is readonly when no write access on it"
-        pool = Pool()
+        pool = tx.pool
         Model = pool.get('test.model')
         FieldAccess = pool.get('ir.model.field.access')
 
@@ -349,7 +348,7 @@ class ModelTestCase(TestCase):
     @with_transaction()
     def test_copy(self):
         "Test copy an instance"
-        pool = Pool()
+        pool = tx.pool
         Model = pool.get('test.model')
 
         record = Model(name='foo')
@@ -362,7 +361,7 @@ class ModelTestCase(TestCase):
     @with_transaction()
     def test_copy_values(self):
         "Test copied instance has different values"
-        pool = Pool()
+        pool = tx.pool
         Model = pool.get('test.model')
 
         record = Model(name='foo')
@@ -376,7 +375,7 @@ class ModelTestCase(TestCase):
     @with_transaction()
     def test_default_get(self):
         "Test default_get"
-        pool = Pool()
+        pool = tx.pool
         Model = pool.get('test.model.default')
 
         self.assertEqual(
@@ -387,10 +386,10 @@ class ModelTestCase(TestCase):
     @with_transaction()
     def test_default_get_with_context(self):
         "Test default_get with context"
-        pool = Pool()
+        pool = tx.pool
         Model = pool.get('test.model.default')
 
-        with Transaction().set_context(default_name="foo"):
+        with tx.transaction.set_context(default_name="foo"):
             self.assertEqual(
                 Model.default_get(['name']), {
                     'name': "foo",
@@ -399,10 +398,10 @@ class ModelTestCase(TestCase):
     @with_transaction()
     def test_default_get_with_context_and_method(self):
         "Test default_get with context and method"
-        pool = Pool()
+        pool = tx.pool
         Model = pool.get('test.model.default')
 
-        with Transaction().set_context(default_description="foo"):
+        with tx.transaction.set_context(default_description="foo"):
             self.assertEqual(
                 Model.default_get(['description']), {
                     'description': "foo",
@@ -411,10 +410,10 @@ class ModelTestCase(TestCase):
     @with_transaction()
     def test_default_get_with_context_rec_name(self):
         "Test default_get with context rec_name"
-        pool = Pool()
+        pool = tx.pool
         Model = pool.get('test.model.default')
 
-        with Transaction().set_context(default_rec_name="foo"):
+        with tx.transaction.set_context(default_rec_name="foo"):
             self.assertEqual(
                 Model.default_get(['name']), {
                     'name': "foo",
@@ -423,14 +422,14 @@ class ModelTestCase(TestCase):
     @with_transaction()
     def test_default_get_with_rec_name(self):
         "Test default_get with rec_name"
-        pool = Pool()
+        pool = tx.pool
         Model = pool.get('test.model.default')
         Target = pool.get('test.model')
 
         target = Target(name="Target")
         target.save()
 
-        with Transaction().set_context(default_target=target.id):
+        with tx.transaction.set_context(default_target=target.id):
             self.assertEqual(
                 Model.default_get(['target'], with_rec_name=True), {
                     'target': target.id,
@@ -442,14 +441,14 @@ class ModelTestCase(TestCase):
     @with_transaction()
     def test_default_get_with_instance_rec_name(self):
         "Test default_get with instance and rec_name"
-        pool = Pool()
+        pool = tx.pool
         Model = pool.get('test.model.default')
         Target = pool.get('test.model')
 
         target = Target(name="Target")
         target.save()
 
-        with Transaction().set_context(default_target=target):
+        with tx.transaction.set_context(default_target=target):
             self.assertEqual(
                 Model.default_get(['target'], with_rec_name=True), {
                     'target': target.id,
@@ -461,10 +460,10 @@ class ModelTestCase(TestCase):
     @with_transaction()
     def test_default_get_with_model_reference_rec_name(self):
         "Test default_get with model reference and rec_name"
-        pool = Pool()
+        pool = tx.pool
         Model = pool.get('test.model.default')
 
-        with Transaction().set_context(default_reference='test.model,-1'):
+        with tx.transaction.set_context(default_reference='test.model,-1'):
             self.assertEqual(
                 Model.default_get(['reference'], with_rec_name=True), {
                     'reference': 'test.model,-1',
@@ -473,14 +472,14 @@ class ModelTestCase(TestCase):
     @with_transaction()
     def test_default_get_without_rec_name(self):
         "Test default_get without rec_name"
-        pool = Pool()
+        pool = tx.pool
         Model = pool.get('test.model.default')
         Target = pool.get('test.model')
 
         target = Target(name="Target")
         target.save()
 
-        with Transaction().set_context(default_target=target.id):
+        with tx.transaction.set_context(default_target=target.id):
             self.assertEqual(
                 Model.default_get(['target'], with_rec_name=False), {
                     'target': target.id,
@@ -516,7 +515,7 @@ class ModelTranslationTestCase(TestCase):
     @classmethod
     @with_transaction()
     def setup_language(cls):
-        pool = Pool()
+        pool = tx.pool
         Language = pool.get('ir.lang')
         Configuration = pool.get('ir.configuration')
 
@@ -532,12 +531,12 @@ class ModelTranslationTestCase(TestCase):
         config.language = cls.default_language
         config.save()
 
-        Transaction().commit()
+        tx.transaction.commit()
 
     @with_transaction()
     def test_fields_get(self):
         "Test fields_get translated"
-        pool = Pool()
+        pool = tx.pool
         Model = pool.get('test.model')
         Translation = pool.get('ir.translation')
 
@@ -548,9 +547,9 @@ class ModelTranslationTestCase(TestCase):
                     'value': "Nom",
                     'type': 'field',
                     }])
-        with Transaction().set_context(language=self.default_language):
+        with tx.transaction.set_context(language=self.default_language):
             field = Model.fields_get(['name'])['name']
-        with Transaction().set_context(language=self.other_language):
+        with tx.transaction.set_context(language=self.other_language):
             other = Model.fields_get(['name'])['name']
 
         self.assertEqual(field['string'], "Name")

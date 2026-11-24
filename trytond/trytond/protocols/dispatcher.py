@@ -8,7 +8,7 @@ import pydoc
 import time
 import traceback
 
-from trytond import __series__, backend, config, security
+from trytond import __series__, backend, config, security, tx
 from trytond.error_handling import error_wrap
 from trytond.exceptions import (
     ConcurrencyException, LoginException, RateLimitException, UserError,
@@ -16,7 +16,7 @@ from trytond.exceptions import (
 from trytond.rpc import RPCReturnException
 from trytond.tools import is_instance_method
 from trytond.tools.logging import format_args
-from trytond.transaction import Transaction, TransactionError
+from trytond.transaction import TransactionError
 from trytond.worker import run_task
 from trytond.wsgi import app
 
@@ -202,7 +202,7 @@ def db_list(request, *args):
         abort(HTTPStatus.FORBIDDEN)
     context = {'_request': request.context}
     hostname = config.get_hostname(request.host)
-    with Transaction().start(
+    with tx.transaction.start(
             None, 0, context=context, readonly=True, close=True,
             ) as transaction:
         return transaction.database.list(hostname=hostname)
@@ -305,7 +305,7 @@ def _dispatch(request, pool, *args, **kwargs):
     while True:
         if count:
             time.sleep(0.02 * count)
-        with Transaction().start(
+        with tx.transaction.start(
                 pool.database_name, user,
                 readonly=rpc.readonly, timeout=rpc.timeout,
                 **transaction_extras) as transaction:

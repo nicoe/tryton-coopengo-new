@@ -1,10 +1,10 @@
 # This file is part of Tryton.  The COPYRIGHT file at the top level of
 # this repository contains the full copyright notices and license terms.
 
+from trytond import tx
 from trytond.cache import Cache
 from trytond.model import ModelSQL, Unique, fields
 from trytond.rpc import RPC
-from trytond.transaction import Transaction
 
 
 class _Calendar(ModelSQL):
@@ -35,7 +35,7 @@ class _Calendar(ModelSQL):
 
     @classmethod
     def locale(cls, language=None, field='name'):
-        transaction = Transaction()
+        transaction = tx.transaction
         if language is None:
             language = transaction.language
         elif isinstance(language, ModelSQL):

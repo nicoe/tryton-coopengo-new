@@ -4,9 +4,9 @@ import datetime
 
 from sql.functions import CurrentTimestamp
 
+from trytond import tx
 from trytond.model.exceptions import (
     RequiredValidationError, TimeFormatValidationError)
-from trytond.pool import Pool
 from trytond.tests.test_tryton import (
     TestCase, activate_module, with_transaction)
 
@@ -27,7 +27,7 @@ class FieldTimeTestCase(TestCase):
     @with_transaction()
     def test_set_string(self):
         "Test set string"
-        pool = Pool()
+        pool = tx.pool
         Model = pool.get('test.time')
 
         record = Model()
@@ -38,7 +38,7 @@ class FieldTimeTestCase(TestCase):
     @with_transaction()
     def test_create(self):
         "Test create time"
-        Time = Pool().get('test.time')
+        Time = tx.pool.get('test.time')
 
         time, timenone = Time.create([{
                     'time': evening,
@@ -52,7 +52,7 @@ class FieldTimeTestCase(TestCase):
     @with_transaction()
     def test_create_timestring(self):
         "Test create time with time string"
-        Time = Pool().get('test.time')
+        Time = tx.pool.get('test.time')
 
         time, = Time.create([{
                     'time': str(evening),
@@ -63,7 +63,7 @@ class FieldTimeTestCase(TestCase):
     @with_transaction()
     def test_create_invalid_timestring(self):
         "Test create time with invalid time string"
-        Time = Pool().get('test.time')
+        Time = tx.pool.get('test.time')
 
         with self.assertRaises(ValueError):
             Time.create([{
@@ -73,7 +73,7 @@ class FieldTimeTestCase(TestCase):
     @with_transaction()
     def test_create_without_default(self):
         "Test create time without default"
-        Time = Pool().get('test.time')
+        Time = tx.pool.get('test.time')
 
         time, = Time.create([{}])
 
@@ -82,7 +82,7 @@ class FieldTimeTestCase(TestCase):
     @with_transaction()
     def test_create_with_default(self):
         "Test create time with default"
-        Time = Pool().get('test.time_default')
+        Time = tx.pool.get('test.time_default')
 
         time, = Time.create([{}])
 
@@ -91,7 +91,7 @@ class FieldTimeTestCase(TestCase):
     @with_transaction()
     def test_create_with_sql_value(self):
         "Test create time with SQL value"
-        Time = Pool().get('test.time_precision')
+        Time = tx.pool.get('test.time_precision')
 
         time, = Time.create([{'time': Time.time.sql_cast(CurrentTimestamp())}])
 
@@ -100,7 +100,7 @@ class FieldTimeTestCase(TestCase):
     @with_transaction()
     def test_set_sql_value(self):
         "Test cannot set SQL value"
-        Time = Pool().get('test.time')
+        Time = tx.pool.get('test.time')
 
         time = Time()
 
@@ -110,7 +110,7 @@ class FieldTimeTestCase(TestCase):
     @with_transaction()
     def test_create_non_time(self):
         "Test create time with non time"
-        Time = Pool().get('test.time')
+        Time = tx.pool.get('test.time')
 
         with self.assertRaises(ValueError):
             Time.create([{
@@ -120,7 +120,7 @@ class FieldTimeTestCase(TestCase):
     @with_transaction()
     def test_create_integer(self):
         "Test create time with integer"
-        Time = Pool().get('test.time')
+        Time = tx.pool.get('test.time')
 
         with self.assertRaises(ValueError):
             Time.create([{
@@ -130,7 +130,7 @@ class FieldTimeTestCase(TestCase):
     @with_transaction()
     def test_create_date(self):
         "Test create time with date"
-        Time = Pool().get('test.time')
+        Time = tx.pool.get('test.time')
 
         with self.assertRaises(TypeError):
             Time.create([{
@@ -140,7 +140,7 @@ class FieldTimeTestCase(TestCase):
     @with_transaction()
     def test_create_microsecond(self):
         "Test create time with microsecond"
-        Time = Pool().get('test.time_required')
+        Time = tx.pool.get('test.time_required')
 
         time, = Time.create([{
                     'time': evening.replace(microsecond=1),
@@ -151,7 +151,7 @@ class FieldTimeTestCase(TestCase):
     @with_transaction()
     def test_create_required_with_value(self):
         "Test create time required with value"
-        Time = Pool().get('test.time_required')
+        Time = tx.pool.get('test.time_required')
 
         time, = Time.create([{
                     'time': evening,
@@ -162,7 +162,7 @@ class FieldTimeTestCase(TestCase):
     @with_transaction()
     def test_create_required_without_value(self):
         "Test create time required without value"
-        Time = Pool().get('test.time_required')
+        Time = tx.pool.get('test.time_required')
 
         with self.assertRaises(RequiredValidationError):
             Time.create([{}])
@@ -170,7 +170,7 @@ class FieldTimeTestCase(TestCase):
     @with_transaction()
     def test_create_format_valid(self):
         "Test create time with valid format"
-        Time = Pool().get('test.time_format')
+        Time = tx.pool.get('test.time_format')
 
         time, = Time.create([{
                     'time': datetime.time(12, 30),
@@ -182,7 +182,7 @@ class FieldTimeTestCase(TestCase):
     @with_transaction()
     def test_create_format_invalid(self):
         "Test create time with invalid format"
-        Time = Pool().get('test.time_format')
+        Time = tx.pool.get('test.time_format')
 
         with self.assertRaises(TimeFormatValidationError):
             Time.create([{
@@ -192,7 +192,7 @@ class FieldTimeTestCase(TestCase):
     @with_transaction()
     def test_search_equals(self):
         "Test search time equals"
-        Time = Pool().get('test.time')
+        Time = tx.pool.get('test.time')
         time, = Time.create([{
                     'time': evening,
                     }])
@@ -210,7 +210,7 @@ class FieldTimeTestCase(TestCase):
     @with_transaction()
     def test_search_equals_none(self):
         "Test search time equals None"
-        Time = Pool().get('test.time')
+        Time = tx.pool.get('test.time')
         time, = Time.create([{
                     'time': None,
                     }])
@@ -224,7 +224,7 @@ class FieldTimeTestCase(TestCase):
     @with_transaction()
     def test_search_non_equals(self):
         "Test search time non equals"
-        Time = Pool().get('test.time')
+        Time = tx.pool.get('test.time')
         time, = Time.create([{
                     'time': evening,
                     }])
@@ -242,7 +242,7 @@ class FieldTimeTestCase(TestCase):
     @with_transaction()
     def test_search_non_equals_none(self):
         "Test search time non equals None"
-        Time = Pool().get('test.time')
+        Time = tx.pool.get('test.time')
         time, = Time.create([{
                     'time': None,
                     }])
@@ -256,7 +256,7 @@ class FieldTimeTestCase(TestCase):
     @with_transaction()
     def test_search_in(self):
         "Test search time in"
-        Time = Pool().get('test.time')
+        Time = tx.pool.get('test.time')
         time, = Time.create([{
                     'time': evening,
                     }])
@@ -278,7 +278,7 @@ class FieldTimeTestCase(TestCase):
     @with_transaction()
     def test_search_in_none(self):
         "Test search time in [None]"
-        Time = Pool().get('test.time')
+        Time = tx.pool.get('test.time')
         time, = Time.create([{
                     'time': None,
                     }])
@@ -292,7 +292,7 @@ class FieldTimeTestCase(TestCase):
     @with_transaction()
     def test_search_not_in(self):
         "Test search time not in"
-        Time = Pool().get('test.time')
+        Time = tx.pool.get('test.time')
         time, = Time.create([{
                     'time': evening,
                     }])
@@ -314,7 +314,7 @@ class FieldTimeTestCase(TestCase):
     @with_transaction()
     def test_search_not_in_none(self):
         "Test search time not in [None]"
-        Time = Pool().get('test.time')
+        Time = tx.pool.get('test.time')
         time, = Time.create([{
                     'time': None,
                     }])
@@ -328,7 +328,7 @@ class FieldTimeTestCase(TestCase):
     @with_transaction()
     def test_search_in_multi(self):
         "Test search time in multiple"
-        Time = Pool().get('test.time')
+        Time = tx.pool.get('test.time')
         times = Time.create([{
                     'time': evening,
                     }, {
@@ -344,7 +344,7 @@ class FieldTimeTestCase(TestCase):
     @with_transaction()
     def test_search_not_in_multi(self):
         "Test search time not in multiple"
-        Time = Pool().get('test.time')
+        Time = tx.pool.get('test.time')
         Time.create([{
                     'time': evening,
                     }, {
@@ -360,7 +360,7 @@ class FieldTimeTestCase(TestCase):
     @with_transaction()
     def test_search_less(self):
         "Test search time less than"
-        Time = Pool().get('test.time')
+        Time = tx.pool.get('test.time')
         time, = Time.create([{
                     'time': evening,
                     }])
@@ -382,7 +382,7 @@ class FieldTimeTestCase(TestCase):
     @with_transaction()
     def test_search_less_equals(self):
         "Test search time less than or equals"
-        Time = Pool().get('test.time')
+        Time = tx.pool.get('test.time')
         time, = Time.create([{
                     'time': evening,
                     }])
@@ -404,7 +404,7 @@ class FieldTimeTestCase(TestCase):
     @with_transaction()
     def test_search_greater(self):
         "Test search time greater than"
-        Time = Pool().get('test.time')
+        Time = tx.pool.get('test.time')
         time, = Time.create([{
                     'time': evening,
                     }])
@@ -426,7 +426,7 @@ class FieldTimeTestCase(TestCase):
     @with_transaction()
     def test_search_greater_equals(self):
         "Test search time greater than or equals"
-        Time = Pool().get('test.time')
+        Time = tx.pool.get('test.time')
         time, = Time.create([{
                     'time': evening,
                     }])
@@ -448,7 +448,7 @@ class FieldTimeTestCase(TestCase):
     @with_transaction()
     def test_write(self):
         "Test write time"
-        Time = Pool().get('test.time')
+        Time = tx.pool.get('test.time')
         time, = Time.create([{
                     'time': evening,
                     }])
@@ -462,7 +462,7 @@ class FieldTimeTestCase(TestCase):
     @with_transaction()
     def test_write_non_time(self):
         "Test write time with non time"
-        Time = Pool().get('test.time')
+        Time = tx.pool.get('test.time')
         time, = Time.create([{
                     'time': evening,
                     }])
@@ -475,7 +475,7 @@ class FieldTimeTestCase(TestCase):
     @with_transaction()
     def test_write_integer(self):
         "Test write time with integer"
-        Time = Pool().get('test.time')
+        Time = tx.pool.get('test.time')
         time, = Time.create([{
                     'time': evening,
                     }])
@@ -488,7 +488,7 @@ class FieldTimeTestCase(TestCase):
     @with_transaction()
     def test_write_date(self):
         "Test write time with date"
-        Time = Pool().get('test.time')
+        Time = tx.pool.get('test.time')
         time, = Time.create([{
                     'time': evening,
                     }])

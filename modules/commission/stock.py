@@ -3,10 +3,10 @@
 
 from decimal import Decimal
 
+from trytond import tx
 from trytond.model import fields
 from trytond.modules.product import price_digits, round_price
-from trytond.pool import Pool, PoolMeta
-from trytond.transaction import Transaction
+from trytond.pool import PoolMeta
 
 
 class Move(metaclass=PoolMeta):
@@ -30,14 +30,14 @@ class Move(metaclass=PoolMeta):
         super().update_unit_price(moves)
 
     def _compute_commission_price(self):
-        pool = Pool()
+        pool = tx.pool
         UoM = pool.get('product.uom')
         Currency = pool.get('currency.currency')
         total, quantity = 0, 0
         for line in self.invoice_lines:
             if line.invoice and line.invoice.state in {'posted', 'paid'}:
                 for commission in line.commissions:
-                    with Transaction().set_context(date=self.effective_date):
+                    with tx.transaction.set_context(date=self.effective_date):
                         amount = Currency.compute(
                             commission.currency, commission.amount,
                             self.currency)

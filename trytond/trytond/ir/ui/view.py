@@ -14,16 +14,15 @@ from sql import Literal, Null
 from sql.conditionals import Coalesce
 from sql.operators import Equal
 
+from trytond import tx
 from trytond.cache import Cache, MemoryCache
 from trytond.i18n import gettext
 from trytond.model import (
     Exclude, Index, ModelSQL, ModelView, fields, sequence_ordered)
 from trytond.model.exceptions import ValidationError
-from trytond.pool import Pool
 from trytond.pyson import PYSON, Bool, Eval, If, PYSONDecoder
 from trytond.rpc import RPC
 from trytond.tools import file_open
-from trytond.transaction import Transaction
 from trytond.wizard import Button, StateView, Wizard
 
 from ..action import DomainError, ViewError
@@ -149,7 +148,7 @@ class View(
 
     @staticmethod
     def default_module():
-        return Transaction().context.get('module')
+        return tx.transaction.context.get('module')
 
     def get_basis(self, name):
         return not self.inherit or self.model != self.inherit.model
@@ -287,7 +286,7 @@ class View(
             encode(root_element)
 
     def get_arch(self, name):
-        pool = Pool()
+        pool = tx.pool
         value = None
         if self.name and self.module:
             path = os.path.join(self.module, 'view', self.name + '.xml')
@@ -317,7 +316,7 @@ class View(
     def _module_index(self):
         from trytond.modules import create_graph, get_modules
         if self.__class__.__module_index is None:
-            graph = create_graph(get_modules(with_test=Pool.test))
+            graph = create_graph(get_modules(with_test=tx.pool.test))
             modules = [m.name for m in graph]
             self.__class__.__module_index = {
                 m: i for i, m in enumerate(reversed(modules))}
@@ -348,7 +347,7 @@ class View(
             key=lambda v: self._module_index.get(v.module, -1), reverse=True)
         parser = etree.XMLParser(remove_comments=True, resolve_entities=False)
         tree = etree.fromstring(arch, parser=parser)
-        decoder = PYSONDecoder({'context': Transaction().context})
+        decoder = PYSONDecoder({'context': tx.transaction.context})
         for view in views:
             if view.domain and not decoder.decode(view.domain):
                 continue
@@ -358,7 +357,7 @@ class View(
             tree = self.inherit_apply(tree, tree_inherit)
         if model:
             root = tree.getroottree().getroot()
-            self._translate(root, model, Transaction().language)
+            self._translate(root, model, tx.transaction.language)
         arch = etree.tostring(tree, encoding='utf-8').decode('utf-8')
         result = {
             'type': self.real_type,
@@ -424,7 +423,7 @@ class View(
 
     @classmethod
     def _translate(cls, element, model, language):
-        pool = Pool()
+        pool = tx.pool
         Translation = pool.get('ir.translation')
         for attr in ['string', 'confirm', 'help', 'empty_string']:
             if element.get(attr):
@@ -452,9 +451,9 @@ class ShowView(Wizard):
             StateView.__init__(self, model_name, None, buttons)
 
         def get_view(self, wizard, state_name):
-            pool = Pool()
+            pool = tx.pool
             View = pool.get('ir.ui.view')
-            view_id = Transaction().context.get('active_id')
+            view_id = tx.transaction.context.get('active_id')
             if not view_id:
                 # Set type to please ModuleTestCase.test_wizards
                 return {'type': 'form'}
@@ -572,7 +571,7 @@ class ViewTreeWidth(
             else:
                 screen_width = None
 
-        user = Transaction().user
+        user = tx.transaction.user
         records = cls.search([
             ('user', '=', user),
             ('model', '=', model),
@@ -621,7 +620,7 @@ class ViewTreeWidth(
         else:
             screen_width = None
 
-        user_id = Transaction().user
+        user_id = tx.transaction.user
         records = cls.search([
                 ('user', '=', user_id),
                 ('model', '=', model),
@@ -664,7 +663,7 @@ class ViewTreeWidth(
         else:
             screen_width = None
 
-        user_id = Transaction().user
+        user_id = tx.transaction.user
         records = cls.search([
                 ('user', '=', user_id),
                 ('model', '=', model),
@@ -712,12 +711,12 @@ class ViewTreeOptional(
 
     @classmethod
     def __register__(cls, module):
-        pool = Pool()
+        pool = tx.pool
         View = pool.get('ir.ui.view')
         table = cls.__table__()
         view = View.__table__()
         table_h = cls.__table_handler__(module)
-        cursor = Transaction().connection.cursor()
+        cursor = tx.transaction.connection.cursor()
 
         # Migration from 7.2: rename view_id into view
         table_h.column_rename('view_id', 'view')
@@ -755,9 +754,9 @@ class ViewTreeOptional(
     @classmethod
     def set_optional(cls, view_id, fields):
         "Store optional field that must be displayed"
-        pool = Pool()
+        pool = tx.pool
         View = pool.get('ir.ui.view')
-        user = Transaction().user
+        user = tx.transaction.user
         view = View(view_id)
         records = cls.search([
                 ('view', '=', view.id),
@@ -829,7 +828,7 @@ class ViewTreeState(
     def set(cls, model, domain, child_name, nodes, selected_nodes):
         # Normalize the json domain
         domain = json.dumps(json.loads(domain), separators=(',', ':'))
-        current_user = Transaction().user
+        current_user = tx.transaction.user
         records = cls.search([
                 ('user', '=', current_user),
                 ('model', '=', model),
@@ -850,7 +849,7 @@ class ViewTreeState(
     def get(cls, model, domain, child_name):
         # Normalize the json domain
         domain = json.dumps(json.loads(domain), separators=(',', ':'))
-        current_user = Transaction().user
+        current_user = tx.transaction.user
         try:
             expanded_info, = cls.search([
                     ('user', '=', current_user),
@@ -890,7 +889,7 @@ class ViewSearch(
 
     @staticmethod
     def default_user():
-        return Transaction().user
+        return tx.transaction.user
 
     @classmethod
     def validate_fields(cls, searches, field_names):
@@ -933,7 +932,7 @@ class ViewSearch(
     @classmethod
     def get(cls):
         decoder = PYSONDecoder()
-        user = Transaction().user
+        user = tx.transaction.user
         searches = cls.search_read(['OR',
                 ('user', '=', user),
                 ('user', '=', None),
@@ -951,7 +950,7 @@ class ViewSearch(
 
     @classmethod
     def set(cls, name, model, domain):
-        user = Transaction().user
+        user = tx.transaction.user
         search, = cls.create([{
                     'name': name,
                     'model': model,
@@ -962,7 +961,7 @@ class ViewSearch(
 
     @classmethod
     def unset(cls, id):
-        user = Transaction().user
+        user = tx.transaction.user
         cls.delete(cls.search([
                     ('id', '=', id),
                     ('user', '=', user),

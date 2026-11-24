@@ -7,14 +7,13 @@ from sql import Literal, Null
 from sql.aggregate import Sum
 from sql.operators import Equal
 
-from trytond import backend
+from trytond import backend, tx
 from trytond.model import (
     DeactivableMixin, Exclude, ModelSQL, ModelView, Unique, Workflow,
     dualmethod, fields, sequence_ordered)
-from trytond.pool import Pool, PoolMeta
+from trytond.pool import PoolMeta
 from trytond.pyson import Eval
 from trytond.tools import sqlite_apply_types
-from trytond.transaction import Transaction
 
 
 class Account(metaclass=PoolMeta):
@@ -101,7 +100,7 @@ class AccountRuleAbstract(DeactivableMixin, ModelSQL, ModelView):
 
     @classmethod
     def default_company(cls):
-        return Transaction().context.get('company')
+        return tx.transaction.context.get('company')
 
     @fields.depends('account', '_parent_account.party_required')
     def on_change_with_account_party_required(self, name=None):
@@ -126,10 +125,10 @@ class AccountRuleAbstract(DeactivableMixin, ModelSQL, ModelView):
     @dualmethod
     @ModelView.button
     def apply(cls, rules=None, parties=None, rules_parties=None):
-        pool = Pool()
+        pool = tx.pool
         User = pool.get('res.user')
         Move = pool.get('account.move')
-        company = User(Transaction().user).company
+        company = User(tx.transaction.user).company
         if rules is None:
             rules = cls.search([
                     ('company', '=', company.id),
@@ -141,7 +140,7 @@ class AccountRuleAbstract(DeactivableMixin, ModelSQL, ModelView):
         Move.post(moves)
 
     def _apply(self, parties=None):
-        pool = Pool()
+        pool = tx.pool
         Move = pool.get('account.move')
         Line = pool.get('account.move.line')
 
@@ -192,7 +191,7 @@ class AccountRuleAbstract(DeactivableMixin, ModelSQL, ModelView):
         return moves
 
     def _reconcile(self, line, amount, delegate=None, date=None):
-        pool = Pool()
+        pool = tx.pool
         Date = pool.get('ir.date')
         Move = pool.get('account.move')
         Line = pool.get('account.move.line')
@@ -200,7 +199,7 @@ class AccountRuleAbstract(DeactivableMixin, ModelSQL, ModelView):
         debit, credit = self._debit_credit(amount)
 
         if date is None:
-            with Transaction().set_context(company=self.company.id):
+            with tx.transaction.set_context(company=self.company.id):
                 date = Date.today()
         period = Period.find(self.company, date=date)
 
@@ -245,7 +244,7 @@ class AccountRuleAbstract(DeactivableMixin, ModelSQL, ModelView):
         return move, lines, [line, lines[1]], lines[-1] if delegate else None
 
     def _move_overflow(self, amount, party, date=None):
-        pool = Pool()
+        pool = tx.pool
         Date = pool.get('ir.date')
         Line = pool.get('account.move.line')
         Move = pool.get('account.move')
@@ -253,7 +252,7 @@ class AccountRuleAbstract(DeactivableMixin, ModelSQL, ModelView):
         debit, credit = self._debit_credit(amount)
 
         if date is None:
-            with Transaction().set_context(company=self.company.id):
+            with tx.transaction.set_context(company=self.company.id):
                 date = Date.today()
         period = Period.find(self.company, date=date)
 
@@ -285,12 +284,12 @@ class AccountRuleAbstract(DeactivableMixin, ModelSQL, ModelView):
 
     def _amounts(self, parties=None):
         "Yield party id and amount to dispatch"
-        pool = Pool()
+        pool = tx.pool
         Line = pool.get('account.move.line')
         Move = pool.get('account.move')
         line = Line.__table__()
         move = Move.__table__()
-        cursor = Transaction().connection.cursor()
+        cursor = tx.transaction.connection.cursor()
 
         amount = Sum(self._amount(line))
         where = (
@@ -323,7 +322,7 @@ class AccountRuleAbstract(DeactivableMixin, ModelSQL, ModelView):
 
     def _lines_to_reconcile(self, party):
         "Return the list of lines to reconcile ordered per priority"
-        pool = Pool()
+        pool = tx.pool
         Line = pool.get('account.move.line')
 
         lines = Line.search([
@@ -462,7 +461,7 @@ class Statement(metaclass=PoolMeta):
     @ModelView.button
     @Workflow.transition('posted')
     def post(cls, statements):
-        pool = Pool()
+        pool = tx.pool
         Rule = pool.get('account.account.receivable.rule')
         super().post(statements)
         accounts = defaultdict(set)

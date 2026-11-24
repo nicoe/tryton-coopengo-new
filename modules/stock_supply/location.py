@@ -2,8 +2,9 @@
 # this repository contains the full copyright notices and license terms.
 import datetime
 
+from trytond import tx
 from trytond.model import fields
-from trytond.pool import Pool, PoolMeta
+from trytond.pool import PoolMeta
 from trytond.pyson import Eval
 
 
@@ -51,7 +52,7 @@ class LocationLeadTime(metaclass=PoolMeta):
     @classmethod
     def _get_extra_lead_times(cls):
         'Return a list of extra lead time'
-        pool = Pool()
+        pool = tx.pool
         ProductSupplier = pool.get('purchase.product_supplier')
         extra = []
 

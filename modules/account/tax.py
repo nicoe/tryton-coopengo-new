@@ -10,18 +10,16 @@ from sql import Literal
 from sql.aggregate import Sum
 from sql.conditionals import Case
 
-from trytond import backend
+from trytond import backend, tx
 from trytond.i18n import gettext
 from trytond.model import (
     DeactivableMixin, Index, MatchMixin, ModelSQL, ModelView, fields,
     sequence_ordered, tree)
 from trytond.model.exceptions import AccessError
 from trytond.modules.currency.fields import Monetary
-from trytond.pool import Pool
 from trytond.pyson import Bool, Eval, If, PYSONEncoder
 from trytond.tools import (
     cursor_dict, is_full_text, lstrip_wildcard, sqlite_apply_types)
-from trytond.transaction import Transaction
 from trytond.wizard import Button, StateAction, StateView, Wizard
 
 from .common import ActivePeriodMixin, ContextCompanyMixin, PeriodMixin
@@ -89,7 +87,7 @@ class TaxCodeTemplate(PeriodMixin, tree(), ModelSQL, ModelView):
         tax code id as value, used to convert template id into tax code. The
         dictionary is filled with new tax codes.
         '''
-        pool = Pool()
+        pool = tx.pool
         TaxCode = pool.get('account.tax.code')
 
         if template2tax_code is None:
@@ -174,7 +172,7 @@ class TaxCode(
 
     @staticmethod
     def default_company():
-        return Transaction().context.get('company')
+        return tx.transaction.context.get('company')
 
     @classmethod
     def default_template_override(cls):
@@ -336,7 +334,7 @@ class TaxCodeLineTemplate(ModelSQL, ModelView):
     def create_tax_code_line(cls, account_id, template2tax, template2tax_code,
             template2tax_code_line=None):
         "Create tax code lines based on template"
-        pool = Pool()
+        pool = tx.pool
         TaxCodeLine = pool.get('account.tax.code.line')
 
         if template2tax_code_line is None:
@@ -529,7 +527,7 @@ class TaxCodeContext(ModelView):
 
     @classmethod
     def default_company(cls):
-        return Transaction().context.get('company')
+        return tx.transaction.context.get('company')
 
     @fields.depends(
         'company', 'fiscalyear', 'period', 'periods',
@@ -547,7 +545,7 @@ class TaxCodeContext(ModelView):
 
     @classmethod
     def default_period(cls):
-        pool = Pool()
+        pool = tx.pool
         Period = pool.get('account.period')
         try:
             period = Period.find(cls.default_company(), test_state=False)
@@ -559,7 +557,7 @@ class TaxCodeContext(ModelView):
         'method', 'company',
         'fiscalyear', 'period', 'start_period', 'end_period')
     def on_change_with_periods(self):
-        pool = Pool()
+        pool = tx.pool
         Period = pool.get('account.period')
         periods = []
         if self.method == 'fiscalyear' and self.fiscalyear:
@@ -697,7 +695,7 @@ class TaxTemplate(sequence_ordered(), ModelSQL, ModelView, DeactivableMixin):
         value, used to convert template id into tax.  The dictionary is filled
         with new taxes.
         '''
-        pool = Pool()
+        pool = tx.pool
         Tax = pool.get('account.tax')
 
         if template2tax is None:
@@ -872,7 +870,7 @@ class Tax(sequence_ordered(), ModelSQL, ModelView, DeactivableMixin):
 
     @staticmethod
     def default_company():
-        return Transaction().context.get('company')
+        return tx.transaction.context.get('company')
 
     @classmethod
     def default_template_override(cls):
@@ -880,11 +878,11 @@ class Tax(sequence_ordered(), ModelSQL, ModelView, DeactivableMixin):
 
     @classmethod
     def get_amount(cls, taxes, names):
-        pool = Pool()
+        pool = tx.pool
         Move = pool.get('account.move')
         MoveLine = pool.get('account.move.line')
         TaxLine = pool.get('account.tax.line')
-        cursor = Transaction().connection.cursor()
+        cursor = tx.transaction.connection.cursor()
 
         move = Move.__table__()
         move_line = MoveLine.__table__()
@@ -951,7 +949,7 @@ class Tax(sequence_ordered(), ModelSQL, ModelView, DeactivableMixin):
 
     @classmethod
     def _amount_where(cls, tax_line, move_line, move):
-        context = Transaction().context
+        context = tx.transaction.context
         periods = context.get('periods', [])
         if periods:
             return move.period.in_(periods)
@@ -960,7 +958,7 @@ class Tax(sequence_ordered(), ModelSQL, ModelView, DeactivableMixin):
 
     @classmethod
     def _amount_domain(cls):
-        context = Transaction().context
+        context = tx.transaction.context
         periods = context.get('periods', [])
         return [('move_line.move.period', 'in', periods)]
 
@@ -1239,9 +1237,9 @@ class TaxableMixin(object):
     @fields.depends('company')
     def tax_date(self):
         "Date to use when computing the tax"
-        pool = Pool()
+        pool = tx.pool
         Date = pool.get('ir.date')
-        with Transaction().set_context(company=self.company.id):
+        with tx.transaction.set_context(company=self.company.id):
             return Date.today()
 
     def _get_tax_context(self):
@@ -1291,14 +1289,14 @@ class TaxableMixin(object):
             'taxable_lines', 'tax_date', '_get_tax_context',
             '_compute_tax_line', '_round_taxes'])
     def _get_taxes(self):
-        pool = Pool()
+        pool = tx.pool
         Tax = pool.get('account.tax')
         Configuration = pool.get('account.configuration')
-        context = Transaction().context
+        context = tx.transaction.context
         today = pool.get('ir.date').today()
 
         all_taxes = {}
-        with Transaction().set_context(self._get_tax_context()):
+        with tx.transaction.set_context(self._get_tax_context()):
             config = Configuration(1)
             tax_rounding = config.get_multivalue(
                 'tax_rounding',
@@ -1371,9 +1369,9 @@ class TaxLine(ModelSQL, ModelView):
 
     @classmethod
     def __register__(cls, module_name):
-        pool = Pool()
+        pool = tx.pool
         Tax = pool.get('account.tax')
-        transaction = Transaction()
+        transaction = tx.transaction
         table = cls.__table__()
         tax = Tax.__table__()
 
@@ -1478,7 +1476,7 @@ class TaxRuleTemplate(ModelSQL, ModelView):
         rule id as value, used to convert template id into tax rule. The
         dictionary is filled with new tax rules.
         '''
-        pool = Pool()
+        pool = tx.pool
         Rule = pool.get('account.tax.rule')
 
         if template2rule is None:
@@ -1526,7 +1524,7 @@ class TaxRule(ModelSQL, ModelView):
 
     @staticmethod
     def default_company():
-        return Transaction().context.get('company')
+        return tx.transaction.context.get('company')
 
     @classmethod
     def copy(cls, rules, default=None):
@@ -1666,7 +1664,7 @@ class TaxRuleLineTemplate(sequence_ordered(), ModelSQL, ModelView):
         key and tax rule line id as value, used to convert template id into tax
         rule line. The dictionary is filled with new tax rule lines.
         '''
-        RuleLine = Pool().get('account.tax.rule.line')
+        RuleLine = tx.pool.get('account.tax.rule.line')
 
         if template2rule_line is None:
             template2rule_line = {}
@@ -1773,9 +1771,9 @@ class TaxRuleLine(sequence_ordered(), ModelSQL, ModelView, MatchMixin):
         return super().copy(lines, default=default)
 
     def match(self, pattern):
-        pool = Pool()
+        pool = tx.pool
         Date = pool.get('ir.date')
-        with Transaction().set_context(company=self.rule.company.id):
+        with tx.transaction.set_context(company=self.rule.company.id):
             today = Date.today()
         pattern = pattern.copy()
         if 'group' in pattern and not self.group:
@@ -1860,7 +1858,7 @@ class OpenTaxCode(Wizard):
     open_ = StateAction('account.act_tax_line_form')
 
     def do_open_(self, action):
-        pool = Pool()
+        pool = tx.pool
         Tax = pool.get('account.tax')
         if self.record.lines:
             domain = ['OR'] + [l._line_domain for l in self.record.lines]
@@ -1906,7 +1904,7 @@ class TestTaxView(ModelView, TaxableMixin):
 
     @classmethod
     def default_tax_date(cls):
-        pool = Pool()
+        pool = tx.pool
         Date = pool.get('ir.date')
         return Date.today()
 
@@ -1916,18 +1914,18 @@ class TestTaxView(ModelView, TaxableMixin):
 
     @classmethod
     def default_currency(cls):
-        pool = Pool()
+        pool = tx.pool
         Company = pool.get('company.company')
-        company_id = Transaction().context.get('company')
+        company_id = tx.transaction.context.get('company')
         if company_id is not None and company_id >= 0:
             company = Company(company_id)
             return company.currency.id
 
     @property
     def company(self):
-        pool = Pool()
+        pool = tx.pool
         Company = pool.get('company.company')
-        company_id = Transaction().context.get('company')
+        company_id = tx.transaction.context.get('company')
         if company_id is not None and company_id >= 0:
             return Company(company_id)
 
@@ -1938,7 +1936,7 @@ class TestTaxView(ModelView, TaxableMixin):
     @fields.depends(
         'tax_date', 'taxes', 'unit_price', 'quantity', 'currency', 'result')
     def on_change_with_result(self):
-        pool = Pool()
+        pool = tx.pool
         Result = pool.get('account.tax.test.result')
         result = []
         if all([self.tax_date, self.unit_price, self.quantity, self.currency]):

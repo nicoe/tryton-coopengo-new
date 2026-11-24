@@ -8,6 +8,7 @@ try:
 except ImportError:
     phonenumbers = None
 
+from trytond import tx
 from trytond.i18n import gettext
 from trytond.model import (
     DeactivableMixin, Index, ModelSQL, ModelView, MultiValueMixin, ValueMixin,
@@ -16,7 +17,6 @@ from trytond.model.exceptions import AccessError
 from trytond.pyson import Eval
 from trytond.tools.email_ import (
     EmailNotValidError, normalize_email, validate_email)
-from trytond.transaction import Transaction
 
 from .exceptions import InvalidEMail, InvalidPhoneNumber
 
@@ -144,7 +144,7 @@ class ContactMechanism(
 
     @classmethod
     def default_party(cls):
-        return Transaction().context.get('related_party')
+        return tx.transaction.context.get('related_party')
 
     @fields.depends('address', '_parent_address.party')
     def on_change_address(self):

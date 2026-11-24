@@ -12,13 +12,13 @@ from math import ceil
 import requests
 
 import trytond.config as config
+from trytond import tx
 from trytond.i18n import gettext
 from trytond.model import fields
 from trytond.model.exceptions import AccessError
 from trytond.modules.stock_package_shipping.exceptions import (
     PackingValidationError)
-from trytond.pool import Pool, PoolMeta
-from trytond.transaction import Transaction
+from trytond.pool import PoolMeta
 from trytond.wizard import StateAction, StateTransition, Wizard
 
 from .exceptions import UPSError
@@ -121,7 +121,7 @@ class CreateShipping(metaclass=PoolMeta):
         return next_state
 
     def do_ups(self, action):
-        ctx = Transaction().context
+        ctx = tx.transaction.context
         return action, {
             'model': ctx['active_model'],
             'id': ctx['active_id'],
@@ -135,7 +135,7 @@ class CreateShippingUPS(Wizard):
     start = StateTransition()
 
     def transition_start(self):
-        pool = Pool()
+        pool = tx.pool
         Package = pool.get('stock.package')
 
         shipment = self.record
@@ -217,7 +217,7 @@ class CreateShippingUPS(Wizard):
             }
 
     def get_credential(self, shipment):
-        pool = Pool()
+        pool = tx.pool
         UPSCredential = pool.get('carrier.credential.ups')
 
         credential_pattern = self.get_credential_pattern(shipment)
@@ -272,7 +272,7 @@ class CreateShippingUPS(Wizard):
             }
 
     def get_package(self, use_metric, package):
-        pool = Pool()
+        pool = tx.pool
         UoM = pool.get('product.uom')
         ModelData = pool.get('ir.model.data')
 
@@ -439,10 +439,10 @@ class CreateShippingUPS_Customs_Incoterm(metaclass=PoolMeta):
         return 'invoice'
 
     def get_international_form_invoice(self, use_metric, shipment):
-        pool = Pool()
+        pool = tx.pool
         Date = pool.get('ir.date')
 
-        with Transaction().set_context(company=shipment.company.id):
+        with tx.transaction.set_context(company=shipment.company.id):
             today = Date.today()
 
         if customs_agent := shipment.customs_agent:
@@ -478,7 +478,7 @@ class CreateShippingUPS_Customs_Incoterm(metaclass=PoolMeta):
     def get_international_form_invoice_product(
             self, use_metric, shipment, product, price, currency, unit,
             quantity, weight):
-        pool = Pool()
+        pool = tx.pool
         UoM = pool.get('product.uom')
         ModelData = pool.get('ir.model.data')
 

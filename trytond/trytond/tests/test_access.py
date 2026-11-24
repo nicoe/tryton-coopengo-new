@@ -2,11 +2,11 @@
 # This file is part of Tryton.  The COPYRIGHT file at the top level of
 # this repository contains the full copyright notices and license terms.
 
+from trytond import tx
 from trytond.model.exceptions import AccessError
 from trytond.pool import Pool
 from trytond.tests.test_tryton import (
     TestCase, activate_module, with_transaction)
-from trytond.transaction import Transaction
 
 _context = {'_check_access': True}
 
@@ -23,9 +23,9 @@ class _ModelAccessTestCase(TestCase):
 
     @property
     def group(self):
-        pool = Pool()
+        pool = tx.pool
         Group = pool.get('res.group')
-        group, = Group.search([('users', '=', Transaction().user)])
+        group, = Group.search([('users', '=', tx.transaction.user)])
         return group
 
     def _assert(self, record):
@@ -261,7 +261,7 @@ class _ModelAccessTestCase(TestCase):
         inactive_group, = Group.create([{
                     'name': 'Test',
                     'active': False,
-                    'users': [('add', [Transaction().user])],
+                    'users': [('add', [tx.transaction.user])],
                     }])
         record, = TestAccess.create([{}])
         ModelAccess.create([{
@@ -356,7 +356,7 @@ class ModelAccessReadTestCase(_ModelAccessTestCase):
     @with_transaction(context=_context)
     def test_access_relate(self):
         "Test access on search relate"
-        pool = Pool()
+        pool = tx.pool
         TestAccess = pool.get(self.model_name)
         ModelAccess = pool.get('ir.model.access')
         record, = TestAccess.create([{}])
@@ -375,7 +375,7 @@ class ModelAccessReadTestCase(_ModelAccessTestCase):
     @with_transaction(context=_context)
     def test_no_access_relate(self):
         "Test no access on search relate"
-        pool = Pool()
+        pool = tx.pool
         TestAccess = pool.get(self.model_name)
         ModelAccess = pool.get('ir.model.access')
         record, = TestAccess.create([{}])
@@ -399,12 +399,12 @@ class ModelAccessWriteTestCase(_ModelAccessTestCase):
     _perm = 'perm_write'
 
     def _assert(self, record):
-        pool = Pool()
+        pool = tx.pool
         TestAccess = pool.get(self.model_name)
         TestAccess.write([record], {})
 
     def _assert_raises(self, record):
-        pool = Pool()
+        pool = tx.pool
         TestAccess = pool.get(self.model_name)
         with self.assertRaises(AccessError):
             TestAccess.write([record], {})
@@ -414,12 +414,12 @@ class ModelAccessCreateTestCase(_ModelAccessTestCase):
     _perm = 'perm_create'
 
     def _assert(self, record):
-        pool = Pool()
+        pool = tx.pool
         TestAccess = pool.get(self.model_name)
         TestAccess.create([{}])
 
     def _assert_raises(self, record):
-        pool = Pool()
+        pool = tx.pool
         TestAccess = pool.get(self.model_name)
         with self.assertRaises(AccessError):
             TestAccess.create([{}])
@@ -429,12 +429,12 @@ class ModelAccessDeleteTestCase(_ModelAccessTestCase):
     _perm = 'perm_delete'
 
     def _assert(self, record):
-        pool = Pool()
+        pool = tx.pool
         TestAccess = pool.get(self.model_name)
         TestAccess.delete([record])
 
     def _assert_raises(self, record):
-        pool = Pool()
+        pool = tx.pool
         TestAccess = pool.get(self.model_name)
         with self.assertRaises(AccessError):
             TestAccess.delete([record])
@@ -445,13 +445,13 @@ class ModelAccessModelTestCase(_ModelAccessTestCase):
     _perm = 'perm_read'
 
     def _assert(self, record):
-        pool = Pool()
+        pool = tx.pool
         TestAccess = pool.get(self.model_name)
         TestAccess.read([record.id], ['field1'])
         TestAccess.search([])
 
     def _assert_raises(self, record):
-        pool = Pool()
+        pool = tx.pool
         TestAccess = pool.get(self.model_name)
         with self.assertRaises(AccessError):
             TestAccess.read([record.id], ['field1'])
@@ -469,9 +469,9 @@ class _ModelFieldAccessTestCase(TestCase):
 
     @property
     def group(self):
-        pool = Pool()
+        pool = tx.pool
         Group = pool.get('res.group')
-        group, = Group.search([('users', '=', Transaction().user)])
+        group, = Group.search([('users', '=', tx.transaction.user)])
         return group
 
     def _assert1(self, record):
@@ -743,7 +743,7 @@ class _ModelFieldAccessTestCase(TestCase):
         inactive_group, = Group.create([{
                     'name': 'Test',
                     'active': False,
-                    'users': [('add', [Transaction().user])],
+                    'users': [('add', [tx.transaction.user])],
                     }])
         record, = TestAccess.create([{}])
         FieldAccess.create([{
@@ -995,19 +995,19 @@ class ModelFieldAccessReadTestCase(_ModelFieldAccessTestCase):
     _perm = 'perm_read'
 
     def _assert1(self, record):
-        pool = Pool()
+        pool = tx.pool
         TestAccess = pool.get('test.access')
         TestAccess.read([record.id], ['field1'])
         TestAccess.search([('field1', '=', 'test')])
 
     def _assert2(self, record):
-        pool = Pool()
+        pool = tx.pool
         TestAccess = pool.get('test.access')
         TestAccess.read([record.id], ['field2'])
         TestAccess.search([('field2', '=', 'test')])
 
     def _assert_raises1(self, record):
-        pool = Pool()
+        pool = tx.pool
         TestAccess = pool.get('test.access')
         with self.assertRaises(AccessError):
             TestAccess.read([record.id], ['field1'])
@@ -1015,7 +1015,7 @@ class ModelFieldAccessReadTestCase(_ModelFieldAccessTestCase):
             TestAccess.search([('field1', '=', 'test')])
 
     def _assert_raises2(self, record):
-        pool = Pool()
+        pool = tx.pool
         TestAccess = pool.get('test.access')
         with self.assertRaises(AccessError):
             TestAccess.read([record.id], ['field2'])
@@ -1034,7 +1034,7 @@ class ModelFieldAccessReadTestCase(_ModelFieldAccessTestCase):
     @with_transaction(context=_context)
     def test_access_search_relate(self):
         "Test access on search relate"
-        pool = Pool()
+        pool = tx.pool
         TestAccess = pool.get('test.access')
         FieldAccess = pool.get('ir.model.field.access')
         FieldAccess.create([{
@@ -1052,7 +1052,7 @@ class ModelFieldAccessReadTestCase(_ModelFieldAccessTestCase):
     @with_transaction(context=_context)
     def test_no_access_search_relate(self):
         "Test access on search relate"
-        pool = Pool()
+        pool = tx.pool
         TestAccess = pool.get('test.access')
         FieldAccess = pool.get('ir.model.field.access')
         FieldAccess.create([{
@@ -1075,7 +1075,7 @@ class ModelFieldAccessReadTestCase(_ModelFieldAccessTestCase):
     @with_transaction(context=_context)
     def test_access_search_relate_parent_field(self):
         "Test access on search relate with a parent field"
-        pool = Pool()
+        pool = tx.pool
         TestAccess = pool.get('test.access')
         FieldAccess = pool.get('ir.model.field.access')
         FieldAccess.create([{
@@ -1106,23 +1106,23 @@ class ModelFieldAccessWriteTestCase(_ModelFieldAccessTestCase):
     _perm = 'perm_write'
 
     def _assert1(self, record):
-        pool = Pool()
+        pool = tx.pool
         TestAccess = pool.get('test.access')
         TestAccess.write([record], {'field1': 'test'})
 
     def _assert2(self, record):
-        pool = Pool()
+        pool = tx.pool
         TestAccess = pool.get('test.access')
         TestAccess.write([record], {'field2': 'test'})
 
     def _assert_raises1(self, record):
-        pool = Pool()
+        pool = tx.pool
         TestAccess = pool.get('test.access')
         with self.assertRaises(AccessError):
             TestAccess.write([record], {'field1': 'test'})
 
     def _assert_raises2(self, record):
-        pool = Pool()
+        pool = tx.pool
         TestAccess = pool.get('test.access')
         with self.assertRaises(AccessError):
             TestAccess.write([record], {'field2': 'test'})
@@ -1136,7 +1136,7 @@ class MenuActionAccessReadTestCase(TestCase):
         activate_module('tests')
 
     def create_menu(self, access=None):
-        pool = Pool()
+        pool = tx.pool
         Action = pool.get('ir.action.act_window')
         Menu = pool.get('ir.ui.menu')
         ModelAccess = pool.get('ir.model.access')

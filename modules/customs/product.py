@@ -1,7 +1,8 @@
 # This file is part of Tryton.  The COPYRIGHT file at the top level of
 # this repository contains the full copyright notices and license terms.
+from trytond import tx
 from trytond.model import ModelSQL, ModelView, fields, sequence_ordered
-from trytond.pool import Pool, PoolMeta
+from trytond.pool import PoolMeta
 from trytond.pyson import Bool, Eval, Or
 
 
@@ -76,7 +77,7 @@ class Category(metaclass=PoolMeta):
 
     @classmethod
     def on_delete(cls, categories):
-        pool = Pool()
+        pool = tx.pool
         Product_TariffCode = pool.get('product-customs.tariff.code')
 
         callback = super().on_delete(categories)
@@ -146,7 +147,7 @@ class Template(metaclass=PoolMeta):
 
     @classmethod
     def on_delete(cls, templates):
-        pool = Pool()
+        pool = tx.pool
         Product_TariffCode = pool.get('product-customs.tariff.code')
 
         callback = super().on_delete(templates)

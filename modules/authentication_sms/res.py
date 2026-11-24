@@ -5,10 +5,11 @@ import logging
 import random
 
 import trytond.config as config
+from trytond import tx
 from trytond.exceptions import LoginException
 from trytond.i18n import gettext
 from trytond.model import Index, ModelSQL, fields
-from trytond.pool import Pool, PoolMeta
+from trytond.pool import PoolMeta
 from trytond.tools import resolve
 
 logger = logging.getLogger(__name__)
@@ -34,7 +35,7 @@ class User(metaclass=PoolMeta):
 
     @classmethod
     def _login_sms(cls, login, parameters):
-        pool = Pool()
+        pool = tx.pool
         SMSCode = pool.get('res.user.login.sms_code')
         user_id = cls._get_login(login)[0]
         if user_id:

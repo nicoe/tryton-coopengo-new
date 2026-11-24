@@ -5,7 +5,7 @@ from sql import Expression, Literal, Null
 from sql.conditionals import Case
 from sql.operators import BinaryOperator
 
-from trytond.transaction import Transaction
+from trytond import tx
 
 from .functions import Range
 
@@ -13,7 +13,7 @@ __all__ = ['RangeContain', 'RangeIn', 'RangeOverlap']
 
 
 def _has_range():
-    return Transaction().database.has_range()
+    return tx.transaction.database.has_range()
 
 
 class RangeOperator(BinaryOperator):

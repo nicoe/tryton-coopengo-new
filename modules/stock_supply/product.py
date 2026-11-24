@@ -2,8 +2,9 @@
 # this repository contains the full copyright notices and license terms.
 import datetime
 
+from trytond import tx
 from trytond.model import fields
-from trytond.pool import Pool, PoolMeta
+from trytond.pool import PoolMeta
 
 
 class Product(metaclass=PoolMeta):
@@ -23,7 +24,7 @@ class ProductSupplier(metaclass=PoolMeta):
 
     def get_supply_period(self):
         'Return the supply period for the purchase request'
-        pool = Pool()
+        pool = tx.pool
         Configuration = pool.get('purchase.configuration')
         config = Configuration(1)
         supply_period = config.get_multivalue(

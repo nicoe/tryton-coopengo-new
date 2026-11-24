@@ -3,14 +3,13 @@
 import time
 from string import Template
 
-from trytond import backend
+from trytond import backend, tx
 from trytond.exceptions import UserError
 from trytond.i18n import gettext
 from trytond.model import Check, DeactivableMixin, ModelSQL, ModelView, fields
 from trytond.model.exceptions import AccessError, ValidationError
-from trytond.pool import Pool
 from trytond.pyson import And, Eval
-from trytond.transaction import Transaction, without_check_access
+from trytond.transaction import without_check_access
 
 sql_sequence = backend.Database.has_sequence()
 
@@ -158,7 +157,7 @@ class Sequence(DeactivableMixin, ModelSQL, ModelView):
         if self.type != 'incremental':
             return
 
-        transaction = Transaction()
+        transaction = tx.transaction
         if sql_sequence and not self._strict:
             if transaction.database.sequence_exist(
                     transaction.connection, self._sql_sequence_name):
@@ -196,7 +195,7 @@ class Sequence(DeactivableMixin, ModelSQL, ModelView):
 
     @classmethod
     def write(cls, *args):
-        transaction = Transaction()
+        transaction = tx.transaction
         if transaction.user != 0 and transaction.check_access:
             for values in args[1::2]:
                 if 'sequence_type' in values:
@@ -260,7 +259,7 @@ class Sequence(DeactivableMixin, ModelSQL, ModelView):
 
     def create_sql_sequence(self, number_next=None):
         'Create the SQL sequence'
-        transaction = Transaction()
+        transaction = tx.transaction
 
         if self.type != 'incremental':
             return
@@ -279,7 +278,7 @@ class Sequence(DeactivableMixin, ModelSQL, ModelView):
 
     def update_sql_sequence(self, number_next=None):
         'Update the SQL sequence'
-        transaction = Transaction()
+        transaction = tx.transaction
 
         exist = transaction.database.sequence_exist(
             transaction.connection, self._sql_sequence_name)
@@ -305,7 +304,7 @@ class Sequence(DeactivableMixin, ModelSQL, ModelView):
 
     def delete_sql_sequence(self):
         'Delete the SQL sequence'
-        transaction = Transaction()
+        transaction = tx.transaction
         if self.type != 'incremental':
             return
         transaction.database.sequence_delete(
@@ -325,9 +324,9 @@ class Sequence(DeactivableMixin, ModelSQL, ModelView):
         Returns a dictionary with the keys and values of the substitutions
         available to format the sequence
         '''
-        pool = Pool()
+        pool = tx.pool
         Date = pool.get('ir.date')
-        context = Transaction().context
+        context = tx.transaction.context
         if not date:
             date = context.get('date') or Date.today()
 
@@ -372,7 +371,7 @@ class Sequence(DeactivableMixin, ModelSQL, ModelView):
     def _get_many(self, n=1):
         if self.type == 'incremental':
             if sql_sequence and not self._strict:
-                transaction = Transaction()
+                transaction = tx.transaction
                 numbers = transaction.database.sequence_nextvals(
                     transaction.connection, self._sql_sequence_name, n)
                 # clean cache

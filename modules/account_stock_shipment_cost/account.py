@@ -5,15 +5,15 @@ from itertools import groupby
 
 from sql.functions import CharLength
 
+from trytond import tx
 from trytond.i18n import gettext
 from trytond.model import (
     ChatMixin, Index, ModelSQL, ModelView, Workflow, fields)
 from trytond.model.exceptions import AccessError
 from trytond.modules.company.model import CompanyValueMixin
 from trytond.modules.product import price_digits, round_price
-from trytond.pool import Pool, PoolMeta
+from trytond.pool import PoolMeta
 from trytond.pyson import Eval, Id
-from trytond.transaction import Transaction
 from trytond.wizard import Button, StateTransition, StateView, Wizard
 
 from .exceptions import NoShipmentWarning, SamePartiesWarning
@@ -50,7 +50,7 @@ class ConfigurationShipmentCostSequence(ModelSQL, CompanyValueMixin):
 
     @classmethod
     def default_shipment_cost_sequence(cls, **pattern):
-        pool = Pool()
+        pool = tx.pool
         ModelData = pool.get('ir.model.data')
         try:
             return ModelData.get_id(
@@ -164,7 +164,7 @@ class ShipmentCost(Workflow, ModelSQL, ModelView, ChatMixin):
 
     @classmethod
     def default_company(cls):
-        return Transaction().context.get('company')
+        return tx.transaction.context.get('company')
 
     @classmethod
     def default_allocation_method(cls):
@@ -196,14 +196,14 @@ class ShipmentCost(Workflow, ModelSQL, ModelView, ChatMixin):
 
     @property
     def cost(self):
-        pool = Pool()
+        pool = tx.pool
         Currency = pool.get('currency.currency')
 
         currency = self.company.currency
         cost = Decimal(0)
 
         for line in self.invoice_lines:
-            with Transaction().set_context(date=line.invoice.currency_date):
+            with tx.transaction.set_context(date=line.invoice.currency_date):
                 cost += Currency.compute(
                     line.invoice.currency, line.amount, currency, round=False)
         return cost
@@ -237,7 +237,7 @@ class ShipmentCost(Workflow, ModelSQL, ModelView, ChatMixin):
 
     def _allocate_cost(self, factors, sign=1):
         "Allocate cost on shipments using factors"
-        pool = Pool()
+        pool = tx.pool
         Shipment = pool.get('stock.shipment.out')
         ShipmentReturn = pool.get('stock.shipment.out.return')
         assert sign in {1, -1}
@@ -278,7 +278,7 @@ class ShipmentCost(Workflow, ModelSQL, ModelView, ChatMixin):
     @classmethod
     @Workflow.transition('posted')
     def post(cls, shipment_costs):
-        pool = Pool()
+        pool = tx.pool
         Date = pool.get('ir.date')
         Warning = pool.get('res.user.warning')
 
@@ -314,7 +314,7 @@ class ShipmentCost(Workflow, ModelSQL, ModelView, ChatMixin):
                 shipment_cost.allocation_method)()
         for company, c_shipment_costs in groupby(
                 shipment_costs, key=lambda s: s.company):
-            with Transaction().set_context(company=company.id):
+            with tx.transaction.set_context(company=company.id):
                 today = Date.today()
             cls.write(list(c_shipment_costs), {
                     'posted_date': today,
@@ -323,7 +323,7 @@ class ShipmentCost(Workflow, ModelSQL, ModelView, ChatMixin):
 
     @classmethod
     def preprocess_values(cls, mode, values):
-        pool = Pool()
+        pool = tx.pool
         Config = pool.get('account.configuration')
         values = super().preprocess_values(mode, values)
         if values.get('number') is None:

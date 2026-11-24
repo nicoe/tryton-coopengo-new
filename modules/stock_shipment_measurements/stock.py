@@ -9,11 +9,11 @@ from sql.aggregate import Sum
 from sql.conditionals import Case, Coalesce
 from sql.operators import Concat
 
+from trytond import tx
 from trytond.model import Index, ModelSQL, ModelView, Workflow, fields
 from trytond.modules.company.model import CompanyValueMixin
-from trytond.pool import Pool, PoolMeta
+from trytond.pool import PoolMeta
 from trytond.pyson import Bool, Eval, Id
-from trytond.transaction import Transaction
 
 
 class Configuration(metaclass=PoolMeta):
@@ -32,7 +32,7 @@ class Configuration(metaclass=PoolMeta):
 
     @classmethod
     def multivalue_model(cls, field):
-        pool = Pool()
+        pool = tx.pool
         if field in {'measurement_weight_uom', 'measurement_volume_uom'}:
             return pool.get('stock.configuration.measurement')
         return super().multivalue_model(field)
@@ -60,14 +60,14 @@ class ConfigurationMeasurement(ModelSQL, CompanyValueMixin):
 
     @classmethod
     def default_measurement_weight_uom(cls):
-        pool = Pool()
+        pool = tx.pool
         Uom = pool.get('product.uom')
         ModelData = pool.get('ir.model.data')
         return Uom(ModelData.get_id('product', 'uom_kilogram')).id
 
     @classmethod
     def default_measurement_volume_uom(cls):
-        pool = Pool()
+        pool = tx.pool
         Uom = pool.get('product.uom')
         ModelData = pool.get('ir.model.data')
         return Uom(ModelData.get_id('product', 'uom_liter')).id
@@ -87,7 +87,7 @@ class Move(metaclass=PoolMeta):
         'quantity', 'unit', 'product',
         methods=['on_change_with_internal_quantity'])
     def on_change_with_internal_weight(self):
-        pool = Pool()
+        pool = tx.pool
         Uom = pool.get('product.uom')
         ModelData = pool.get('ir.model.data')
 
@@ -111,7 +111,7 @@ class Move(metaclass=PoolMeta):
         'quantity', 'unit', 'product',
         methods=['on_change_with_internal_quantity'])
     def on_change_with_internal_volume(self):
-        pool = Pool()
+        pool = tx.pool
         Uom = pool.get('product.uom')
         ModelData = pool.get('ir.model.data')
 
@@ -235,7 +235,7 @@ class MeasurementsMixin(object):
 
     @classmethod
     def get_measurements_uom(cls, shipments, name):
-        pool = Pool()
+        pool = tx.pool
         Configuration = pool.get('stock.configuration')
         configuration = Configuration(1)
         uoms = {}
@@ -248,11 +248,11 @@ class MeasurementsMixin(object):
 
     @classmethod
     def set_measurements(cls, shipments=None):
-        pool = Pool()
+        pool = tx.pool
         Location = pool.get('stock.location')
         Move = pool.get('stock.move')
 
-        cursor = Transaction().connection.cursor()
+        cursor = tx.transaction.connection.cursor()
         table = cls.__table__()
         move = Move.__table__()
         location = Location.__table__()
@@ -290,7 +290,7 @@ class MeasurementsMixin(object):
 
     @classmethod
     def get_measurements(cls, shipments, names):
-        pool = Pool()
+        pool = tx.pool
         Location = pool.get('stock.location')
         ModelData = pool.get('ir.model.data')
         Move = pool.get('stock.move')
@@ -299,7 +299,7 @@ class MeasurementsMixin(object):
         kg = Uom(ModelData.get_id('product', 'uom_kilogram'))
         liter = Uom(ModelData.get_id('product', 'uom_liter'))
 
-        cursor = Transaction().connection.cursor()
+        cursor = tx.transaction.connection.cursor()
         table = cls.__table__()
         move = Move.__table__()
         location = Location.__table__()
@@ -346,7 +346,7 @@ class MeasurementsMixin(object):
 
     @classmethod
     def search_measurements(cls, name, clause):
-        pool = Pool()
+        pool = tx.pool
         Location = pool.get('stock.location')
         Move = pool.get('stock.move')
 
@@ -398,7 +398,7 @@ class MeasurementsMixin(object):
 
     @classmethod
     def _measurements_value(cls, name, value):
-        pool = Pool()
+        pool = tx.pool
         Configuration = pool.get('stock.configuration')
         ModelData = pool.get('ir.model.data')
         Uom = pool.get('product.uom')
@@ -512,7 +512,7 @@ class ShipmentOut(MeasurementsMixin, object, metaclass=PoolMeta):
 
     @fields.depends('carrier')
     def _parcel_weight(self, parcel):
-        pool = Pool()
+        pool = tx.pool
         ModelData = pool.get('ir.model.data')
         Uom = pool.get('product.uom')
         kg = Uom(ModelData.get_id('product', 'uom_kilogram'))
@@ -621,7 +621,7 @@ class Package(MeasurementsMixin, object, metaclass=PoolMeta):
 
     @classmethod
     def default_additional_weight_uom(cls):
-        pool = Pool()
+        pool = tx.pool
         Configuration = pool.get('stock.configuration')
         configuration = Configuration(1)
         return configuration.get_multivalue('measurement_weight_uom').id
@@ -635,7 +635,7 @@ class Package(MeasurementsMixin, object, metaclass=PoolMeta):
         return move.to_location == location.id
 
     def get_total_measurements(self, name, round=True):
-        pool = Pool()
+        pool = tx.pool
         Uom = pool.get('product.uom')
         field = name[len('total_'):]
 

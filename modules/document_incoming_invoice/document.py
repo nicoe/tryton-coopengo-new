@@ -1,11 +1,12 @@
 # This file is part of Tryton.  The COPYRIGHT file at the top level of
 # this repository contains the full copyright notices and license terms.
 
+from trytond import tx
 from trytond.i18n import gettext
 from trytond.model import fields
 from trytond.modules.document_incoming.exceptions import (
     DocumentIncomingProcessError)
-from trytond.pool import Pool, PoolMeta
+from trytond.pool import PoolMeta
 
 
 class IncomingConfiguration(metaclass=PoolMeta):
@@ -28,7 +29,7 @@ class Incoming(metaclass=PoolMeta):
         return super()._get_results() | {'account.invoice'}
 
     def _process_supplier_invoice(self):
-        pool = Pool()
+        pool = tx.pool
         Invoice = pool.get('account.invoice')
         Configuration = pool.get('document.incoming.configuration')
         config = Configuration(1)

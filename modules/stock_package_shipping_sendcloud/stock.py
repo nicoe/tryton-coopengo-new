@@ -5,11 +5,11 @@ from decimal import Decimal
 from itertools import zip_longest
 from math import ceil
 
+from trytond import tx
 from trytond.i18n import gettext
 from trytond.model import fields
 from trytond.model.exceptions import AccessError
-from trytond.pool import Pool, PoolMeta
-from trytond.transaction import Transaction
+from trytond.pool import PoolMeta
 from trytond.wizard import StateAction, StateTransition, Wizard
 
 
@@ -45,7 +45,7 @@ class ShippingSendcloudMixin:
     __slots__ = ()
 
     def get_sendcloud_credential(self):
-        pool = Pool()
+        pool = tx.pool
         SendcloudCredential = pool.get('carrier.credential.sendcloud')
 
         pattern = self._get_sendcloud_credential_pattern()
@@ -83,7 +83,7 @@ class CreateShipping(metaclass=PoolMeta):
         return next_state
 
     def do_sendcloud(self, action):
-        ctx = Transaction().context
+        ctx = tx.transaction.context
         return action, {
             'model': ctx['active_model'],
             'id': ctx['active_id'],
@@ -97,7 +97,7 @@ class CreateShippingSendcloud(Wizard):
     start = StateTransition()
 
     def transition_start(self):
-        pool = Pool()
+        pool = tx.pool
         Package = pool.get('stock.package')
 
         shipment = self.record
@@ -142,7 +142,7 @@ class CreateShippingSendcloud(Wizard):
         return 'end'
 
     def get_parcel(self, shipment, package, credential, usage=None):
-        pool = Pool()
+        pool = tx.pool
         UoM = pool.get('product.uom')
         ModelData = pool.get('ir.model.data')
 

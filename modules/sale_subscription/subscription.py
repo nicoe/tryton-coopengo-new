@@ -7,6 +7,7 @@ from sql import Literal, Null, operators
 from sql.conditionals import Coalesce
 from sql.functions import CharLength
 
+from trytond import tx
 from trytond.i18n import gettext
 from trytond.model import (
     ChatMixin, Index, ModelSQL, ModelView, Workflow, fields, sequence_ordered)
@@ -15,10 +16,8 @@ from trytond.modules.company.model import (
     employee_field, reset_employee, set_employee)
 from trytond.modules.currency.fields import Monetary
 from trytond.modules.product import price_digits
-from trytond.pool import Pool
 from trytond.pyson import Bool, Eval, If
 from trytond.tools import firstline, sortable_values
-from trytond.transaction import Transaction
 from trytond.wizard import (
     Button, StateAction, StateTransition, StateView, Wizard)
 
@@ -226,11 +225,11 @@ class Subscription(Workflow, ModelSQL, ModelView, ChatMixin):
 
     @classmethod
     def default_company(cls):
-        return Transaction().context.get('company')
+        return tx.transaction.context.get('company')
 
     @classmethod
     def default_currency(cls, **pattern):
-        pool = Pool()
+        pool = tx.pool
         Company = pool.get('company.company')
         company = pattern.get('company')
         if not company:
@@ -266,7 +265,7 @@ class Subscription(Workflow, ModelSQL, ModelView, ChatMixin):
 
     @classmethod
     def set_number(cls, subscriptions):
-        pool = Pool()
+        pool = tx.pool
         Config = pool.get('sale.configuration')
 
         config = Config(1)
@@ -386,7 +385,7 @@ class Subscription(Workflow, ModelSQL, ModelView, ChatMixin):
     @Workflow.transition('running')
     @set_employee('run_by')
     def run(cls, subscriptions):
-        pool = Pool()
+        pool = tx.pool
         Line = pool.get('sale.subscription.line')
         lines = []
         for subscription in subscriptions:
@@ -422,7 +421,7 @@ class Subscription(Workflow, ModelSQL, ModelView, ChatMixin):
 
     @classmethod
     def generate_invoice(cls, date=None):
-        pool = Pool()
+        pool = tx.pool
         Date = pool.get('ir.date')
         Consumption = pool.get('sale.subscription.line.consumption')
         Invoice = pool.get('account.invoice')
@@ -430,7 +429,7 @@ class Subscription(Workflow, ModelSQL, ModelView, ChatMixin):
 
         if date is None:
             date = Date.today()
-        company_id = Transaction().context.get('company', -1)
+        company_id = tx.transaction.context.get('company', -1)
 
         consumptions = Consumption.search([
                 ('invoice_line', '=', None),
@@ -485,7 +484,7 @@ class Subscription(Workflow, ModelSQL, ModelView, ChatMixin):
         cls.save(subscriptions)
 
     def _get_invoice(self):
-        pool = Pool()
+        pool = tx.pool
         Invoice = pool.get('account.invoice')
         party = self.invoice_party or self.party
         invoice = Invoice(
@@ -618,7 +617,7 @@ class Line(sequence_ordered(), ModelSQL, ModelView):
 
     @classmethod
     def get_subscription_states(cls):
-        pool = Pool()
+        pool = tx.pool
         Subscription = pool.get('sale.subscription')
         return Subscription.fields_get(['state'])['state']['selection']
 
@@ -671,7 +670,7 @@ class Line(sequence_ordered(), ModelSQL, ModelView):
         'subscription', '_parent_subscription.party',
         methods=['_get_context_sale_price'])
     def on_change_service(self):
-        pool = Pool()
+        pool = tx.pool
         Product = pool.get('product.product')
 
         if not self.service:
@@ -691,7 +690,7 @@ class Line(sequence_ordered(), ModelSQL, ModelView):
         if not self.unit or self.unit.category != category:
             self.unit = product.sale_uom
 
-        with Transaction().set_context(self._get_context_sale_price()):
+        with tx.transaction.set_context(self._get_context_sale_price()):
             self.unit_price = Product.get_sale_price(
                 [product], self.quantity or 0)[product.id]
 
@@ -725,7 +724,7 @@ class Line(sequence_ordered(), ModelSQL, ModelView):
         return self.next_consumption_date
 
     def get_rec_name(self, name):
-        pool = Pool()
+        pool = tx.pool
         Lang = pool.get('ir.lang')
         lang = Lang.get()
         return (lang.format_number_symbol(
@@ -764,14 +763,14 @@ class Line(sequence_ordered(), ModelSQL, ModelView):
 
     @classmethod
     def generate_consumption(cls, date=None):
-        pool = Pool()
+        pool = tx.pool
         Date = pool.get('ir.date')
         Consumption = pool.get('sale.subscription.line.consumption')
         Subscription = pool.get('sale.subscription')
 
         if date is None:
             date = Date.today()
-        company_id = Transaction().context.get('company', -1)
+        company_id = tx.transaction.context.get('company', -1)
 
         remainings = all_lines = cls.search([
                 ('consumption_recurrence', '!=', None),
@@ -805,7 +804,7 @@ class Line(sequence_ordered(), ModelSQL, ModelView):
         Subscription.process(Subscription.browse(list(subscription_ids)))
 
     def get_consumption(self, date):
-        pool = Pool()
+        pool = tx.pool
         Consumption = pool.get('sale.subscription.line.consumption')
         end_date = self.end_date or self.subscription.end_date
         if date < (end_date or datetime.date.max):
@@ -906,7 +905,7 @@ class LineConsumption(ModelSQL, ModelView):
     @classmethod
     def get_invoice_lines(cls, consumptions, invoice):
         "Return a list of lines and a list of consumptions"
-        pool = Pool()
+        pool = tx.pool
         InvoiceLine = pool.get('account.invoice.line')
 
         lines, grouped_consumptions = [], []
@@ -957,7 +956,7 @@ class CreateLineConsumption(Wizard):
         'sale_subscription.act_subscription_line_consumption_form')
 
     def do_create_(self, action):
-        pool = Pool()
+        pool = tx.pool
         Line = pool.get('sale.subscription.line')
         Line.generate_consumption(date=self.start.date)
         return action, {}
@@ -973,7 +972,7 @@ class CreateLineConsumptionStart(ModelView):
 
     @classmethod
     def default_date(cls):
-        pool = Pool()
+        pool = tx.pool
         Date = pool.get('ir.date')
         return Date.today()
 
@@ -989,7 +988,7 @@ class CreateSubscriptionInvoice(Wizard):
     create_ = StateTransition()
 
     def transition_create_(self):
-        pool = Pool()
+        pool = tx.pool
         Subscription = pool.get('sale.subscription')
         Subscription.generate_invoice(date=self.start.date)
         return 'end'
@@ -1002,6 +1001,6 @@ class CreateSubscriptionInvoiceStart(ModelView):
 
     @classmethod
     def default_date(cls):
-        pool = Pool()
+        pool = tx.pool
         Date = pool.get('ir.date')
         return Date.today()

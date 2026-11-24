@@ -2,12 +2,11 @@
 # this repository contains the full copyright notices and license terms.
 
 import trytond.config as config
+from trytond import tx
 from trytond.i18n import lazy_gettext
 from trytond.model import ModelSQL, ModelView, fields
-from trytond.pool import Pool
 from trytond.pyson import Eval
 from trytond.tools import firstline
-from trytond.transaction import Transaction
 
 from .resource import ResourceMixin, resource_copy
 
@@ -59,7 +58,7 @@ class Attachment(ResourceMixin, ModelSQL, ModelView):
         return 'data'
 
     def get_size(self, name):
-        with Transaction().set_context({
+        with tx.transaction.set_context({
                     '%s.%s' % (self.__name__, name[:-len('_size')]): 'size',
                     }):
             record = self.__class__(self.id)
@@ -75,10 +74,10 @@ class Attachment(ResourceMixin, ModelSQL, ModelView):
 
     @classmethod
     def fields_view_get(cls, view_id=None, view_type='form', level=None):
-        pool = Pool()
+        pool = tx.pool
         ModelData = pool.get('ir.model.data')
         if not view_id:
-            if Transaction().context.get('preview'):
+            if tx.transaction.context.get('preview'):
                 view_id = ModelData.get_id(
                     'ir', 'attachment_view_form_preview')
         return super().fields_view_get(

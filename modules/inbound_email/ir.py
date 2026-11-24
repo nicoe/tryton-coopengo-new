@@ -8,9 +8,9 @@ import re
 from email.utils import getaddresses
 
 import trytond.config as config
+from trytond import tx
 from trytond.i18n import gettext
 from trytond.pool import PoolMeta
-from trytond.transaction import Transaction
 
 REPLY_LINE = '\N{EM DASH}' * 80
 DESTINATION_RE = re.compile(r"^[^@]*\+([0-9a-f]{32})@", re.IGNORECASE)
@@ -75,6 +75,6 @@ class Channel(metaclass=PoolMeta):
     @classmethod
     def _email_body(cls, message):
         body = super()._email_body(message)
-        with Transaction().set_context(language=message.channel.language):
+        with tx.transaction.set_context(language=message.channel.language):
             above_msg = gettext('inbound_email.msg_reply_above')
             return f'{REPLY_LINE}\n{above_msg}\n\n{body}'

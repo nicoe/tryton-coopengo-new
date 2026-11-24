@@ -11,11 +11,10 @@ import time
 import uuid
 
 import trytond.config as config
-from trytond import backend
+from trytond import backend, tx
 from trytond.protocols.jsonrpc import JSONDecoder, JSONEncoder
 from trytond.protocols.wrappers import HTTPStatus, Response, abort, exceptions
 from trytond.tools import resolve
-from trytond.transaction import Transaction
 from trytond.wsgi import app
 
 logger = logging.getLogger(__name__)
@@ -195,7 +194,7 @@ class LongPollingBus:
 
     @classmethod
     def publish(cls, channel, message):
-        transaction = Transaction()
+        transaction = tx.transaction
         if not transaction.database.has_channel():
             logger.info("database backend does not support channels")
             return
@@ -252,7 +251,7 @@ def subscribe(request, database_name):
 def notify(title, body=None, priority=1, user=None, client=None):
     if user is None:
         if client is None:
-            context_client = Transaction().context.get('client')
+            context_client = tx.transaction.context.get('client')
             if context_client:
                 channel = 'client:%s' % context_client
             else:

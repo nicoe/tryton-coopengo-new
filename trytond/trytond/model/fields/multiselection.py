@@ -5,8 +5,8 @@ from functools import partial
 
 from sql import Literal, operators
 
+from trytond import tx
 from trytond.rpc import RPC
-from trytond.transaction import Transaction
 
 from .field import Field, domain_method
 from .selection import SelectionMixin
@@ -74,11 +74,11 @@ class MultiSelection(SelectionMixin, Field):
         return value
 
     def _domain_column(self, operator, column):
-        database = Transaction().database
+        database = tx.transaction.database
         return database.json_get(super()._domain_column(operator, column))
 
     def _domain_value(self, operator, value):
-        database = Transaction().database
+        database = tx.transaction.database
         domain_value = super()._domain_value(operator, value)
         if value is not None:
             domain_value = database.json_get(domain_value)
@@ -88,7 +88,7 @@ class MultiSelection(SelectionMixin, Field):
         name, operator, value = domain[:3]
         if operator not in {'in', 'not in'}:
             return super()._convert_domain(domain, tables, Model)
-        database = Transaction().database
+        database = tx.transaction.database
         raw_column = self.sql_column(tables, Model)
         if value is None:
             expression = Literal(False)

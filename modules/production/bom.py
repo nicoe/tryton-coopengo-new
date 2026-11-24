@@ -3,10 +3,10 @@
 
 from sql.functions import CharLength
 
+from trytond import tx
 from trytond.i18n import gettext
 from trytond.model import DeactivableMixin, ModelSQL, ModelView, fields
 from trytond.model.exceptions import RecursionError
-from trytond.pool import Pool
 from trytond.pyson import Bool, Eval, If
 from trytond.tools import is_full_text, lstrip_wildcard
 from trytond.wizard import Button, StateView, Wizard
@@ -77,7 +77,7 @@ class BOM(DeactivableMixin, ModelSQL, ModelView):
 
     @classmethod
     def default_code_readonly(cls):
-        pool = Pool()
+        pool = tx.pool
         Configuration = pool.get('production.configuration')
         config = Configuration(1)
         return bool(config.bom_sequence)
@@ -112,7 +112,7 @@ class BOM(DeactivableMixin, ModelSQL, ModelView):
             ]
 
     def compute_factor(self, product, quantity, unit, type='outputs'):
-        pool = Pool()
+        pool = tx.pool
         Uom = pool.get('product.uom')
         assert type in {'inputs', 'outputs'}, f"Invalid {type}"
         total = 0
@@ -131,7 +131,7 @@ class BOM(DeactivableMixin, ModelSQL, ModelView):
 
     @classmethod
     def _code_sequence(cls):
-        pool = Pool()
+        pool = tx.pool
         Configuration = pool.get('production.configuration')
         config = Configuration(1)
         return config.bom_sequence
@@ -341,7 +341,7 @@ class BOMOutput(BOMInput):
 
     @classmethod
     def on_delete(cls, outputs):
-        pool = Pool()
+        pool = tx.pool
         ProductBOM = pool.get('product.product-production.bom')
 
         callback = super().on_delete(outputs)
@@ -353,7 +353,7 @@ class BOMOutput(BOMInput):
 
     @classmethod
     def on_write(cls, outputs, values):
-        pool = Pool()
+        pool = tx.pool
         ProductBOM = pool.get('product.product-production.bom')
 
         callback = super().on_write(outputs, values)
@@ -374,7 +374,7 @@ class BOMTree(ModelView):
 
     @classmethod
     def tree(cls, product, quantity, unit, bom=None):
-        Input = Pool().get('production.bom.input')
+        Input = tx.pool.get('production.bom.input')
 
         result = []
         if bom is None:
@@ -429,7 +429,7 @@ class OpenBOMTreeTree(ModelView):
 
     @classmethod
     def tree(cls, bom, product, quantity, unit):
-        pool = Pool()
+        pool = tx.pool
         Tree = pool.get('production.bom.tree')
 
         childs = Tree.tree(product, quantity, unit, bom=bom)
@@ -484,7 +484,7 @@ class OpenBOMTree(Wizard):
         return defaults
 
     def default_tree(self, fields):
-        pool = Pool()
+        pool = tx.pool
         BomTree = pool.get('production.bom.tree.open.tree')
         return BomTree.tree(self.start.bom.bom, self.start.product,
             self.start.quantity, self.start.unit)

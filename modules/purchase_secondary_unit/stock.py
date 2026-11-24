@@ -1,14 +1,15 @@
 # This file is part of Tryton.  The COPYRIGHT file at the top level of
 # this repository contains the full copyright notices and license terms.
 
-from trytond.pool import Pool, PoolMeta
+from trytond import tx
+from trytond.pool import PoolMeta
 
 
 class Move(metaclass=PoolMeta):
     __name__ = 'stock.move'
 
     def get_product_secondary_uom_category(self, name):
-        pool = Pool()
+        pool = tx.pool
         PurchaseLine = pool.get('purchase.line')
         category = super().get_product_secondary_uom_category(name)
         if isinstance(self.origin, PurchaseLine):
@@ -18,7 +19,7 @@ class Move(metaclass=PoolMeta):
 
     @property
     def secondary_uom_factor(self):
-        pool = Pool()
+        pool = tx.pool
         PurchaseLine = pool.get('purchase.line')
         factor = super().secondary_uom_factor
         if isinstance(self.origin, PurchaseLine):
@@ -27,7 +28,7 @@ class Move(metaclass=PoolMeta):
 
     @property
     def secondary_uom_rate(self):
-        pool = Pool()
+        pool = tx.pool
         PurchaseLine = pool.get('purchase.line')
         factor = super().secondary_uom_rate
         if isinstance(self.origin, PurchaseLine):

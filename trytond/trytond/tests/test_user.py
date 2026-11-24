@@ -6,12 +6,11 @@ from contextlib import contextmanager
 from unittest.mock import Mock, patch
 
 import trytond.config as config
-from trytond.pool import Pool
+from trytond import tx
 from trytond.res import user as user_module
 from trytond.res.user import PasswordError
 from trytond.tests.test_tryton import (
     TestCase, activate_module, with_transaction)
-from trytond.transaction import Transaction
 
 FROM = 'tryton@example.com'
 
@@ -54,7 +53,7 @@ class UserTestCase(TestCase):
         self.addCleanup(lambda: config.set('email', 'from', reset_from))
 
     def create_user(self, login, password, email=None):
-        pool = Pool()
+        pool = tx.pool
         User = pool.get('res.user')
 
         user, = User.create([{
@@ -66,7 +65,7 @@ class UserTestCase(TestCase):
         return user
 
     def check_user(self, login, password):
-        pool = Pool()
+        pool = tx.pool
         User = pool.get('res.user')
 
         user, = User.search([('login', '=', login)])
@@ -95,7 +94,7 @@ class UserTestCase(TestCase):
     @with_transaction()
     def test_validate_password_length(self):
         "Test validate password length"
-        pool = Pool()
+        pool = tx.pool
         User = pool.get('res.user')
 
         with self.assertRaises(PasswordError):
@@ -105,7 +104,7 @@ class UserTestCase(TestCase):
     @with_transaction()
     def test_validate_password_forbidden(self):
         "Test validate password forbidden"
-        pool = Pool()
+        pool = tx.pool
         User = pool.get('res.user')
 
         with self.assertRaises(PasswordError):
@@ -114,7 +113,7 @@ class UserTestCase(TestCase):
     @with_transaction()
     def test_validate_password_name(self):
         "Test validate password name"
-        pool = Pool()
+        pool = tx.pool
         User = pool.get('res.user')
         user = User(name='name')
 
@@ -124,7 +123,7 @@ class UserTestCase(TestCase):
     @with_transaction()
     def test_validate_password_login(self):
         "Test validate password login"
-        pool = Pool()
+        pool = tx.pool
         User = pool.get('res.user')
         user = User(login='login')
 
@@ -134,7 +133,7 @@ class UserTestCase(TestCase):
     @with_transaction()
     def test_validate_password_email(self):
         "Test validate password email"
-        pool = Pool()
+        pool = tx.pool
         User = pool.get('res.user')
         user = User(email='email')
 
@@ -144,10 +143,10 @@ class UserTestCase(TestCase):
     @with_transaction()
     def test_reset_password(self):
         "Test reset password"
-        pool = Pool()
+        pool = tx.pool
         User = pool.get('res.user')
         user_table = User.__table__()
-        transaction = Transaction()
+        transaction = tx.transaction
         cursor = transaction.connection.cursor()
 
         user = self.create_user('user', '12345', email='user@example.com')
@@ -170,7 +169,7 @@ class UserTestCase(TestCase):
     @with_transaction()
     def test_reset_password_expired(self):
         "Test reset password not working when expired"
-        pool = Pool()
+        pool = tx.pool
         User = pool.get('res.user')
 
         user = User(login='user', email='user@example.com')
@@ -189,7 +188,7 @@ class UserTestCase(TestCase):
     @with_transaction()
     def test_authentications(self):
         "Test authentications"
-        pool = Pool()
+        pool = tx.pool
         User = pool.get('res.user')
 
         user = User(login='user')
@@ -219,7 +218,7 @@ class UserTestCase(TestCase):
     @with_transaction()
     def test_bad_authentication_logging(self):
         "Test the logging of log in attempts"
-        pool = Pool()
+        pool = tx.pool
         LoginAttempt = pool.get('res.user.login.attempt')
 
         self.create_user('user', '12345')
@@ -229,13 +228,13 @@ class UserTestCase(TestCase):
     @with_transaction()
     def test_bad_authentication_valid_cookie(self):
         "Test the logging of log in attempts with a valid cookie"
-        pool = Pool()
+        pool = tx.pool
         User = pool.get('res.user')
         UserDevice = pool.get('res.user.device')
         LoginAttempt = pool.get('res.user.login.attempt')
 
         user = self.create_user('user', '12345')
-        with Transaction().set_user(user.id):
+        with tx.transaction.set_user(user.id):
             cookie = UserDevice.renew(None)
 
         User.get_login('user', {'password': '', 'device_cookie': cookie})
@@ -245,13 +244,13 @@ class UserTestCase(TestCase):
     @with_transaction()
     def test_bad_authentication_invalid_cookie(self):
         "Test the logging of log in attempts without a valid cookie"
-        pool = Pool()
+        pool = tx.pool
         User = pool.get('res.user')
         UserDevice = pool.get('res.user.device')
         LoginAttempt = pool.get('res.user.login.attempt')
 
         user = self.create_user('user', '12345')
-        with Transaction().set_user(user.id):
+        with tx.transaction.set_user(user.id):
             cookie = UserDevice.renew(None)
 
         User.get_login('user', {
@@ -264,7 +263,7 @@ class UserTestCase(TestCase):
     @with_transaction()
     def test_authentication_option_ip_address(self):
         "Test authentication with ip_address option"
-        pool = Pool()
+        pool = tx.pool
         User = pool.get('res.user')
 
         user = User(login='user')
@@ -290,7 +289,7 @@ class UserTestCase(TestCase):
                         ('127.0.0.1', user.id),
                         ]:
                     with self.subTest(address=address):
-                        with Transaction().set_context(_request={
+                        with tx.transaction.set_context(_request={
                                     'remote_addr': address,
                                     }):
                             self.assertEqual(
@@ -299,13 +298,13 @@ class UserTestCase(TestCase):
     @with_transaction()
     def test_authentication_option_device_cookie(self):
         "Test authentication with device cookie option"
-        pool = Pool()
+        pool = tx.pool
         User = pool.get('res.user')
         UserDevice = pool.get('res.user.device')
 
         user = User(login='user')
         user.save()
-        with Transaction().set_user(user.id):
+        with tx.transaction.set_user(user.id):
             cookie = UserDevice.renew(None)
 
         with patch.object(User, '_login_always', create=True) as always, \

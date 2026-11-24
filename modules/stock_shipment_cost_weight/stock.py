@@ -3,14 +3,15 @@
 
 from decimal import Decimal
 
-from trytond.pool import Pool, PoolMeta
+from trytond import tx
+from trytond.pool import PoolMeta
 
 
 class ShipmentCostMixinWeight:
     __slots__ = ()
 
     def _get_allocation_shipment_cost_factors_by_weight(self):
-        pool = Pool()
+        pool = tx.pool
         Move = pool.get('stock.move')
         if getattr(Move, 'internal_weight', None):
             sum_weight = Decimal(0)

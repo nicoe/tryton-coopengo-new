@@ -5,15 +5,14 @@ from functools import wraps
 
 from sql.operators import NotIn
 
+from trytond import tx
 from trytond.exceptions import UserError
 from trytond.i18n import gettext
 from trytond.model import ModelSQL, ModelView, Unique, fields, sequence_ordered
 from trytond.model.exceptions import AccessError
 from trytond.modules import get_module_info, get_modules
-from trytond.pool import Pool
 from trytond.pyson import Eval, If
 from trytond.rpc import RPC
-from trytond.transaction import Transaction
 from trytond.wizard import (
     Button, StateAction, StateTransition, StateView, Wizard)
 
@@ -193,12 +192,12 @@ class Module(ModelSQL, ModelView):
     @ModelView.button
     @filter_state('activated')
     def deactivate(cls, modules):
-        pool = Pool()
+        pool = tx.pool
         Module = pool.get('ir.module')
         Dependency = pool.get('ir.module.dependency')
         module_table = Module.__table__()
         dep_table = Dependency.__table__()
-        cursor = Transaction().connection.cursor()
+        cursor = tx.transaction.connection.cursor()
         for module in modules:
             cursor.execute(*dep_table.join(module_table,
                     condition=(dep_table.module == module_table.id)
@@ -245,9 +244,9 @@ class Module(ModelSQL, ModelView):
     @classmethod
     def update_list(cls):
         "Update the list of available modules"
-        pool = Pool()
+        pool = tx.pool
         Dependency = pool.get('ir.module.dependency')
-        module_names = get_modules(with_test=Pool.test)
+        module_names = get_modules(with_test=tx.pool.test)
         cls.delete(cls.search([
                     ('state', '!=', 'activated'),
                     ('name', 'not in', module_names),
@@ -299,7 +298,7 @@ class ModuleDependency(ModelSQL, ModelView):
 
     @classmethod
     def get_state(cls, dependencies, name):
-        pool = Pool()
+        pool = tx.pool
         Module = pool.get('ir.module')
         names = [d.name for d in dependencies]
         modules = Module.search([
@@ -339,7 +338,7 @@ class ModuleConfigWizardOther(ModelView):
 
     @staticmethod
     def default_percentage():
-        pool = Pool()
+        pool = tx.pool
         Item = pool.get('ir.module.config_wizard.item')
         done = Item.search([
             ('state', '=', 'done'),
@@ -361,7 +360,7 @@ class ModuleConfigWizard(Wizard):
             StateAction.__init__(self, None)
 
         def get_action(self):
-            pool = Pool()
+            pool = tx.pool
             Item = pool.get('ir.module.config_wizard.item')
             Action = pool.get('ir.action')
             items = Item.search([
@@ -399,7 +398,7 @@ class ModuleConfigWizard(Wizard):
         return res
 
     def transition_action(self):
-        pool = Pool()
+        pool = tx.pool
         Item = pool.get('ir.module.config_wizard.item')
         ModelData = pool.get('ir.model.data')
         items = Item.search([
@@ -450,12 +449,12 @@ class ModuleActivateUpgrade(Wizard):
     @classmethod
     def check_access(cls):
         # Use new transaction to prevent lock when activating modules
-        with Transaction().new_transaction():
+        with tx.transaction.new_transaction():
             super().check_access()
 
     @staticmethod
     def default_start(fields):
-        pool = Pool()
+        pool = tx.pool
         Module = pool.get('ir.module')
         modules = Module.search([
                 ('state', 'in', ['to upgrade', 'to remove', 'to activate']),
@@ -480,10 +479,10 @@ class ModuleActivateUpgrade(Wizard):
 
     @classmethod
     def upgrade_server(cls):
-        pool = Pool()
+        pool = tx.pool
         Module = pool.get('ir.module')
         Lang = pool.get('ir.lang')
-        transaction = Transaction()
+        transaction = tx.transaction
         with transaction.new_transaction():
             modules = Module.search([
                 ('state', 'in', ['to upgrade', 'to remove', 'to activate']),
@@ -497,7 +496,7 @@ class ModuleActivateUpgrade(Wizard):
             pool.init(update=update, lang=lang)
 
     def transition_next_(self):
-        pool = Pool()
+        pool = tx.pool
         Item = pool.get('ir.module.config_wizard.item')
         items = Item.search([
             ('state', '=', 'open'),
@@ -522,7 +521,7 @@ class ModuleConfig(Wizard):
     activate = StateAction('ir.act_module_activate_upgrade')
 
     def do_activate(self, action):
-        pool = Pool()
+        pool = tx.pool
         Module = pool.get('ir.module')
         Module.activate(list(self.start.modules))
         return action, {}

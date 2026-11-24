@@ -1,7 +1,8 @@
 # This file is part of Tryton.  The COPYRIGHT file at the top level of
 # this repository contains the full copyright notices and license terms.
 
-from trytond.pool import Pool, PoolMeta
+from trytond import tx
+from trytond.pool import PoolMeta
 from trytond.tools import cached_property
 
 
@@ -10,7 +11,7 @@ class Move(metaclass=PoolMeta):
 
     @cached_property
     def product_name(self):
-        pool = Pool()
+        pool = tx.pool
         SaleLine = pool.get('sale.line')
         name = super().product_name
         if (isinstance(self.origin, SaleLine)

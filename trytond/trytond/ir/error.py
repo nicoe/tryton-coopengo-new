@@ -6,13 +6,12 @@ import logging
 import warnings
 
 import trytond.config as config
+from trytond import tx
 from trytond.exceptions import UserError, UserWarning
 from trytond.model import (
     Index, ModelSQL, ModelView, Workflow, dualmethod, fields)
-from trytond.pool import Pool
 from trytond.pyson import Eval
 from trytond.tools import firstline
-from trytond.transaction import Transaction
 
 logger = logging.getLogger(__name__)
 
@@ -25,7 +24,7 @@ def set_user(field):
             cls.write(
                 [r for r in records
                     if not getattr(r, field)], {
-                    field: Transaction().user,
+                    field: tx.transaction.user,
                     })
             return result
         return wrapper
@@ -141,7 +140,7 @@ class Error(Workflow, ModelView, ModelSQL):
     def report(cls, origin, exception):
         try:
             assert isinstance(exception, (UserError, UserWarning))
-            with Transaction().new_transaction(autocommit=True):
+            with tx.transaction.new_transaction(autocommit=True):
                 if not cls.search([
                             ('origin', '=', str(origin)),
                             ('message', '=', exception.message),
@@ -186,7 +185,7 @@ class Error(Workflow, ModelView, ModelSQL):
     @Workflow.transition('solved')
     @set_user('solved_by')
     def solve(cls, errors):
-        pool = Pool()
+        pool = tx.pool
         Cron = pool.get('ir.cron')
         Queue = pool.get('ir.queue')
         for error in errors:

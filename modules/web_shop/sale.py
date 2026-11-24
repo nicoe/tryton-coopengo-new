@@ -6,10 +6,11 @@ from secrets import token_hex
 from sql.conditionals import NullIf
 from sql.operators import Equal
 
+from trytond import tx
 from trytond.i18n import gettext
 from trytond.model import Exclude, ModelView, fields
 from trytond.modules.sale.exceptions import SaleValidationError
-from trytond.pool import Pool, PoolMeta
+from trytond.pool import PoolMeta
 from trytond.pyson import Bool, Eval
 
 
@@ -90,7 +91,7 @@ class Sale(metaclass=PoolMeta):
 
     @classmethod
     def validate_fields(cls, sales, field_names):
-        pool = Pool()
+        pool = tx.pool
         WebShop = pool.get('web.shop')
         super().validate_fields(sales, field_names)
 

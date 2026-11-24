@@ -5,6 +5,7 @@ import datetime as dt
 from decimal import Decimal
 from functools import partial
 
+from trytond import tx
 from trytond.i18n import gettext
 from trytond.ir.attachment import AttachmentCopyMixin
 from trytond.ir.note import NoteCopyMixin
@@ -18,11 +19,10 @@ from trytond.modules.company.model import (
     employee_field, reset_employee, set_employee)
 from trytond.modules.currency.fields import Monetary
 from trytond.modules.product import price_digits, round_price
-from trytond.pool import Pool, PoolMeta
+from trytond.pool import PoolMeta
 from trytond.pyson import Date, DateTime, Eval, Id, If
 from trytond.report import Report
 from trytond.tools import timezone as tz
-from trytond.transaction import Transaction
 from trytond.wizard import Button, StateTransition, StateView, Wizard
 
 _datetime_format = '%H:%M'
@@ -86,7 +86,7 @@ class Configuration(metaclass=PoolMeta):
 
     @classmethod
     def multivalue_model(cls, field):
-        pool = Pool()
+        pool = tx.pool
         if field == 'rental_sequence':
             return pool.get('sale.configuration.sequence')
         return super().multivalue_model(field)
@@ -110,7 +110,7 @@ class ConfigurationSequence(metaclass=PoolMeta):
 
     @classmethod
     def default_rental_sequence(cls):
-        pool = Pool()
+        pool = tx.pool
         ModelData = pool.get('ir.model.data')
         try:
             return ModelData.get_id(
@@ -345,16 +345,16 @@ class Rental(
 
     @classmethod
     def default_company(cls):
-        return Transaction().context.get('company')
+        return tx.transaction.context.get('company')
 
     @classmethod
     def default_warehouse(cls):
-        Location = Pool().get('stock.location')
+        Location = tx.pool.get('stock.location')
         return Location.get_default_warehouse()
 
     @classmethod
     def default_currency(cls, **pattern):
-        pool = Pool()
+        pool = tx.pool
         Company = pool.get('company.company')
         company = pattern.get('company')
         if not company:
@@ -496,7 +496,7 @@ class Rental(
 
     @classmethod
     def set_number(cls, rentals):
-        pool = Pool()
+        pool = tx.pool
         Config = pool.get('sale.configuration')
 
         config = Config(1)
@@ -510,7 +510,7 @@ class Rental(
 
     @classmethod
     def set_moves(cls, rentals):
-        pool = Pool()
+        pool = tx.pool
         Line = pool.get('sale.rental.line')
         Move = pool.get('stock.move')
 
@@ -527,7 +527,7 @@ class Rental(
 
     @classmethod
     def delete_moves(cls, rentals, all_=False):
-        pool = Pool()
+        pool = tx.pool
         Line = pool.get('sale.rental.line')
         Move = pool.get('stock.move')
 
@@ -569,7 +569,7 @@ class Rental(
         return invoice
 
     def _get_invoice(self):
-        pool = Pool()
+        pool = tx.pool
         Invoice = pool.get('account.invoice')
         party = self.invoice_party or self.party
         invoice = Invoice(
@@ -647,7 +647,7 @@ class Rental(
     @Workflow.transition('draft')
     @reset_employee('quoted_by', 'confirmed_by')
     def draft(cls, rentals):
-        pool = Pool()
+        pool = tx.pool
         Line = pool.get('sale.rental.line')
 
         # Set actual period as planned period
@@ -721,7 +721,7 @@ class Rental(
     @classmethod
     @ModelView.button
     def invoice(cls, rentals):
-        pool = Pool()
+        pool = tx.pool
         Invoice = pool.get('account.invoice')
 
         invoices = {}
@@ -1087,7 +1087,7 @@ class RentalLine(sequence_ordered(), ModelSQL, ModelView, TaxableMixin):
         'product', 'quantity', 'unit_price_unit',
         methods=['on_change_with_duration', '_get_context_rental_price'])
     def compute_unit_price(self):
-        pool = Pool()
+        pool = tx.pool
         Product = pool.get('product.product')
         UoM = pool.get('product.uom')
 
@@ -1096,7 +1096,7 @@ class RentalLine(sequence_ordered(), ModelSQL, ModelView, TaxableMixin):
 
         duration = self.on_change_with_duration()
 
-        with Transaction().set_context(self._get_context_rental_price()):
+        with tx.transaction.set_context(self._get_context_rental_price()):
             unit_price = Product.get_rental_price(
                 [self.product],
                 quantity=self.quantity or 0,
@@ -1175,7 +1175,7 @@ class RentalLine(sequence_ordered(), ModelSQL, ModelView, TaxableMixin):
     @property
     @fields.depends('planned_duration', 'unit_price_unit')
     def planned_duration_unit(self):
-        pool = Pool()
+        pool = tx.pool
         UoM = pool.get('product.uom')
         Data = pool.get('ir.model.data')
         hour = UoM(Data.get_id('product', 'uom_hour'))
@@ -1220,7 +1220,7 @@ class RentalLine(sequence_ordered(), ModelSQL, ModelView, TaxableMixin):
     @property
     @fields.depends('duration', 'unit_price_unit')
     def duration_unit(self):
-        pool = Pool()
+        pool = tx.pool
         UoM = pool.get('product.uom')
         Data = pool.get('ir.model.data')
         hour = UoM(Data.get_id('product', 'uom_hour'))
@@ -1264,7 +1264,7 @@ class RentalLine(sequence_ordered(), ModelSQL, ModelView, TaxableMixin):
 
     @classmethod
     def get_rental_states(cls):
-        pool = Pool()
+        pool = tx.pool
         Rental = pool.get('sale.rental')
         return Rental.fields_get(['state'])['state']['selection']
 
@@ -1325,7 +1325,7 @@ class RentalLine(sequence_ordered(), ModelSQL, ModelView, TaxableMixin):
         return [move]
 
     def get_move(self, type):
-        pool = Pool()
+        pool = tx.pool
         Move = pool.get('stock.move')
 
         move = Move()
@@ -1364,7 +1364,7 @@ class RentalLine(sequence_ordered(), ModelSQL, ModelView, TaxableMixin):
 
     @property
     def duration_unit_invoice(self):
-        pool = Pool()
+        pool = tx.pool
         UoM = pool.get('product.uom')
         Data = pool.get('ir.model.data')
         hour = UoM(Data.get_id('product', 'uom_hour'))
@@ -1379,7 +1379,7 @@ class RentalLine(sequence_ordered(), ModelSQL, ModelView, TaxableMixin):
         return duration
 
     def get_invoice_lines(self):
-        pool = Pool()
+        pool = tx.pool
         InvoiceLine = pool.get('account.invoice.line')
 
         if self.rental_state != 'done' or self.invoice_lines:
@@ -1399,7 +1399,7 @@ class RentalLine(sequence_ordered(), ModelSQL, ModelView, TaxableMixin):
         return [invoice_line]
 
     def get_rec_name(self, name):
-        pool = Pool()
+        pool = tx.pool
         Lang = pool.get('ir.lang')
         lang = Lang.get()
         converter = self.__class__.duration.converter
@@ -1561,7 +1561,7 @@ class RentalPickup(Wizard):
             return 'end'
 
     def default_show(self, fields):
-        pool = Pool()
+        pool = tx.pool
         Line = pool.get('sale.rental.pickup.show.line')
 
         defaults = {}
@@ -1578,7 +1578,7 @@ class RentalPickup(Wizard):
         return defaults
 
     def transition_pickup(self):
-        pool = Pool()
+        pool = tx.pool
         Lang = pool.get('ir.lang')
         Line = pool.get('sale.rental.line')
         Move = pool.get('stock.move')
@@ -1608,7 +1608,7 @@ class RentalPickup(Wizard):
 
             remaining = unit.round(rental_line.quantity - quantity)
             if remaining:
-                with Transaction().set_context(_sale_rental_line_split=True):
+                with tx.transaction.set_context(_sale_rental_line_split=True):
                     Line.copy([rental_line], default={
                             'quantity': remaining,
                             'outgoing_moves': None,
@@ -1692,7 +1692,7 @@ class RentalReturn(Wizard):
             return 'end'
 
     def default_show(self, fields):
-        pool = Pool()
+        pool = tx.pool
         Line = pool.get('sale.rental.return.show.line')
 
         defaults = {}
@@ -1711,7 +1711,7 @@ class RentalReturn(Wizard):
         return defaults
 
     def transition_return_(self):
-        pool = Pool()
+        pool = tx.pool
         Lang = pool.get('ir.lang')
         Line = pool.get('sale.rental.line')
         Move = pool.get('stock.move')
@@ -1741,7 +1741,7 @@ class RentalReturn(Wizard):
 
             remaining = unit.round(rental_line.quantity - quantity)
             if remaining:
-                with Transaction().set_context(_sale_rental_line_split=True):
+                with tx.transaction.set_context(_sale_rental_line_split=True):
                     Line.copy([rental_line], default={
                             'quantity': remaining,
                             'actual_start': rental_line.actual_start,

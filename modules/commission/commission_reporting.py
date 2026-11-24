@@ -7,14 +7,13 @@ from sql.aggregate import Count, Min, Sum
 from sql.conditionals import Coalesce
 from sql.functions import DateTrunc, Round
 
+from trytond import tx
 from trytond.model import ModelSQL, ModelView, fields
 from trytond.modules.currency.fields import Monetary
 from trytond.modules.product import price_digits
-from trytond.pool import Pool
 from trytond.pyson import Eval, If
 from trytond.tools import pairwise_longest
 from trytond.tools.chart import sparkline
-from trytond.transaction import Transaction
 
 
 class Agent(ModelView, ModelSQL):
@@ -45,7 +44,7 @@ class Agent(ModelView, ModelSQL):
 
     @classmethod
     def _joins(cls):
-        pool = Pool()
+        pool = tx.pool
         Commission = pool.get('commission')
         Agent = pool.get('commission.agent')
         Currency = pool.get('currency.currency')
@@ -91,7 +90,7 @@ class Agent(ModelView, ModelSQL):
 
     @classmethod
     def _where(cls, tables, withs):
-        context = Transaction().context
+        context = tx.transaction.context
         commission = tables['commission']
         agent = tables['commission.agent']
         where = agent.type_ == cls._get_agent_type(context.get('type', 'out'))
@@ -125,7 +124,7 @@ class Agent(ModelView, ModelSQL):
 
     @classmethod
     def _period_delta(cls):
-        context = Transaction().context
+        context = tx.transaction.context
         return {
             'year': relativedelta(years=1),
             'month': relativedelta(months=1),
@@ -168,7 +167,7 @@ class AgentTimeseries(Agent):
 
     @classmethod
     def _column_date(cls, tables, withs):
-        context = Transaction().context
+        context = tx.transaction.context
         commission = tables['commission']
         date = DateTrunc(context.get('period'), commission.date)
         date = cls.date.sql_cast(date)
@@ -210,26 +209,26 @@ class Context(ModelView):
 
     @classmethod
     def default_type(cls):
-        return Transaction().context.get('type', 'out')
+        return tx.transaction.context.get('type', 'out')
 
     @classmethod
     def default_from_date(cls):
-        pool = Pool()
+        pool = tx.pool
         Date = pool.get('ir.date')
-        context = Transaction().context
+        context = tx.transaction.context
         if 'from_date' in context:
             return context['from_date']
         return Date.today() - relativedelta(years=1)
 
     @classmethod
     def default_to_date(cls):
-        pool = Pool()
+        pool = tx.pool
         Date = pool.get('ir.date')
-        context = Transaction().context
+        context = tx.transaction.context
         if 'to_date' in context:
             return context['to_date']
         return Date.today()
 
     @classmethod
     def default_period(cls):
-        return Transaction().context.get('period', 'month')
+        return tx.transaction.context.get('period', 'month')

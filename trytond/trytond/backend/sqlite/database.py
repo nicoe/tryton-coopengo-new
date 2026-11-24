@@ -24,10 +24,9 @@ from sql.functions import (
     Substring, Trim)
 from sql.operators import Equal
 
-from trytond import __series__, config
+from trytond import __series__, config, tx
 from trytond.backend.database import DatabaseInterface, SQLType
 from trytond.tools import safe_join
-from trytond.transaction import Transaction
 
 __all__ = [
     'Database',
@@ -241,7 +240,7 @@ class SQLitePosition(Function):
 
 
 def now():
-    transaction = Transaction()
+    transaction = tx.transaction
     return _nows.setdefault(transaction, {}).setdefault(
         transaction.started_at, dt.datetime.now().isoformat(' '))
 

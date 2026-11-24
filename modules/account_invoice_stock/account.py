@@ -1,9 +1,9 @@
 # This file is part of Tryton.  The COPYRIGHT file at the top level of
 # this repository contains the full copyright notices and license terms.
+from trytond import tx
 from trytond.model import ModelSQL, fields
-from trytond.pool import Pool, PoolMeta
+from trytond.pool import PoolMeta
 from trytond.pyson import Eval, If
-from trytond.transaction import Transaction
 
 
 class Invoice(metaclass=PoolMeta):
@@ -19,9 +19,9 @@ class Invoice(metaclass=PoolMeta):
 
     @classmethod
     def _post(cls, invoices):
-        pool = Pool()
+        pool = tx.pool
         Move = pool.get('stock.move')
-        transaction = Transaction()
+        transaction = tx.transaction
         context = transaction.context
         super()._post(invoices)
         moves = sum((l.stock_moves for i in invoices for l in i.lines), ())
@@ -103,7 +103,7 @@ class InvoiceLine(metaclass=PoolMeta):
     @property
     def moved_quantity(self):
         'The quantity from linked stock moves in line unit'
-        pool = Pool()
+        pool = tx.pool
         Uom = pool.get('product.uom')
         quantity = 0
         for stock_move in self.stock_moves:
@@ -119,7 +119,7 @@ class InvoiceLine(metaclass=PoolMeta):
 
     @classmethod
     def search_shipments(cls, name, clause):
-        pool = Pool()
+        pool = tx.pool
         Move = pool.get('stock.move')
         _, operator, operand, *extra = clause
         if operator.startswith('!') or operator.startswith('not '):
@@ -136,9 +136,9 @@ class InvoiceLine(metaclass=PoolMeta):
 
     @classmethod
     def on_modification(cls, mode, lines, field_names=None):
-        pool = Pool()
+        pool = tx.pool
         Move = pool.get('stock.move')
-        transaction = Transaction()
+        transaction = tx.transaction
         context = transaction.context
         super().on_modification(mode, lines, field_names=field_names)
         if mode == 'write':
@@ -155,7 +155,7 @@ class InvoiceLine(metaclass=PoolMeta):
         else:
             default = default.copy()
         default.setdefault('correction', False)
-        if not Transaction().context.get('_account_invoice_correction'):
+        if not tx.transaction.context.get('_account_invoice_correction'):
             default.setdefault('stock_moves', None)
         return super().copy(lines, default=default)
 

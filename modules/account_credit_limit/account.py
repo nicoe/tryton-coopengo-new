@@ -1,10 +1,11 @@
 # This file is part of Tryton.  The COPYRIGHT file at the top level of
 # this repository contains the full copyright notices and license terms.
+
+from trytond import tx
 from trytond.model import ModelSQL, fields
 from trytond.modules.company.model import CompanyValueMixin
-from trytond.pool import Pool, PoolMeta
+from trytond.pool import PoolMeta
 from trytond.pyson import Eval
-from trytond.transaction import Transaction
 
 default_credit_limit_amount = fields.Numeric(
     "Default Credit Limit Amount",
@@ -22,9 +23,9 @@ class Configuration(metaclass=PoolMeta):
         'get_default_credit_limit_amount_digits')
 
     def get_default_credit_limit_amount_digits(self, name):
-        pool = Pool()
+        pool = tx.pool
         Company = pool.get('company.company')
-        company_id = Transaction().context.get('company')
+        company_id = tx.transaction.context.get('company')
         if company_id is not None and company_id >= 0:
             company = Company(company_id)
             return company.currency.digits

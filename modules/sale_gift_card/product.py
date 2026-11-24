@@ -1,10 +1,10 @@
 # This file is part of Tryton.  The COPYRIGHT file at the top level of
 # this repository contains the full copyright notices and license terms.
+from trytond import tx
 from trytond.i18n import gettext
 from trytond.model import fields
-from trytond.pool import Pool, PoolMeta
+from trytond.pool import PoolMeta
 from trytond.pyson import Eval, If
-from trytond.transaction import Transaction
 
 from .exceptions import GiftCardValidationError
 
@@ -25,14 +25,14 @@ class Template(metaclass=PoolMeta):
 
     @fields.depends('gift_card')
     def on_change_gift_card(self):
-        pool = Pool()
+        pool = tx.pool
         ModelData = pool.get('ir.model.data')
         if self.gift_card:
             self.default_uom = ModelData.get_id('product', 'uom_unit')
 
     @classmethod
     def validate_fields(cls, templates, field_names):
-        pool = Pool()
+        pool = tx.pool
         ModelData = pool.get('ir.model.data')
         UoM = pool.get('product.uom')
         super().validate_fields(templates, field_names)
@@ -47,10 +47,10 @@ class Template(metaclass=PoolMeta):
 
     @property
     def account_expense_used(self):
-        pool = Pool()
+        pool = tx.pool
         Config = pool.get('account.configuration')
         if self.gift_card:
-            transaction = Transaction()
+            transaction = tx.transaction
             with transaction.reset_context(), \
                     transaction.set_context(self._context):
                 config = Config(1)
@@ -59,10 +59,10 @@ class Template(metaclass=PoolMeta):
 
     @property
     def account_revenue_used(self):
-        pool = Pool()
+        pool = tx.pool
         Config = pool.get('account.configuration')
         if self.gift_card:
-            transaction = Transaction()
+            transaction = tx.transaction
             with transaction.reset_context(), \
                     transaction.set_context(self._context):
                 config = Config(1)

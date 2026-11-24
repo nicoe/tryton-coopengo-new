@@ -4,18 +4,16 @@
 from sql import Null
 from sql.operators import Equal, NotEqual
 
-from trytond import backend
+from trytond import backend, tx
 from trytond.cache import Cache
 from trytond.const import OPERATORS
 from trytond.i18n import gettext
 from trytond.model import Exclude, Index, ModelSQL, ModelView, Workflow, fields
 from trytond.model.exceptions import AccessError
-from trytond.pool import Pool
 from trytond.pyson import Eval, Id
 from trytond.sql.functions import DateRange
 from trytond.sql.operators import RangeOverlap
 from trytond.tools import grouped_slice
-from trytond.transaction import Transaction
 
 from .exceptions import ClosePeriodError, PeriodDatesError, PeriodNotFoundError
 
@@ -110,13 +108,13 @@ class Period(Workflow, ModelSQL, ModelView):
 
     @classmethod
     def __register__(cls, module):
-        pool = Pool()
+        pool = tx.pool
         FiscalYear = pool.get('account.fiscalyear')
         Sequence = pool.get('ir.sequence')
         SequenceStrict = pool.get('ir.sequence.strict')
 
         table_h = cls.__table_handler__(module)
-        cursor = Transaction().connection.cursor()
+        cursor = tx.transaction.connection.cursor()
         t = cls.__table__()
 
         migrate_move_sequence = not table_h.column_exist('move_sequence')
@@ -220,7 +218,7 @@ class Period(Workflow, ModelSQL, ModelView):
 
     @classmethod
     def check_move_dates(cls, periods, field_names=None):
-        pool = Pool()
+        pool = tx.pool
         Move = pool.get('account.move')
         Lang = pool.get('ir.lang')
         if field_names and not (field_names & {'start_date', 'end_date'}):
@@ -254,14 +252,14 @@ class Period(Workflow, ModelSQL, ModelView):
         or raise PeriodNotFoundError.
         If test_state is true, it searches on non-closed periods
         '''
-        pool = Pool()
+        pool = tx.pool
         Date = pool.get('ir.date')
         Lang = pool.get('ir.lang')
         Company = pool.get('company.company')
 
         company_id = int(company) if company is not None else None
         if not date:
-            with Transaction().set_context(company=company_id):
+            with tx.transaction.set_context(company=company_id):
                 date = Date.today()
         key = (company_id, date, test_state)
         period = cls._find_cache.get(key, -1)
@@ -330,7 +328,7 @@ class Period(Workflow, ModelSQL, ModelView):
 
     @classmethod
     def preprocess_values(cls, mode, values):
-        pool = Pool()
+        pool = tx.pool
         FiscalYear = pool.get('account.fiscalyear')
         values = super().preprocess_values(mode, values)
         if mode == 'create' and values.get('fiscalyear') is not None:
@@ -341,7 +339,7 @@ class Period(Workflow, ModelSQL, ModelView):
 
     @classmethod
     def check_modification(cls, mode, periods, values=None, external=False):
-        pool = Pool()
+        pool = tx.pool
         Move = pool.get('account.move')
         super().check_modification(
             mode, periods, values=values, external=external)
@@ -382,11 +380,11 @@ class Period(Workflow, ModelSQL, ModelView):
     @ModelView.button
     @Workflow.transition('closed')
     def close(cls, periods):
-        pool = Pool()
+        pool = tx.pool
         JournalPeriod = pool.get('account.journal.period')
         Move = pool.get('account.move')
         Account = pool.get('account.account')
-        transaction = Transaction()
+        transaction = tx.transaction
 
         # Lock period and move to be sure no new record will be created
         JournalPeriod.lock()

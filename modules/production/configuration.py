@@ -1,9 +1,9 @@
 # This file is part of Tryton.  The COPYRIGHT file at the top level of
 # this repository contains the full copyright notices and license terms.
+from trytond import tx
 from trytond.model import ModelSingleton, ModelSQL, ModelView, fields
 from trytond.modules.company.model import (
     CompanyMultiValueMixin, CompanyValueMixin)
-from trytond.pool import Pool
 from trytond.pyson import Eval, Id
 
 
@@ -44,7 +44,7 @@ class ConfigurationProductionSequence(ModelSQL, CompanyValueMixin):
 
     @classmethod
     def default_production_sequence(cls):
-        pool = Pool()
+        pool = tx.pool
         ModelData = pool.get('ir.model.data')
         try:
             return ModelData.get_id('production', 'sequence_production')

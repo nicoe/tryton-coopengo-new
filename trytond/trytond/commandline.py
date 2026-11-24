@@ -45,9 +45,9 @@ class ExtendConstAction(argparse.Action):
 
 def database_completer(parsed_args, **kwargs):
     import trytond.config as config
-    from trytond.transaction import Transaction
+    from trytond import tx
     config.update_etc(parsed_args.configfile)
-    with Transaction().start(
+    with tx.transaction.start(
             None, 0, readonly=True, close=True) as transaction:
         return [name for name, _ in transaction.database.list()]
 

@@ -4,9 +4,9 @@ from io import BytesIO
 
 from pypdf import PdfReader, PdfWriter
 
-from trytond.pool import Pool, PoolMeta
+from trytond import tx
+from trytond.pool import PoolMeta
 from trytond.report import Report
-from trytond.transaction import Transaction
 
 
 class Invoice(metaclass=PoolMeta):
@@ -14,7 +14,7 @@ class Invoice(metaclass=PoolMeta):
 
     @classmethod
     def _execute(cls, records, header, data, action):
-        pool = Pool()
+        pool = tx.pool
         Watermark = pool.get('account.invoice.watermark', type='report')
         format_, data = super()._execute(records, header, data, action)
         if format_ == 'pdf':
@@ -24,8 +24,8 @@ class Invoice(metaclass=PoolMeta):
                 if invoice.party.lang:
                     language = invoice.party.lang.code
                 else:
-                    language = Transaction().language
-                with Transaction().set_context(language=language):
+                    language = tx.transaction.language
+                with tx.transaction.set_context(language=language):
                     _, watermark, _, _ = Watermark.execute([invoice.id], {
                             'action_id': report_id,
                             })
@@ -34,7 +34,7 @@ class Invoice(metaclass=PoolMeta):
 
     @classmethod
     def get_report_id(cls, invoice):
-        pool = Pool()
+        pool = tx.pool
         ModelData = pool.get('ir.model.data')
         if invoice.state == 'paid':
             return ModelData.get_id(

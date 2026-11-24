@@ -1,10 +1,11 @@
 # This file is part of Tryton.  The COPYRIGHT file at the top level of
 # this repository contains the full copyright notices and license terms.
+from trytond import tx
 from trytond.i18n import gettext
 from trytond.model import ModelSQL, fields
 from trytond.model.exceptions import AccessError
 from trytond.modules.company.model import CompanyValueMixin
-from trytond.pool import Pool, PoolMeta
+from trytond.pool import PoolMeta
 from trytond.pyson import Bool, Eval, Id, If
 
 asset_bymonthday = fields.Selection([
@@ -35,7 +36,7 @@ asset_frequency = fields.Selection('get_asset_frequencies',
 def get_asset_selection(field_name):
     @classmethod
     def get_selection(cls):
-        pool = Pool()
+        pool = tx.pool
         Asset = pool.get('account.asset')
         return Asset.fields_get([field_name])[field_name]['selection']
     return get_selection
@@ -59,7 +60,7 @@ class Configuration(metaclass=PoolMeta):
 
     @classmethod
     def multivalue_model(cls, field):
-        pool = Pool()
+        pool = tx.pool
         if field in {'asset_bymonthday', 'asset_bymonth'}:
             return pool.get('account.configuration.asset_date')
         return super().multivalue_model(field)
@@ -95,7 +96,7 @@ class ConfigurationAssetSequence(ModelSQL, CompanyValueMixin):
 
     @classmethod
     def default_asset_sequence(cls):
-        pool = Pool()
+        pool = tx.pool
         ModelData = pool.get('ir.model.data')
         try:
             return ModelData.get_id('account_asset', 'sequence_asset')
@@ -183,7 +184,7 @@ class Period(metaclass=PoolMeta):
         """
         Check if it exists any asset line without account move for the period.
         """
-        pool = Pool()
+        pool = tx.pool
         Asset = pool.get('account.asset')
         assets = Asset.search([
             ('state', '=', 'running'),

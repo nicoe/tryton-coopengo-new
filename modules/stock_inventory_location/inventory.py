@@ -1,8 +1,7 @@
 # This file is part of Tryton.  The COPYRIGHT file at the top level of
 # this repository contains the full copyright notices and license terms.
+from trytond import tx
 from trytond.model import ModelView, fields
-from trytond.pool import Pool
-from trytond.transaction import Transaction
 from trytond.wizard import Button, StateAction, StateView, Wizard
 
 
@@ -21,22 +20,22 @@ class CreateInventoriesStart(ModelView):
 
     @classmethod
     def default_date(cls):
-        return Pool().get('ir.date').today()
+        return tx.pool.get('ir.date').today()
 
     @staticmethod
     def default_company():
-        return Transaction().context.get('company')
+        return tx.transaction.context.get('company')
 
     @classmethod
     def get_empty_quantities(cls):
-        pool = Pool()
+        pool = tx.pool
         Inventory = pool.get('stock.inventory')
         return Inventory.fields_get(
             ['empty_quantity'])['empty_quantity']['selection']
 
     @classmethod
     def default_empty_quantity(cls):
-        pool = Pool()
+        pool = tx.pool
         Inventory = pool.get('stock.inventory')
         try:
             return Inventory.default_empty_quantity()
@@ -65,7 +64,7 @@ class CreateInventories(Wizard):
             empty_quantity=self.start.empty_quantity)
 
     def do_create_(self, action):
-        pool = Pool()
+        pool = tx.pool
         Inventory = pool.get('stock.inventory')
 
         inventories = [

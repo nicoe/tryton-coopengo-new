@@ -1,10 +1,10 @@
 # This file is part of Tryton.  The COPYRIGHT file at the top level of
 # this repository contains the full copyright notices and license terms.
 
+from trytond import tx
 from trytond.model import ModelView, Workflow, fields
 from trytond.pool import PoolMeta
 from trytond.pyson import Eval
-from trytond.transaction import Transaction
 
 
 class RevisionMixin:
@@ -36,7 +36,7 @@ class RevisionMixin:
     @ModelView.button
     @Workflow.transition('draft')
     def draft(cls, records):
-        cursor = Transaction().connection.cursor()
+        cursor = tx.transaction.connection.cursor()
         table = cls.__table__()
 
         # Use SQL and before super to avoid two history entries

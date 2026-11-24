@@ -1,8 +1,9 @@
 # This file is part of Tryton.  The COPYRIGHT file at the top level of
 # this repository contains the full copyright notices and license terms.
 
+from trytond import tx
 from trytond.model import ModelSQL, ValueMixin, fields
-from trytond.pool import Pool, PoolMeta
+from trytond.pool import PoolMeta
 
 from .account import PROFILES
 
@@ -16,14 +17,14 @@ class Party(metaclass=PoolMeta):
 
     @classmethod
     def multivalue_model(cls, field):
-        pool = Pool()
+        pool = tx.pool
         if field == 'factur_x_profile':
             return pool.get('party.party.factur_x')
         return super().multivalue_model(field)
 
     @classmethod
     def default_factur_x_profile(cls, **pattern):
-        pool = Pool()
+        pool = tx.pool
         Configuration = pool.get('account.configuration')
         config = Configuration(1)
         return config.get_multivalue('default_factur_x_profile', **pattern)

@@ -3,8 +3,8 @@
 from decimal import Decimal
 from itertools import groupby
 
-from trytond.pool import Pool, PoolMeta
-from trytond.transaction import Transaction
+from trytond import tx
+from trytond.pool import PoolMeta
 
 
 class Party(metaclass=PoolMeta):
@@ -12,14 +12,14 @@ class Party(metaclass=PoolMeta):
 
     @classmethod
     def get_credit_amount(cls, parties, name):
-        pool = Pool()
+        pool = tx.pool
         Currency = pool.get('currency.currency')
         Sale = pool.get('sale.sale')
         Uom = pool.get('product.uom')
 
         amounts = super().get_credit_amount(parties, name)
 
-        company_id = Transaction().context.get('company')
+        company_id = tx.transaction.context.get('company')
 
         id2party = {p.id: p for p in parties}
 

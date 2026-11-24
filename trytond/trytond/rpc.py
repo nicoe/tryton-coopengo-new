@@ -4,9 +4,9 @@ import copy
 import datetime as dt
 from collections.abc import Sized
 
+from trytond import tx
 from trytond.exceptions import TrytonException
 from trytond.protocols.wrappers import HTTPStatus, abort
-from trytond.transaction import Transaction
 
 
 class RPC(object):
@@ -78,7 +78,7 @@ class RPC(object):
         if self.instantiate is not None:
 
             def instance(data):
-                with Transaction().set_context(context):
+                with tx.transaction.set_context(context):
                     if isinstance(data, int):
                         return obj(data)
                     elif isinstance(data, dict):

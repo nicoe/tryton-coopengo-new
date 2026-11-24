@@ -1,9 +1,9 @@
 # This file is part of Tryton.  The COPYRIGHT file at the top level of
 # this repository contains the full copyright notices and license terms.
+from trytond import tx
 from trytond.model import ModelView, fields
-from trytond.pool import Pool, PoolMeta
+from trytond.pool import PoolMeta
 from trytond.pyson import Eval
-from trytond.transaction import Transaction
 from trytond.wizard import Button, StateTransition, StateView, Wizard
 
 
@@ -36,7 +36,7 @@ class Move(metaclass=PoolMeta):
         less than quantity.
         Return the split moves
         """
-        pool = Pool()
+        pool = tx.pool
         Uom = pool.get('product.uom')
 
         moves = [self]
@@ -56,7 +56,7 @@ class Move(metaclass=PoolMeta):
             count -= 1
         while (remainder > quantity
                 and (count or count is None)):
-            with Transaction().set_context(_stock_move_split=True):
+            with tx.transaction.set_context(_stock_move_split=True):
                 moves.extend(self.copy([self], {
                             'quantity': quantity,
                             'unit': unit.id,
@@ -67,7 +67,7 @@ class Move(metaclass=PoolMeta):
         remainder = unit.round(remainder)
         assert remainder >= 0
         if remainder:
-            with Transaction().set_context(_stock_move_split=True):
+            with tx.transaction.set_context(_stock_move_split=True):
                 moves.extend(self.copy([self], {
                             'quantity': remainder,
                             'unit': unit.id,
@@ -80,7 +80,7 @@ class Move(metaclass=PoolMeta):
     @classmethod
     @ModelView.button
     def unsplit(cls, moves, _exclude=None):
-        pool = Pool()
+        pool = tx.pool
         UoM = pool.get('product.uom')
 
         _exclude = _exclude.copy() if _exclude is not None else set()
@@ -215,7 +215,7 @@ class SplitShipment(Wizard):
             }
 
     def transition_split(self):
-        pool = Pool()
+        pool = tx.pool
         Move = pool.get('stock.move')
         shipment = self.record
         Shipment = self.model

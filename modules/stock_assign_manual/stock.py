@@ -2,13 +2,13 @@
 # this repository contains the full copyright notices and license terms.
 import json
 
+from trytond import tx
 from trytond.exceptions import UserError
 from trytond.i18n import gettext
 from trytond.model import Model, ModelStorage, ModelView, dualmethod, fields
 from trytond.model.exceptions import ValidationError
-from trytond.pool import Pool, PoolMeta
+from trytond.pool import PoolMeta
 from trytond.pyson import Eval
-from trytond.transaction import Transaction
 from trytond.wizard import Button, StateTransition, StateView, Wizard
 
 
@@ -21,7 +21,7 @@ class ShipmentUnassignMixin:
         '''
         Unassign the quantity from the corresponding move of the shipments.
         '''
-        pool = Pool()
+        pool = tx.pool
         Move = pool.get('stock.move')
         to_unassign = []
         if not all(m.state == 'assigned' for m in moves):
@@ -36,7 +36,7 @@ class ShipmentUnassignMixin:
             if unassign_quantity == move.quantity:
                 to_unassign.append(move)
             else:
-                with Transaction().set_context(_stock_move_split=True):
+                with tx.transaction.set_context(_stock_move_split=True):
                     to_unassign.extend(Move.copy(
                             [move],
                             {'quantity': unassign_quantity}))
@@ -187,7 +187,7 @@ class ShipmentAssignManualShow(ModelView):
 
     @fields.depends('move')
     def get_places(self, with_childs=True, grouping=('product',)):
-        pool = Pool()
+        pool = tx.pool
         Date = pool.get('ir.date')
         Location = pool.get('stock.location')
         Move = pool.get('stock.move')
@@ -207,9 +207,9 @@ class ShipmentAssignManualShow(ModelView):
 
         location_ids = [loc.id for loc in locations]
         product_ids = [self.move.product.id]
-        with Transaction().set_context(company=self.move.company.id):
+        with tx.transaction.set_context(company=self.move.company.id):
             stock_date_end = Date.today()
-        with Transaction().set_context(
+        with tx.transaction.set_context(
                 stock_date_end=stock_date_end,
                 stock_assign=True,
                 forecast=False,
@@ -273,7 +273,7 @@ class ShipmentAssignManualShow(ModelView):
         return places
 
     def assign(self, grouping=('product',)):
-        pool = Pool()
+        pool = tx.pool
         Move = pool.get('stock.move')
         Lang = pool.get('ir.lang')
         lang = Lang.get()

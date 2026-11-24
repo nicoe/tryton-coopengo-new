@@ -2,12 +2,12 @@
 # this repository contains the full copyright notices and license terms.
 import functools
 
+from trytond import tx
 from trytond.i18n import gettext
 from trytond.model import ModelSQL, ModelView, Workflow, fields
 from trytond.modules.stock.exceptions import AssignError
-from trytond.pool import Pool, PoolMeta
+from trytond.pool import PoolMeta
 from trytond.pyson import Eval, If
-from trytond.transaction import Transaction
 
 
 class Location(metaclass=PoolMeta):
@@ -28,7 +28,7 @@ class Location(metaclass=PoolMeta):
 
     @classmethod
     def get_assigned_by(cls):
-        pool = Pool()
+        pool = tx.pool
         IrModel = pool.get('ir.model')
         get_name = IrModel.get_name
         models = cls._get_assigned_by()
@@ -48,7 +48,7 @@ class Location(metaclass=PoolMeta):
     def forecast_location_move(cls, date):
         """Move temporary locations planned for the date
         and returns a method to restore the initial parent."""
-        pool = Pool()
+        pool = tx.pool
         ShipmentInternal = pool.get('stock.shipment.internal')
         Location = pool.get('stock.location')
         Date = pool.get('ir.date')
@@ -90,7 +90,7 @@ class Location(metaclass=PoolMeta):
 def clear_location_assignation(func):
     @functools.wraps(func)
     def wrapper(cls, shipments, *args, **kwargs):
-        pool = Pool()
+        pool = tx.pool
         Location = pool.get('stock.location')
         locations = []
         for shipment in shipments:
@@ -137,7 +137,7 @@ class ShipmentInternal(metaclass=PoolMeta):
     @classmethod
     @Workflow.transition('assigned')
     def assign(cls, shipments):
-        pool = Pool()
+        pool = tx.pool
         Location = pool.get('stock.location')
         locations = {}
         for shipment in shipments:
@@ -167,7 +167,7 @@ class ShipmentInternal(metaclass=PoolMeta):
     @ModelView.button
     @Workflow.transition('shipped')
     def ship(cls, shipments):
-        pool = Pool()
+        pool = tx.pool
         Location = pool.get('stock.location')
         to_write = []
         for shipment in shipments:
@@ -186,7 +186,7 @@ class ShipmentInternal(metaclass=PoolMeta):
     @Workflow.transition('done')
     @clear_location_assignation
     def do(cls, shipments):
-        pool = Pool()
+        pool = tx.pool
         Location = pool.get('stock.location')
         to_write = []
         for shipment in shipments:
@@ -225,7 +225,7 @@ class ShipmentInternal_Location(ModelSQL):
 def deactivate_empty_location(func):
     @functools.wraps(func)
     def wrapper(cls, shipments, *args, **kwargs):
-        pool = Pool()
+        pool = tx.pool
         Location = pool.get('stock.location')
         result = func(cls, shipments, *args, **kwargs)
         locations = set()
@@ -264,5 +264,5 @@ class Supply(metaclass=PoolMeta):
     __name__ = 'stock.supply'
 
     def transition_create_(self):
-        with Transaction().set_context(forecast_location_move=True):
+        with tx.transaction.set_context(forecast_location_move=True):
             return super().transition_create_()

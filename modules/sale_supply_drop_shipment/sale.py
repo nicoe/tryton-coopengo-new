@@ -1,9 +1,10 @@
 # This file is part of Tryton.  The COPYRIGHT file at the top level of
 # this repository contains the full copyright notices and license terms.
+from trytond import tx
 from trytond.model import ModelSQL, ValueMixin, fields
 from trytond.modules.sale.sale import (
     get_shipments_returns, search_shipments_returns)
-from trytond.pool import Pool, PoolMeta
+from trytond.pool import PoolMeta
 from trytond.pyson import Eval
 
 sale_drop_location = fields.Many2One(
@@ -27,7 +28,7 @@ class ConfigurationSaleDropLocation(ModelSQL, ValueMixin):
 
     @classmethod
     def default_sale_drop_location(cls):
-        pool = Pool()
+        pool = tx.pool
         ModelData = pool.get('ir.model.data')
         try:
             return ModelData.get_id(
@@ -50,7 +51,7 @@ class Sale(metaclass=PoolMeta):
 
     @staticmethod
     def default_drop_location():
-        pool = Pool()
+        pool = tx.pool
         Config = pool.get('sale.configuration')
 
         config = Config(1)
@@ -62,7 +63,7 @@ class Sale(metaclass=PoolMeta):
 
     @classmethod
     def _process_supply(cls, sales, product_quantities):
-        pool = Pool()
+        pool = tx.pool
         Move = pool.get('stock.move')
         super()._process_supply(sales, product_quantities)
         moves = []
@@ -140,7 +141,7 @@ class Amendment(metaclass=PoolMeta):
 
     @classmethod
     def _clear_sale(cls, sales):
-        pool = Pool()
+        pool = tx.pool
         Shipment = pool.get('stock.shipment.drop')
         shipments = set()
         for sale in sales:

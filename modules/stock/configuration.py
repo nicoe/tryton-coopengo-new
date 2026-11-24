@@ -1,10 +1,10 @@
 # This file is part of Tryton.  The COPYRIGHT file at the top level of
 # this repository contains the full copyright notices and license terms.
+from trytond import tx
 from trytond.model import (
     ModelSingleton, ModelSQL, ModelView, ValueMixin, fields)
 from trytond.modules.company.model import (
     CompanyMultiValueMixin, CompanyValueMixin)
-from trytond.pool import Pool
 from trytond.pyson import Eval, Id
 
 sequences = ['shipment_in_sequence', 'shipment_in_return_sequence',
@@ -32,7 +32,7 @@ def default_func(field_name):
 def default_sequence(name):
     @classmethod
     def default(cls):
-        pool = Pool()
+        pool = tx.pool
         ModelData = pool.get('ir.model.data')
         try:
             return ModelData.get_id('stock', name)
@@ -106,7 +106,7 @@ class Configuration(
 
     @classmethod
     def multivalue_model(cls, field):
-        pool = Pool()
+        pool = tx.pool
         if field in sequences:
             return pool.get('stock.configuration.sequence')
         if field == 'shipment_internal_transit':
@@ -188,7 +188,7 @@ class ConfigurationLocation(ModelSQL, ValueMixin):
 
     @classmethod
     def default_shipment_internal_transit(cls):
-        pool = Pool()
+        pool = tx.pool
         ModelData = pool.get('ir.model.data')
         try:
             return ModelData.get_id('stock', 'location_transit')

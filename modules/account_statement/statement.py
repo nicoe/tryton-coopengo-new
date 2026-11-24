@@ -11,6 +11,7 @@ from sql.functions import CharLength
 from sql.operators import Concat
 
 import trytond.config as config
+from trytond import tx
 from trytond.i18n import gettext
 from trytond.model import (
     ChatMixin, Check, DictSchemaMixin, Index, ModelSQL, ModelView, Workflow,
@@ -18,10 +19,8 @@ from trytond.model import (
 from trytond.model.exceptions import AccessError
 from trytond.modules.company import CompanyReport
 from trytond.modules.currency.fields import Monetary
-from trytond.pool import Pool
 from trytond.pyson import Bool, Eval, If
 from trytond.rpc import RPC
-from trytond.transaction import Transaction
 from trytond.wizard import Button, StateAction, StateView, Wizard
 
 from .exceptions import (
@@ -181,7 +180,7 @@ class Statement(Workflow, ModelSQL, ModelView, ChatMixin):
 
     @staticmethod
     def default_company():
-        return Transaction().context.get('company')
+        return tx.transaction.context.get('company')
 
     @staticmethod
     def default_state():
@@ -189,7 +188,7 @@ class Statement(Workflow, ModelSQL, ModelView, ChatMixin):
 
     @staticmethod
     def default_date():
-        Date = Pool().get('ir.date')
+        Date = tx.pool.get('ir.date')
         return Date.today()
 
     @fields.depends('company', 'journal', 'date')
@@ -254,7 +253,7 @@ class Statement(Workflow, ModelSQL, ModelView, ChatMixin):
 
     @fields.depends('lines')
     def on_change_lines(self):
-        pool = Pool()
+        pool = tx.pool
         Line = pool.get('account.statement.line')
 
         invoices = {l.invoice for l in self.lines if l.invoice}
@@ -388,7 +387,7 @@ class Statement(Workflow, ModelSQL, ModelView, ChatMixin):
         pass
 
     def validate_balance(self):
-        pool = Pool()
+        pool = tx.pool
         Lang = pool.get('ir.lang')
 
         amount = (self.start_balance
@@ -405,7 +404,7 @@ class Statement(Workflow, ModelSQL, ModelView, ChatMixin):
                     amount=amount))
 
     def validate_amount(self):
-        pool = Pool()
+        pool = tx.pool
         Lang = pool.get('ir.lang')
 
         amount = sum(l.amount for l in self.lines)
@@ -443,7 +442,7 @@ class Statement(Workflow, ModelSQL, ModelView, ChatMixin):
 
     @classmethod
     def validate_statement(cls, statements):
-        pool = Pool()
+        pool = tx.pool
         Line = pool.get('account.statement.line')
         Warning = pool.get('res.user.warning')
         paid_cancelled_invoice_lines = []
@@ -490,7 +489,7 @@ class Statement(Workflow, ModelSQL, ModelView, ChatMixin):
         '''Create move for the statements and try to reconcile the lines.
         Returns the list of move, statement and lines
         '''
-        pool = Pool()
+        pool = tx.pool
         Line = pool.get('account.statement.line')
         Move = pool.get('account.move')
         MoveLine = pool.get('account.move.line')
@@ -549,7 +548,7 @@ class Statement(Workflow, ModelSQL, ModelView, ChatMixin):
 
     def _get_move(self, key):
         'Return Move for the grouping key'
-        pool = Pool()
+        pool = tx.pool
         Move = pool.get('account.move')
         Period = pool.get('account.period')
 
@@ -564,7 +563,7 @@ class Statement(Workflow, ModelSQL, ModelView, ChatMixin):
 
     def _get_move_line(self, amount, amount_second_currency, lines):
         'Return counterpart Move Line for the amount'
-        pool = Pool()
+        pool = tx.pool
         MoveLine = pool.get('account.move.line')
 
         if self.journal.currency != self.company.currency:
@@ -586,7 +585,7 @@ class Statement(Workflow, ModelSQL, ModelView, ChatMixin):
     @ModelView.button
     @Workflow.transition('posted')
     def post(cls, statements):
-        pool = Pool()
+        pool = tx.pool
         Lang = pool.get('ir.lang')
         StatementLine = pool.get('account.statement.line')
         cls.validate_statement(statements)
@@ -611,7 +610,7 @@ class Statement(Workflow, ModelSQL, ModelView, ChatMixin):
     @ModelView.button
     @Workflow.transition('cancelled')
     def cancel(cls, statements):
-        StatementLine = Pool().get('account.statement.line')
+        StatementLine = tx.pool.get('account.statement.line')
 
         lines = [l for s in statements for l in s.lines]
         StatementLine.delete_move(lines)
@@ -710,7 +709,7 @@ def origin_mixin(_states):
 
         @classmethod
         def get_statement_states(cls):
-            pool = Pool()
+            pool = tx.pool
             Statement = pool.get('account.statement')
             return Statement.fields_get(['state'])['state']['selection']
 
@@ -825,7 +824,7 @@ class Line(origin_mixin(_states), sequence_ordered(), ModelSQL, ModelView):
         super().__register__(module)
 
         table_h = cls.__table_handler__(module)
-        cursor = Transaction().connection.cursor()
+        cursor = tx.transaction.connection.cursor()
 
         # Migration from 6.2: replace invoice by related_to
         if table_h.column_exist('invoice'):
@@ -841,7 +840,7 @@ class Line(origin_mixin(_states), sequence_ordered(), ModelSQL, ModelView):
     @property
     @fields.depends('related_to')
     def invoice(self):
-        pool = Pool()
+        pool = tx.pool
         Invoice = pool.get('account.invoice')
         related_to = getattr(self, 'related_to', None)
         if isinstance(related_to, Invoice) and related_to.id >= 0:
@@ -868,7 +867,7 @@ class Line(origin_mixin(_states), sequence_ordered(), ModelSQL, ModelView):
 
     @classmethod
     def get_relations(cls):
-        Model = Pool().get('ir.model')
+        Model = tx.pool.get('ir.model')
         get_name = Model.get_name
         models = cls._get_relations()
         return [(None, '')] + [(m, get_name(m)) for m in models]
@@ -877,7 +876,7 @@ class Line(origin_mixin(_states), sequence_ordered(), ModelSQL, ModelView):
     def on_change_party(self):
         if self.party:
             if self.amount:
-                with Transaction().set_context(date=self.date):
+                with tx.transaction.set_context(date=self.date):
                     if self.amount > Decimal(0):
                         self.account = self.party.account_receivable_used
                     else:
@@ -897,7 +896,7 @@ class Line(origin_mixin(_states), sequence_ordered(), ModelSQL, ModelView):
         methods=['invoice'])
     def on_change_amount(self):
         if self.party:
-            with Transaction().set_context(date=self.date):
+            with tx.transaction.set_context(date=self.date):
                 if self.account and self.account not in (
                         self.party.account_receivable_used,
                         self.party.account_payable_used):
@@ -1003,7 +1002,7 @@ class Line(origin_mixin(_states), sequence_ordered(), ModelSQL, ModelView):
 
     @classmethod
     def reconcile(cls, move_lines):
-        pool = Pool()
+        pool = tx.pool
         Invoice = pool.get('account.invoice')
         MoveLine = pool.get('account.move.line')
 
@@ -1044,13 +1043,13 @@ class Line(origin_mixin(_states), sequence_ordered(), ModelSQL, ModelView):
 
     @classmethod
     def post_move(cls, lines):
-        Move = Pool().get('account.move')
+        Move = tx.pool.get('account.move')
         Move.post(list({l.move for l in lines
                     if l.move and l.move.state != 'posted'}))
 
     @classmethod
     def delete_move(cls, lines):
-        pool = Pool()
+        pool = tx.pool
         Move = pool.get('account.move')
         Reconciliation = pool.get('account.move.reconciliation')
 
@@ -1064,15 +1063,15 @@ class Line(origin_mixin(_states), sequence_ordered(), ModelSQL, ModelView):
         '''
         Return the move line for the statement line
         '''
-        pool = Pool()
+        pool = tx.pool
         MoveLine = pool.get('account.move.line')
-        Currency = Pool().get('currency.currency')
+        Currency = tx.pool.get('currency.currency')
         if not self.amount:
             return
         if self.second_currency == self.company_currency:
             amount = self.amount_second_currency
         else:
-            with Transaction().set_context(date=self.date):
+            with tx.transaction.set_context(date=self.date):
                 amount = Currency.compute(
                     self.currency, self.amount, self.company_currency)
         if self.currency != self.company_currency:
@@ -1142,7 +1141,7 @@ class LineGroup(ModelSQL, ModelView):
 
     @classmethod
     def table_query(cls):
-        pool = Pool()
+        pool = tx.pool
         Move = pool.get('account.move')
         Line = pool.get('account.statement.line')
         move = Move.__table__()
@@ -1219,7 +1218,7 @@ class Origin(origin_mixin(_states), ModelSQL, ModelView):
 
     @classmethod
     def search_pending_amount(cls, name, clause):
-        pool = Pool()
+        pool = tx.pool
         Line = pool.get('account.statement.line')
         table = cls.__table__()
         line = Line.__table__()
@@ -1274,7 +1273,7 @@ class ImportStatementStart(ModelView):
 
     @classmethod
     def default_company(cls):
-        return Transaction().context.get('company')
+        return tx.transaction.context.get('company')
 
 
 class ImportStatement(Wizard):
@@ -1287,7 +1286,7 @@ class ImportStatement(Wizard):
     import_ = StateAction('account_statement.act_statement_form')
 
     def do_import_(self, action):
-        pool = Pool()
+        pool = tx.pool
         Statement = pool.get('account.statement')
         statements = list(getattr(self, 'parse_%s' % self.start.file_format)())
         for statement in statements:

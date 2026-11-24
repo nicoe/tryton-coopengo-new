@@ -5,9 +5,10 @@ import copy
 import inspect
 from functools import wraps
 
+from trytond import tx
 from trytond.i18n import gettext
 from trytond.tools import is_instance_method
-from trytond.transaction import Transaction, without_check_access
+from trytond.transaction import without_check_access
 
 from .field import Field, domain_method, order_method
 
@@ -16,7 +17,7 @@ def getter_context(func):
     @wraps(func)
     def wrapper(self, *args, **kwargs):
         if not self.getter_with_context:
-            transaction = Transaction()
+            transaction = tx.transaction
             context = {
                 k: v for k, v in transaction.context.items()
                 if k in transaction.cache_keys}

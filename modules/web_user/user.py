@@ -13,19 +13,19 @@ from sql.functions import CurrentTimestamp
 from sql.operators import Equal
 
 import trytond.config as config
+from trytond import tx
 from trytond.exceptions import RateLimitException
 from trytond.i18n import gettext
 from trytond.model import (
     DeactivableMixin, Exclude, Index, ModelSQL, ModelView, Unique,
     avatar_mixin, fields)
-from trytond.pool import Pool
 from trytond.pyson import Eval
 from trytond.report import Report, get_email
 from trytond.res.user import PASSWORD_HASH, LoginAttempt
 from trytond.sendmail import send_message_transactional
 from trytond.tools.email_ import (
     EmailNotValidError, normalize_email, set_from_header, validate_email)
-from trytond.transaction import Transaction, without_check_access
+from trytond.transaction import without_check_access
 
 from .exceptions import UserValidationError
 
@@ -115,13 +115,13 @@ class User(avatar_mixin(100), DeactivableMixin, ModelSQL, ModelView):
 
     @classmethod
     def set_password(cls, users, name, value):
-        pool = Pool()
+        pool = tx.pool
         User = pool.get('res.user')
 
         if value == 'x' * 10:
             return
 
-        if Transaction().user and value:
+        if tx.transaction.user and value:
             User.validate_password(value, users)
 
         to_write = []
@@ -172,7 +172,7 @@ class User(avatar_mixin(100), DeactivableMixin, ModelSQL, ModelView):
 
     @classmethod
     def authenticate(cls, email, password):
-        pool = Pool()
+        pool = tx.pool
         Attempt = pool.get('web.user.authenticate.attempt')
         email = email.lower()
 
@@ -186,7 +186,7 @@ class User(avatar_mixin(100), DeactivableMixin, ModelSQL, ModelView):
             Attempt.add(email)
             raise RateLimitException()
         # Prevent brute force attack
-        Transaction().atexit(time.sleep, 2 ** count - 1)
+        tx.transaction.atexit(time.sleep, 2 ** count - 1)
 
         users = cls.search([('email', '=', email)])
         if users:
@@ -195,7 +195,7 @@ class User(avatar_mixin(100), DeactivableMixin, ModelSQL, ModelView):
             if valid:
                 if new_hash:
                     logger.info("Update password hash for %s", user.id)
-                    with Transaction().new_transaction():
+                    with tx.transaction.new_transaction():
                         with without_check_access():
                             cls.write([cls(user.id)], {
                                     'password_hash': new_hash,
@@ -217,13 +217,13 @@ class User(avatar_mixin(100), DeactivableMixin, ModelSQL, ModelView):
         return PASSWORD_HASH.verify_and_update(password, hash_)
 
     def new_session(self):
-        pool = Pool()
+        pool = tx.pool
         Session = pool.get('web.user.session')
         return Session.add(self)
 
     @classmethod
     def get_user(cls, session):
-        pool = Pool()
+        pool = tx.pool
         Session = pool.get('web.user.session')
         return Session.get_user(session)
 
@@ -318,12 +318,12 @@ class User(avatar_mixin(100), DeactivableMixin, ModelSQL, ModelView):
 
     @classmethod
     def set_password_token(cls, email, token, password):
-        pool = Pool()
+        pool = tx.pool
         Attempt = pool.get('web.user.authenticate.attempt')
         email = email.lower()
 
         # Prevent brute force attack
-        Transaction().atexit(
+        tx.transaction.atexit(
             time.sleep, random.randint(0, 2 ** Attempt.count(email) - 1))
 
         users = cls.search([
@@ -345,13 +345,13 @@ class User(avatar_mixin(100), DeactivableMixin, ModelSQL, ModelView):
 
     @property
     def languages(self):
-        pool = Pool()
+        pool = tx.pool
         Language = pool.get('ir.lang')
         if self.party and self.party.lang:
             languages = [self.party.lang]
         else:
             languages = Language.search([
-                    ('code', '=', Transaction().language),
+                    ('code', '=', tx.transaction.language),
                     ])
         return languages
 
@@ -401,7 +401,7 @@ class UserSession(ModelSQL):
 
     @classmethod
     def add(cls, user):
-        cursor = Transaction().connection.cursor()
+        cursor = tx.transaction.connection.cursor()
         table = cls.__table__()
 
         cursor.execute(*table.delete(
@@ -422,7 +422,7 @@ class UserSession(ModelSQL):
 
     @classmethod
     def get_user(cls, session):
-        transaction = Transaction()
+        transaction = tx.transaction
         sessions = cls.search([
                 ('key', '=', session),
                 ])

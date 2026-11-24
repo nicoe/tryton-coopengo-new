@@ -12,11 +12,10 @@ from email.utils import getaddresses
 from functools import partial
 
 import trytond.config as config
+from trytond import tx
 from trytond.model import (
     ModelSQL, ModelStorage, ModelView, fields, sequence_ordered)
-from trytond.pool import Pool
 from trytond.pyson import Bool, Eval
-from trytond.transaction import Transaction
 from trytond.url import http_host
 
 if config.getboolean('inbound_email', 'filestore', default=True):
@@ -54,7 +53,7 @@ class Inbox(ModelSQL, ModelView):
         if self.identifier:
             url_part = {
                 'identifier': self.identifier,
-                'database_name': Transaction().database.name,
+                'database_name': tx.transaction.database.name,
                 }
             return http_host() + (
                 urllib.parse.quote(
@@ -137,7 +136,7 @@ class Email(ModelSQL, ModelView):
 
     @classmethod
     def get_models(cls):
-        pool = Pool()
+        pool = tx.pool
         Model = pool.get('ir.model')
         return [(None, "")] + Model.get_name_items((ModelStorage, ModelView))
 
@@ -298,7 +297,7 @@ class Rule(sequence_ordered(), ModelSQL, ModelView):
         return True
 
     def run(self, email_):
-        pool = Pool()
+        pool = tx.pool
         if self.action:
             model, method = self.action.split('|')
             Model = pool.get(model)

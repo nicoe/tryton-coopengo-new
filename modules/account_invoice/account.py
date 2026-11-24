@@ -3,14 +3,14 @@
 from collections import OrderedDict, defaultdict
 from itertools import islice
 
+from trytond import tx
 from trytond.i18n import gettext
 from trytond.model import (
     MatchMixin, ModelSQL, ModelView, Workflow, fields, sequence_ordered)
 from trytond.modules.account.exceptions import ClosePeriodError
 from trytond.modules.company.model import CompanyValueMixin
-from trytond.pool import Pool, PoolMeta
+from trytond.pool import PoolMeta
 from trytond.pyson import Bool, Eval, Id, If
-from trytond.transaction import Transaction
 
 from .exceptions import CancelInvoiceMoveWarning
 
@@ -29,7 +29,7 @@ class Configuration(metaclass=PoolMeta):
 
     @classmethod
     def multivalue_model(cls, field):
-        pool = Pool()
+        pool = tx.pool
         if field in 'default_customer_payment_term':
             return pool.get('account.configuration.default_payment_term')
         elif field == 'customer_payment_reference_number':
@@ -38,14 +38,14 @@ class Configuration(metaclass=PoolMeta):
 
     @classmethod
     def get_customer_payment_references(cls):
-        pool = Pool()
+        pool = tx.pool
         PaymentReference = pool.get('account.configuration.payment_reference')
         field = 'customer_payment_reference_number'
         return PaymentReference.fields_get([field])[field]['selection']
 
     @classmethod
     def default_customer_payment_reference_number(cls, **pattern):
-        pool = Pool()
+        pool = tx.pool
         PaymentReference = pool.get('account.configuration.payment_reference')
         return PaymentReference.default_customer_payment_reference_number()
 
@@ -81,7 +81,7 @@ class FiscalYear(metaclass=PoolMeta):
 
     @staticmethod
     def default_invoice_sequences():
-        if Transaction().user == 0:
+        if tx.transaction.user == 0:
             return []
         return [{}]
 
@@ -93,7 +93,7 @@ class Period(metaclass=PoolMeta):
     @ModelView.button
     @Workflow.transition('closed')
     def close(cls, periods):
-        pool = Pool()
+        pool = tx.pool
         Invoice = pool.get('account.invoice')
         company_ids = list({p.company.id for p in periods})
         invoices = Invoice.search([
@@ -160,7 +160,7 @@ class InvoiceSequence(sequence_ordered(), ModelSQL, ModelView, MatchMixin):
 
     @classmethod
     def default_company(cls):
-        return Transaction().context.get('company')
+        return tx.transaction.context.get('company')
 
 
 class Move(metaclass=PoolMeta):
@@ -200,7 +200,7 @@ class MoveLine(metaclass=PoolMeta):
 
     @classmethod
     def _view_reconciliation_muted(cls):
-        pool = Pool()
+        pool = tx.pool
         ModelData = pool.get('ir.model.data')
         muted = super()._view_reconciliation_muted()
         muted.add(ModelData.get_id(
@@ -220,7 +220,7 @@ class MoveLine(metaclass=PoolMeta):
 
     @classmethod
     def get_invoice_payment(cls, lines, name):
-        pool = Pool()
+        pool = tx.pool
         InvoicePaymentLine = pool.get('account.invoice-account.move.line')
 
         result = defaultdict(lambda: None)
@@ -232,7 +232,7 @@ class MoveLine(metaclass=PoolMeta):
 
     @classmethod
     def set_invoice_payment(cls, lines, name, value):
-        pool = Pool()
+        pool = tx.pool
         Invoice = pool.get('account.invoice')
         Invoice.remove_payment_lines(lines)
         if value:
@@ -245,7 +245,7 @@ class MoveLine(metaclass=PoolMeta):
 
     @property
     def product(self):
-        pool = Pool()
+        pool = tx.pool
         InvoiceLine = pool.get('account.invoice.line')
         product = super().product
         if (isinstance(self.origin, InvoiceLine)
@@ -255,7 +255,7 @@ class MoveLine(metaclass=PoolMeta):
 
 
 def _invoices_to_process(reconciliations):
-    pool = Pool()
+    pool = tx.pool
     Reconciliation = pool.get('account.move.reconciliation')
     Invoice = pool.get('account.invoice')
 
@@ -281,9 +281,9 @@ class Reconciliation(metaclass=PoolMeta):
 
     @classmethod
     def on_modification(cls, mode, reconciliations, field_names=None):
-        pool = Pool()
+        pool = tx.pool
         Invoice = pool.get('account.invoice')
-        transaction = Transaction()
+        transaction = tx.transaction
         context = transaction.context
 
         super().on_modification(mode, reconciliations, field_names=field_names)
@@ -319,7 +319,7 @@ class RenewFiscalYear(metaclass=PoolMeta):
             'in_invoice_sequence', 'in_credit_note_sequence']
 
     def create_fiscalyear(self):
-        pool = Pool()
+        pool = tx.pool
         Sequence = pool.get('ir.sequence.strict')
         InvoiceSequence = pool.get('account.fiscalyear.invoice_sequence')
         fiscalyear = super().create_fiscalyear()
@@ -379,7 +379,7 @@ class RescheduleLines(metaclass=PoolMeta):
 
     @classmethod
     def reschedule_lines(cls, lines, journal, terms):
-        pool = Pool()
+        pool = tx.pool
         Invoice = pool.get('account.invoice')
         move, balance_line = super().reschedule_lines(lines, journal, terms)
 
@@ -400,7 +400,7 @@ class DelegateLines(metaclass=PoolMeta):
 
     @classmethod
     def delegate_lines(cls, lines, party, journal, date=None):
-        pool = Pool()
+        pool = tx.pool
         Invoice = pool.get('account.invoice')
         move = super().delegate_lines(lines, party, journal, date=None)
 
@@ -420,7 +420,7 @@ class CancelMoves(metaclass=PoolMeta):
     __name__ = 'account.move.cancel'
 
     def transition_cancel(self):
-        pool = Pool()
+        pool = tx.pool
         Invoice = pool.get('account.invoice')
         Warning = pool.get('res.user.warning')
 

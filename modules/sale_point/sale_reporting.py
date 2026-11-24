@@ -3,7 +3,7 @@
 from sql import Literal
 from sql.operators import Concat
 
-from trytond.pool import Pool
+from trytond import tx
 
 
 class AbstractMixin:
@@ -11,7 +11,7 @@ class AbstractMixin:
 
     @classmethod
     def _pos_sale_line(cls, length, index, company_id=None):
-        pool = Pool()
+        pool = tx.pool
         Company = pool.get('company.company')
         Line = pool.get('sale.point.sale.line')
         Point = pool.get('sale.point')

@@ -9,10 +9,10 @@ from sql.aggregate import Min
 from sql.conditionals import Coalesce
 
 import trytond.config as config
+from trytond import tx
 from trytond.model import Index, ModelSQL, ModelView, convert_from, fields
-from trytond.pool import Pool, PoolMeta
+from trytond.pool import PoolMeta
 from trytond.pyson import Eval, If
-from trytond.transaction import Transaction
 
 dumps = partial(json.dumps, separators=(',', ':'), sort_keys=True)
 
@@ -74,9 +74,9 @@ class Relation(ModelSQL):
                     })
 
     def get_active(self, name):
-        pool = Pool()
+        pool = tx.pool
         Date = pool.get('ir.date')
-        context = Transaction().context
+        context = tx.transaction.context
         date = context.get('date') or Date.today()
         start_date = self.start_date or dt.date.min
         end_date = self.end_date or dt.date.max
@@ -84,9 +84,9 @@ class Relation(ModelSQL):
 
     @classmethod
     def domain_active(cls, domain, tables):
-        pool = Pool()
+        pool = tx.pool
         Date = pool.get('ir.date')
-        context = Transaction().context
+        context = tx.transaction.context
         date = context.get('date') or Date.today()
         table, _ = tables[None]
         _, operator, value = domain
@@ -132,7 +132,7 @@ class RelationAll(Relation, ModelView):
 
     @classmethod
     def table_query(cls):
-        pool = Pool()
+        pool = tx.pool
         Relation = pool.get('party.relation')
         Type = pool.get('party.relation.type')
         # FLA: Fix #11470: Add a hook in order to be able to use it in
@@ -189,7 +189,7 @@ class RelationAll(Relation, ModelView):
     @staticmethod
     def convert_instances(relations):
         "Converts party.relation.all instances to party.relation "
-        pool = Pool()
+        pool = tx.pool
         Relation = pool.get('party.relation')
         return Relation.browse([x.id // 2 for x in relations])
 
@@ -202,7 +202,7 @@ class RelationAll(Relation, ModelView):
 
     @classmethod
     def create(cls, vlist):
-        pool = Pool()
+        pool = tx.pool
         Relation = pool.get('party.relation')
         vlist = cls._before_create(vlist)
         relations = Relation.create(vlist)
@@ -210,7 +210,7 @@ class RelationAll(Relation, ModelView):
 
     @classmethod
     def write(cls, *args):
-        pool = Pool()
+        pool = tx.pool
         Relation = pool.get('party.relation')
         RelationType = pool.get('party.relation.type')
 
@@ -222,7 +222,7 @@ class RelationAll(Relation, ModelView):
         for relation in relations:
             relation._local_cache.pop(relation.reverse_id, None)
         # Clean cursor cache of reverse
-        for cache in Transaction().cache.values():
+        for cache in tx.transaction.cache.values():
             if cls.__name__ in cache:
                 cache_cls = cache[cls.__name__]
                 for relation in relations:
@@ -257,12 +257,12 @@ class RelationAll(Relation, ModelView):
 
     @classmethod
     def delete(cls, relations):
-        pool = Pool()
+        pool = tx.pool
         Relation = pool.get('party.relation')
         ids, on_delete = cls._before_delete(relations)
 
         # Clean cursor cache of reverse
-        for cache in list(Transaction().cache.values()):
+        for cache in list(tx.transaction.cache.values()):
             if cls.__name__ in cache:
                 cache_cls = cache[cls.__name__]
                 for relation in relations:
@@ -279,11 +279,11 @@ class Party(metaclass=PoolMeta):
 
     @classmethod
     def _distance_query(cls, usages=None, party=None, depth=None):
-        pool = Pool()
+        pool = tx.pool
         RelationAll = pool.get('party.relation.all')
         RelationType = pool.get('party.relation.type')
 
-        transaction = Transaction()
+        transaction = tx.transaction
         context = transaction.context
         database = transaction.database
 

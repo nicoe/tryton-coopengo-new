@@ -4,8 +4,9 @@
 import builtins
 from decimal import Decimal
 
+from trytond import tx
 from trytond.model import fields
-from trytond.pool import Pool, PoolMeta
+from trytond.pool import PoolMeta
 from trytond.pyson import Eval
 
 
@@ -35,7 +36,7 @@ class ProductSupplier(metaclass=PoolMeta):
         'product', '_parent_product.default_uom',
         'template', '_parent_template.default_uom')
     def on_change_with_quantity_digits(self, name=None):
-        pool = Pool()
+        pool = tx.pool
         Uom = pool.get('product.uom')
         if self.product and self.product.default_uom:
             default_uom = self.product.default_uom
@@ -50,7 +51,7 @@ class ProductSupplier(metaclass=PoolMeta):
         return -Decimal(str(rounding)).as_tuple().exponent
 
     def adapt_quantity(self, quantity, unit, round=True):
-        pool = Pool()
+        pool = tx.pool
         Uom = pool.get('product.uom')
         quantity = Uom.compute_qty(unit, quantity, self.unit, round=False)
         if self.quantity_minimal:

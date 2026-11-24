@@ -4,10 +4,10 @@
 from sql import Null
 from sql.operators import Concat
 
+from trytond import tx
 from trytond.model import fields
-from trytond.pool import Pool, PoolMeta
+from trytond.pool import PoolMeta
 from trytond.pyson import Eval, If
-from trytond.transaction import Transaction
 
 
 class Payment(metaclass=PoolMeta):
@@ -51,7 +51,7 @@ class Statement(metaclass=PoolMeta):
 
     @classmethod
     def _process_payments(cls, moves):
-        pool = Pool()
+        pool = tx.pool
         Payment = pool.get('account.payment')
 
         payments = super()._process_payments(moves)
@@ -96,7 +96,7 @@ class StatementLine(metaclass=PoolMeta):
         super().__register__(module)
 
         table_h = cls.__table_handler__(module)
-        cursor = Transaction().connection.cursor()
+        cursor = tx.transaction.connection.cursor()
 
         # Migration from 6.2: replace payment by related_to
         if table_h.column_exist('payment'):
@@ -121,7 +121,7 @@ class StatementLine(metaclass=PoolMeta):
     @property
     @fields.depends('related_to')
     def payment_group(self):
-        pool = Pool()
+        pool = tx.pool
         PaymentGroup = pool.get('account.payment.group')
         related_to = getattr(self, 'related_to', None)
         if isinstance(related_to, PaymentGroup) and related_to.id >= 0:
@@ -169,7 +169,7 @@ class StatementLine(metaclass=PoolMeta):
 
     @classmethod
     def post_move(cls, lines):
-        pool = Pool()
+        pool = tx.pool
         Move = pool.get('account.move')
         super().post_move(lines)
         Move.post([l.payment.clearing_move for l in lines
@@ -197,7 +197,7 @@ class StatementRuleLine(metaclass=PoolMeta):
             }
 
     def _get_account_from(self, related_to):
-        pool = Pool()
+        pool = tx.pool
         Payment = pool.get('account.payment')
         PaymentGroup = pool.get('account.payment.group')
         account = super()._get_account_from(related_to)
@@ -222,7 +222,7 @@ class StatementRuleLine(metaclass=PoolMeta):
             ]
 
     def _get_payment_group(self, origin, keywords):
-        pool = Pool()
+        pool = tx.pool
         PaymentGroup = pool.get('account.payment.group')
         if keywords.get('payment_group'):
             domain = self._get_payment_group_domain(

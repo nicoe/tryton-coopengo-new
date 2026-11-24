@@ -9,15 +9,15 @@ from sql import Null
 from sql.conditionals import Coalesce
 from sql.functions import CharLength
 
+from trytond import tx
 from trytond.i18n import gettext
 from trytond.model import (
     ChatMixin, Index, ModelSQL, ModelView, Workflow, dualmethod, fields)
 from trytond.modules.company.model import employee_field, set_employee
 from trytond.modules.product import price_digits, round_price
 from trytond.modules.stock.shipment import ShipmentAssignMixin
-from trytond.pool import Pool, PoolMeta
+from trytond.pool import PoolMeta
 from trytond.pyson import Bool, Eval, Id, If
-from trytond.transaction import Transaction
 
 from .exceptions import CostWarning
 
@@ -302,12 +302,12 @@ class Production(
 
     @classmethod
     def default_warehouse(cls):
-        Location = Pool().get('stock.location')
+        Location = tx.pool.get('stock.location')
         return Location.get_default_warehouse()
 
     @classmethod
     def default_location(cls):
-        Location = Pool().get('stock.location')
+        Location = tx.pool.get('stock.location')
         warehouse_id = cls.default_warehouse()
         if warehouse_id:
             warehouse = Location(warehouse_id)
@@ -319,7 +319,7 @@ class Production(
 
     @staticmethod
     def default_company():
-        return Transaction().context.get('company')
+        return tx.transaction.context.get('company')
 
     @fields.depends('product', 'bom')
     def compute_lead_time(self, pattern=None):
@@ -361,7 +361,7 @@ class Production(
 
     @classmethod
     def get_origin(cls):
-        Model = Pool().get('ir.model')
+        Model = tx.pool.get('ir.model')
         get_name = Model.get_name
         models = cls._get_origin()
         return [(None, '')] + [(m, get_name(m)) for m in models]
@@ -369,7 +369,7 @@ class Production(
     @fields.depends(
         'company', 'location', methods=['picking_location', 'output_location'])
     def _move(self, type, product, unit, quantity):
-        pool = Pool()
+        pool = tx.pool
         Move = pool.get('stock.move')
         assert type in {'input', 'output'}
         move = Move(**Move.default_get(with_rec_name=False))
@@ -475,7 +475,7 @@ class Production(
 
     @fields.depends('inputs')
     def on_change_with_cost(self):
-        Uom = Pool().get('product.uom')
+        Uom = tx.pool.get('product.uom')
 
         cost = Decimal(0)
         if not self.inputs:
@@ -495,7 +495,7 @@ class Production(
 
     @dualmethod
     def set_moves(cls, productions):
-        pool = Pool()
+        pool = tx.pool
         Move = pool.get('stock.move')
         to_save = []
         for production in productions:
@@ -531,7 +531,7 @@ class Production(
 
     @classmethod
     def set_cost_from_moves(cls):
-        pool = Pool()
+        pool = tx.pool
         Move = pool.get('stock.move')
         productions = set()
         moves = Move.search([
@@ -547,7 +547,7 @@ class Production(
 
     @classmethod
     def set_cost(cls, productions):
-        pool = Pool()
+        pool = tx.pool
         Uom = pool.get('product.uom')
         Move = pool.get('stock.move')
         Warning = pool.get('res.user.warning')
@@ -644,7 +644,7 @@ class Production(
         '''
         Fill the number field with the production sequence
         '''
-        pool = Pool()
+        pool = tx.pool
         Config = pool.get('production.configuration')
 
         config = Config(1)
@@ -661,7 +661,7 @@ class Production(
 
     @classmethod
     def on_modification(cls, mode, productions, field_names=None):
-        pool = Pool()
+        pool = tx.pool
         Move = pool.get('stock.move')
         super().on_modification(mode, productions, field_names=field_names)
         if mode in {'create', 'write'}:
@@ -695,7 +695,7 @@ class Production(
     @dualmethod
     def _set_move_planned_date(cls, productions):
         "Set planned date of moves for the shipments"
-        pool = Pool()
+        pool = tx.pool
         Move = pool.get('stock.move')
         to_write = []
         for production in productions:
@@ -726,7 +726,7 @@ class Production(
     @ModelView.button
     @Workflow.transition('cancelled')
     def cancel(cls, productions):
-        pool = Pool()
+        pool = tx.pool
         Move = pool.get('stock.move')
         Move.cancel([m for p in productions
                 for m in p.inputs + p.outputs])
@@ -735,7 +735,7 @@ class Production(
     @ModelView.button
     @Workflow.transition('draft')
     def draft(cls, productions):
-        pool = Pool()
+        pool = tx.pool
         Move = pool.get('stock.move')
 
         to_draft, to_delete = [], []
@@ -752,7 +752,7 @@ class Production(
     @ModelView.button
     @Workflow.transition('waiting')
     def wait(cls, productions):
-        pool = Pool()
+        pool = tx.pool
         cls.set_number(productions)
         Move = pool.get('stock.move')
         Move.draft([m for p in productions
@@ -762,7 +762,7 @@ class Production(
     @Workflow.transition('assigned')
     @set_employee('assigned_by')
     def assign(cls, productions):
-        pool = Pool()
+        pool = tx.pool
         Move = pool.get('stock.move')
         Move.assign([m for p in productions for m in p.assign_moves])
 
@@ -771,13 +771,13 @@ class Production(
     @Workflow.transition('running')
     @set_employee('run_by')
     def run(cls, productions):
-        pool = Pool()
+        pool = tx.pool
         Move = pool.get('stock.move')
         Date = pool.get('ir.date')
         Move.do([m for p in productions for m in p.inputs])
         for company, productions in groupby(
                 productions, key=lambda p: p.company):
-            with Transaction().set_context(company=company.id):
+            with tx.transaction.set_context(company=company.id):
                 today = Date.today()
             cls.write([p for p in productions if not p.effective_start_date], {
                     'effective_start_date': today,
@@ -788,14 +788,14 @@ class Production(
     @Workflow.transition('done')
     @set_employee('done_by')
     def do(cls, productions):
-        pool = Pool()
+        pool = tx.pool
         Move = pool.get('stock.move')
         Date = pool.get('ir.date')
         cls.set_cost(productions)
         Move.do([m for p in productions for m in p.outputs])
         for company, productions in groupby(
                 productions, key=lambda p: p.company):
-            with Transaction().set_context(company=company.id):
+            with tx.transaction.set_context(company=company.id):
                 today = Date.today()
             cls.write([p for p in productions if not p.effective_date], {
                     'effective_date': today,
@@ -809,7 +809,7 @@ class Production(
     @dualmethod
     @ModelView.button
     def assign_try(cls, productions):
-        pool = Pool()
+        pool = tx.pool
         Move = pool.get('stock.move')
         to_assign = [
             m for p in productions for m in p.assign_moves
@@ -830,7 +830,7 @@ class Production(
 
     @classmethod
     def _get_reschedule_planned_start_dates_domain(cls, date):
-        context = Transaction().context
+        context = tx.transaction.context
         return [
             ('company', '=', context.get('company')),
             ('state', '=', 'waiting'),
@@ -839,7 +839,7 @@ class Production(
 
     @classmethod
     def _get_reschedule_planned_dates_domain(cls, date):
-        context = Transaction().context
+        context = tx.transaction.context
         return [
             ('company', '=', context.get('company')),
             ('state', '=', 'running'),
@@ -848,7 +848,7 @@ class Production(
 
     @classmethod
     def reschedule(cls, date=None):
-        pool = Pool()
+        pool = tx.pool
         Date = pool.get('ir.date')
         if date is None:
             date = Date.today()
@@ -889,7 +889,7 @@ class Production_Lot(metaclass=PoolMeta):
     @ModelView.button
     @Workflow.transition('done')
     def do(cls, productions):
-        pool = Pool()
+        pool = tx.pool
         Lot = pool.get('stock.lot')
         Move = pool.get('stock.move')
         lots, moves = [], []

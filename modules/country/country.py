@@ -7,11 +7,10 @@ from sql import Literal
 from sql.conditionals import Coalesce
 from sql.functions import Position, Substring
 
+from trytond import tx
 from trytond.model import DeactivableMixin, ModelSQL, ModelView, fields, tree
-from trytond.pool import Pool
 from trytond.pyson import Eval, If
 from trytond.tools import is_full_text, lstrip_wildcard
-from trytond.transaction import Transaction
 
 
 class Organization(ModelSQL, ModelView):
@@ -65,9 +64,9 @@ class OrganizationMember(ModelSQL, ModelView):
 
     @fields.depends('from_date', 'to_date')
     def on_change_with_active(self, name=None):
-        pool = Pool()
+        pool = tx.pool
         Date = pool.get('ir.date')
-        context = Transaction().context
+        context = tx.transaction.context
         date = context.get('date', Date.today())
 
         from_date = self.from_date or dt.date.min
@@ -76,9 +75,9 @@ class OrganizationMember(ModelSQL, ModelView):
 
     @classmethod
     def domain_active(cls, domain, tables):
-        pool = Pool()
+        pool = tx.pool
         Date = pool.get('ir.date')
-        context = Transaction().context
+        context = tx.transaction.context
         table, _ = tables[None]
         _, operator, operand = domain
         date = context.get('date', Date.today())
@@ -202,7 +201,7 @@ class Country(DeactivableMixin, ModelSQL, ModelView):
     def is_member(self, organization, date=None):
         """Return if the country is in the organization at the date
         organization can be an XML id"""
-        pool = Pool()
+        pool = tx.pool
         Date = pool.get('ir.date')
         ModelData = pool.get('ir.model.data')
         Organization = pool.get('country.organization')
@@ -210,7 +209,7 @@ class Country(DeactivableMixin, ModelSQL, ModelView):
             date = Date.today()
         if isinstance(organization, str):
             organization = ModelData.get_id(organization)
-        with Transaction().set_context(date=date):
+        with tx.transaction.set_context(date=date):
             organization = Organization(organization)
         return self in organization.countries
 
@@ -440,7 +439,7 @@ class Subdivision(DeactivableMixin, ModelSQL, ModelView):
         column = cls.code.sql_column(tables, cls)
         if op.endswith('like'):
             if op.endswith('ilike') and cls.code.search_unaccented:
-                database = Transaction().database
+                database = tx.transaction.database
                 column = database.unaccent(column)
                 value = database.unaccent(value)
             bool_op = operator.and_ if op.startswith('not ') else operator.or_

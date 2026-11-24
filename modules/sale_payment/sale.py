@@ -2,12 +2,12 @@
 # this repository contains the full copyright notices and license terms.
 import functools
 
+from trytond import tx
 from trytond.i18n import gettext
 from trytond.model import ModelView, Workflow, fields
 from trytond.model.exceptions import AccessError
 from trytond.pool import PoolMeta
 from trytond.pyson import Bool, Eval, If
-from trytond.transaction import Transaction
 
 
 def no_payment(error):
@@ -79,7 +79,7 @@ class Sale(metaclass=PoolMeta):
     def payment_confirm(cls, sales=None):
         "Confirm the sale based on payment authorization"
         if sales is None:
-            context = Transaction().context
+            context = tx.transaction.context
             sales = cls.search([
                     ('state', '=', 'quotation'),
                     ('payments', '!=', None),

@@ -10,15 +10,15 @@ from sql import Null
 from sql.aggregate import Min, Sum
 from sql.functions import Extract, Round
 
+from trytond import tx
 from trytond.cache import Cache
 from trytond.model import (
     Check, DeactivableMixin, Index, ModelSQL, ModelView, Unique, Workflow,
     fields)
 from trytond.modules.account.exceptions import FiscalYearNotFoundError
-from trytond.pool import Pool, PoolMeta
+from trytond.pool import PoolMeta
 from trytond.pyson import Eval
 from trytond.tools import grouped_slice
-from trytond.transaction import Transaction
 from trytond.wizard import Button, StateTransition, StateView, Wizard
 
 
@@ -36,7 +36,7 @@ class IntrastatTransaction(DeactivableMixin, ModelSQL, ModelView):
 
     @classmethod
     def get(cls, code, date=None):
-        pool = Pool()
+        pool = tx.pool
         Date = pool.get('ir.date')
         if date is None:
             date = Date.today()
@@ -140,7 +140,7 @@ class IntrastatDeclaration(Workflow, ModelSQL, ModelView):
 
     @fields.depends('company', 'month')
     def on_change_with_extended(self, name=None):
-        pool = Pool()
+        pool = tx.pool
         FiscalYear = pool.get('account.fiscalyear')
         if self.company and self.month:
             try:
@@ -153,7 +153,7 @@ class IntrastatDeclaration(Workflow, ModelSQL, ModelView):
                 return fiscalyear.intrastat_extended
 
     def get_rec_name(self, name):
-        pool = Pool()
+        pool = tx.pool
         Lang = pool.get('ir.lang')
         lang = Lang.get()
         return '-'.join([
@@ -218,13 +218,13 @@ class IntrastatDeclarationContext(ModelView):
 
     @classmethod
     def default_company(cls):
-        pool = Pool()
+        pool = tx.pool
         Declaration = pool.get('account.stock.eu.intrastat.declaration')
         declaration = cls.default_declaration()
         if declaration is not None:
             declaration = Declaration(declaration)
             return declaration.company.id
-        return Transaction().context.get('company')
+        return tx.transaction.context.get('company')
 
     @fields.depends('company', 'declaration')
     def on_change_company(self):
@@ -236,7 +236,7 @@ class IntrastatDeclarationContext(ModelView):
 
     @classmethod
     def default_declaration(cls):
-        return Transaction().context.get('declaration')
+        return tx.transaction.context.get('declaration')
 
 
 class IntrastatDeclarationLine(ModelSQL, ModelView):
@@ -275,9 +275,9 @@ class IntrastatDeclarationLine(ModelSQL, ModelView):
 
     @classmethod
     def view_attributes(cls):
-        pool = Pool()
+        pool = tx.pool
         Declaration = pool.get('account.stock.eu.intrastat.declaration')
-        context = Transaction().context
+        context = tx.transaction.context
         attributes = super().view_attributes()
         if context.get('declaration') is not None:
             declaration = Declaration(context['declaration'])
@@ -289,9 +289,9 @@ class IntrastatDeclarationLine(ModelSQL, ModelView):
 
     @classmethod
     def table_query(cls):
-        pool = Pool()
+        pool = tx.pool
         Move = pool.get('stock.move')
-        context = Transaction().context
+        context = tx.transaction.context
 
         move = Move.__table__()
 
@@ -377,10 +377,10 @@ class IntrastatDeclarationExport(Wizard):
             ])
 
     def transition_generate(self):
-        pool = Pool()
+        pool = tx.pool
         Line = pool.get('account.stock.eu.intrastat.declaration.line')
         declaration = self.record
-        with Transaction().set_context(
+        with tx.transaction.set_context(
                 company=declaration.company.id,
                 declaration=declaration.id):
             lines = Line.search([], order=[('type', 'ASC')])

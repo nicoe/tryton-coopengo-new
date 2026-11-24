@@ -7,11 +7,10 @@ from sql import Null
 from sql.conditionals import Greatest
 from sql.functions import CurrentTimestamp
 
-from trytond import backend
+from trytond import backend, tx
 from trytond.model import ModelView, Workflow, fields
-from trytond.pool import Pool, PoolMeta
+from trytond.pool import PoolMeta
 from trytond.tools import sqlite_apply_types
-from trytond.transaction import Transaction
 
 
 class Invoice(metaclass=PoolMeta):
@@ -32,7 +31,7 @@ class Invoice(metaclass=PoolMeta):
 
     @classmethod
     def get_history_datetime(cls, invoices, name):
-        pool = Pool()
+        pool = tx.pool
         Party = pool.get('party.party')
         Address = pool.get('party.address')
         Identifier = pool.get('party.identifier')
@@ -42,7 +41,7 @@ class Invoice(metaclass=PoolMeta):
         address = Address.__table__()
         identifier = Identifier.__table__()
         payment_term = PaymentTerm.__table__()
-        cursor = Transaction().connection.cursor()
+        cursor = tx.transaction.connection.cursor()
 
         datetimes = defaultdict(lambda: None)
         query = (table

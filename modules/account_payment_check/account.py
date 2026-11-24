@@ -5,12 +5,12 @@ from operator import attrgetter
 
 from num2words import num2words
 
+from trytond import tx
 from trytond.i18n import gettext
 from trytond.model import ModelView, fields
-from trytond.pool import Pool, PoolMeta
+from trytond.pool import PoolMeta
 from trytond.pyson import Eval, Id, If
 from trytond.report import Report
-from trytond.transaction import Transaction
 from trytond.wizard import (
     Button, StateAction, StateTransition, StateView, Wizard)
 
@@ -149,7 +149,7 @@ class PaymentCheckPrint(Wizard):
             return 'print_'
 
     def do_print_(self, action):
-        pool = Pool()
+        pool = tx.pool
         Payment = pool.get('account.payment')
 
         payments = self.record.payments
@@ -201,7 +201,7 @@ class PaymentCheck(Report):
     @classmethod
     def num2words(cls, number, lang=None, **kwargs):
         if lang is None:
-            lang = Transaction().language
+            lang = tx.transaction.language
         try:
             return num2words(number, lang=lang, **kwargs)
         except NotImplementedError:
@@ -230,7 +230,7 @@ class StatementRuleLine(metaclass=PoolMeta):
             ]
 
     def _get_payment(self, origin, keywords, party=None, amount=0):
-        pool = Pool()
+        pool = tx.pool
         Payment = pool.get('account.payment')
 
         payment = super()._get_payment(

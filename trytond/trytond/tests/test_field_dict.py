@@ -3,10 +3,9 @@
 import unittest
 from unittest.mock import patch
 
-from trytond import backend
+from trytond import backend, tx
 from trytond.model.dictschema import SelectionError
 from trytond.model.exceptions import RequiredValidationError
-from trytond.pool import Pool
 from trytond.tests.test_tryton import (
     ExtensionTestCase, TestCase, activate_module, with_transaction)
 
@@ -20,7 +19,7 @@ class FieldDictTestCase(TestCase):
         activate_module('tests')
 
     def create_schema(self):
-        DictSchema = Pool().get('test.dict.schema')
+        DictSchema = tx.pool.get('test.dict.schema')
 
         DictSchema.create([{
                     'name': 'a',
@@ -52,7 +51,7 @@ class FieldDictTestCase(TestCase):
     @with_transaction()
     def test_create(self):
         "Test create dict"
-        Dict = Pool().get('test.dict')
+        Dict = tx.pool.get('test.dict')
         self.create_schema()
 
         dict_, = Dict.create([{
@@ -64,7 +63,7 @@ class FieldDictTestCase(TestCase):
     @with_transaction()
     def test_create_without_schema(self):
         "Test create dict without schema"
-        Dict = Pool().get('test.dict')
+        Dict = tx.pool.get('test.dict')
 
         dict_, = Dict.create([{
                     'dico': {'z': 26},
@@ -75,7 +74,7 @@ class FieldDictTestCase(TestCase):
     @with_transaction()
     def test_create_without_default(self):
         "Test create dict without default"
-        Dict = Pool().get('test.dict')
+        Dict = tx.pool.get('test.dict')
         self.create_schema()
 
         dict_, = Dict.create([{}])
@@ -85,7 +84,7 @@ class FieldDictTestCase(TestCase):
     @with_transaction()
     def test_create_with_default(self):
         "Test create dict without default"
-        Dict = Pool().get('test.dict_default')
+        Dict = tx.pool.get('test.dict_default')
         self.create_schema()
 
         dict_, = Dict.create([{}])
@@ -95,7 +94,7 @@ class FieldDictTestCase(TestCase):
     @with_transaction()
     def test_create_required_with_value(self):
         "Test create dict required with value"
-        Dict = Pool().get('test.dict_required')
+        Dict = tx.pool.get('test.dict_required')
         self.create_schema()
 
         dict_, = Dict.create([{
@@ -107,7 +106,7 @@ class FieldDictTestCase(TestCase):
     @with_transaction()
     def test_create_required_without_value(self):
         "Test create dict required without value"
-        Dict = Pool().get('test.dict_required')
+        Dict = tx.pool.get('test.dict_required')
         self.create_schema()
 
         with self.assertRaises(RequiredValidationError):
@@ -116,7 +115,7 @@ class FieldDictTestCase(TestCase):
     @with_transaction()
     def test_create_required_with_empty(self):
         "Test create dict required without value"
-        Dict = Pool().get('test.dict_required')
+        Dict = tx.pool.get('test.dict_required')
         self.create_schema()
 
         with self.assertRaises(RequiredValidationError):
@@ -127,7 +126,7 @@ class FieldDictTestCase(TestCase):
     @with_transaction()
     def test_create_selection(self):
         "Test create dict with selection"
-        Dict = Pool().get('test.dict')
+        Dict = tx.pool.get('test.dict')
         self.create_schema()
 
         dict_, = Dict.create([{
@@ -139,7 +138,7 @@ class FieldDictTestCase(TestCase):
     @with_transaction()
     def test_create_multiselection(self):
         "Test create dict with multi-selection"
-        Dict = Pool().get('test.dict')
+        Dict = tx.pool.get('test.dict')
         self.create_schema()
 
         dict_, = Dict.create([{
@@ -151,7 +150,7 @@ class FieldDictTestCase(TestCase):
     @with_transaction()
     def test_invalid_selection_schema(self):
         "Test invalid selection schema"
-        pool = Pool()
+        pool = tx.pool
         DictSchema = pool.get('test.dict.schema')
 
         with self.assertRaises(SelectionError):
@@ -165,7 +164,7 @@ class FieldDictTestCase(TestCase):
     @with_transaction()
     def test_create_text(self):
         "Test create dict as text"
-        Dict = Pool().get('test.dict_text')
+        Dict = tx.pool.get('test.dict_text')
 
         dict_, = Dict.create([{
                     'dico': {'a': 1, 'b': 2},
@@ -176,7 +175,7 @@ class FieldDictTestCase(TestCase):
     @with_transaction()
     def test_write(self):
         "Test write dict"
-        Dict = Pool().get('test.dict')
+        Dict = tx.pool.get('test.dict')
         self.create_schema()
         dict_, = Dict.create([{
                     'dico': {'a': 1, 'b': 2},
@@ -191,7 +190,7 @@ class FieldDictTestCase(TestCase):
     @with_transaction()
     def test_write_wthout_schema(self):
         "Test write dict without schema"
-        Dict = Pool().get('test.dict')
+        Dict = tx.pool.get('test.dict')
         dict_, = Dict.create([{
                     'dico': {'z': 26},
                     }])
@@ -205,7 +204,7 @@ class FieldDictTestCase(TestCase):
     @with_transaction()
     def test_write_text(self):
         "Test write dict as text"
-        Dict = Pool().get('test.dict_text')
+        Dict = tx.pool.get('test.dict_text')
         dict_, = Dict.create([{
                     'dico': {'a': 1, 'b': 2},
                     }])
@@ -217,7 +216,7 @@ class FieldDictTestCase(TestCase):
     @with_transaction()
     def test_search_element_equals(self):
         "Test search dict element equals"
-        pool = Pool()
+        pool = tx.pool
         Dict = pool.get('test.dict_noschema')
 
         dict_, = Dict.create([{
@@ -241,7 +240,7 @@ class FieldDictTestCase(TestCase):
     @with_transaction()
     def test_search_multiselection_equals(self):
         "Test search dict multi-selection equals"
-        pool = Pool()
+        pool = tx.pool
         Dict = pool.get('test.dict')
         self.create_schema()
 
@@ -267,7 +266,7 @@ class FieldDictTestCase(TestCase):
     @unittest.skip("Coog moodified the None semantic")
     def test_search_element_equals_none(self):
         "Test search dict element equals None"
-        pool = Pool()
+        pool = tx.pool
         Dict = pool.get('test.dict_noschema')
 
         dict_, = Dict.create([{
@@ -283,7 +282,7 @@ class FieldDictTestCase(TestCase):
     @with_transaction()
     def test_search_non_element_equals_none(self):
         "Test search dict non element equals None"
-        pool = Pool()
+        pool = tx.pool
         Dict = pool.get('test.dict_noschema')
 
         dict_, = Dict.create([{
@@ -299,7 +298,7 @@ class FieldDictTestCase(TestCase):
     @with_transaction()
     def test_search_element_non_equals(self):
         "Test search dict element non equals"
-        pool = Pool()
+        pool = tx.pool
         Dict = pool.get('test.dict_noschema')
 
         dict_, = Dict.create([{
@@ -323,7 +322,7 @@ class FieldDictTestCase(TestCase):
     @with_transaction()
     def test_search_multiselection_not_equals(self):
         "Test search dict multi-selection not equals"
-        pool = Pool()
+        pool = tx.pool
         Dict = pool.get('test.dict')
         self.create_schema()
 
@@ -353,7 +352,7 @@ class FieldDictTestCase(TestCase):
     @unittest.skip("Coog moodified the None semantic")
     def test_search_element_non_equals_none(self):
         "Test search dict element non equals None"
-        pool = Pool()
+        pool = tx.pool
         Dict = pool.get('test.dict_noschema')
 
         dict_, = Dict.create([{
@@ -369,7 +368,7 @@ class FieldDictTestCase(TestCase):
     @with_transaction()
     def test_search_non_element_non_equals_none(self):
         "Test search dict non element non equals None"
-        pool = Pool()
+        pool = tx.pool
         Dict = pool.get('test.dict_noschema')
 
         dict_, = Dict.create([{
@@ -385,7 +384,7 @@ class FieldDictTestCase(TestCase):
     @with_transaction()
     def test_search_element_equals_true(self):
         "Test search dict element equals True"
-        pool = Pool()
+        pool = tx.pool
         Dict = pool.get('test.dict_noschema')
 
         dict1, dict2 = Dict.create([{
@@ -403,7 +402,7 @@ class FieldDictTestCase(TestCase):
     @with_transaction()
     def test_search_element_equals_false(self):
         "Test search dict element equals False"
-        pool = Pool()
+        pool = tx.pool
         Dict = pool.get('test.dict_noschema')
 
         dict1, dict2 = Dict.create([{
@@ -421,7 +420,7 @@ class FieldDictTestCase(TestCase):
     @with_transaction()
     def test_search_element_non_equals_true(self):
         "Test search dict element non equals True"
-        pool = Pool()
+        pool = tx.pool
         Dict = pool.get('test.dict_noschema')
 
         dict_, = Dict.create([{
@@ -437,7 +436,7 @@ class FieldDictTestCase(TestCase):
     @with_transaction()
     def test_search_element_in(self):
         "Test search dict element in"
-        pool = Pool()
+        pool = tx.pool
         Dict = pool.get('test.dict_noschema')
 
         dict_, = Dict.create([{
@@ -468,7 +467,7 @@ class FieldDictTestCase(TestCase):
         'in use the contain check specific to postgresql')
     def test_search_multiselection_in(self):
         "Test search dict multi-selection with in"
-        pool = Pool()
+        pool = tx.pool
         Dict = pool.get('test.dict')
         self.create_schema()
 
@@ -497,7 +496,7 @@ class FieldDictTestCase(TestCase):
     @with_transaction()
     def test_search_element_in_none(self):
         "Test search dict element in [None]"
-        pool = Pool()
+        pool = tx.pool
         Dict = pool.get('test.dict_noschema')
 
         dict_, = Dict.create([{
@@ -513,7 +512,7 @@ class FieldDictTestCase(TestCase):
     @with_transaction()
     def test_search_element_not_in(self):
         "Test search dict element not in"
-        pool = Pool()
+        pool = tx.pool
         Dict = pool.get('test.dict_noschema')
 
         dict_, = Dict.create([{
@@ -544,7 +543,7 @@ class FieldDictTestCase(TestCase):
         'in use the contain check specific to postgresql')
     def test_search_multiselection_not_in(self):
         "Test search dict multi-selection with not in"
-        pool = Pool()
+        pool = tx.pool
         Dict = pool.get('test.dict')
         self.create_schema()
 
@@ -573,7 +572,7 @@ class FieldDictTestCase(TestCase):
     @with_transaction()
     def test_search_element_not_in_none(self):
         "Test search dict element not in [None]"
-        pool = Pool()
+        pool = tx.pool
         Dict = pool.get('test.dict_noschema')
 
         dict_, = Dict.create([{
@@ -589,7 +588,7 @@ class FieldDictTestCase(TestCase):
     @with_transaction()
     def test_search_element_less(self):
         "Test search dict element less than"
-        pool = Pool()
+        pool = tx.pool
         Dict = pool.get('test.dict_noschema')
 
         dict_, = Dict.create([{
@@ -613,7 +612,7 @@ class FieldDictTestCase(TestCase):
     @with_transaction()
     def test_search_element_less_equals(self):
         "Test search dict element less than or equals"
-        pool = Pool()
+        pool = tx.pool
         Dict = pool.get('test.dict_noschema')
 
         dict_, = Dict.create([{
@@ -637,7 +636,7 @@ class FieldDictTestCase(TestCase):
     @with_transaction()
     def test_search_element_greater(self):
         "Test search dict element greater than"
-        pool = Pool()
+        pool = tx.pool
         Dict = pool.get('test.dict_noschema')
 
         dict_, = Dict.create([{
@@ -661,7 +660,7 @@ class FieldDictTestCase(TestCase):
     @with_transaction()
     def test_search_element_greater_equals(self):
         "Test search dict element greater than or equals"
-        pool = Pool()
+        pool = tx.pool
         Dict = pool.get('test.dict_noschema')
 
         dict_, = Dict.create([{
@@ -685,7 +684,7 @@ class FieldDictTestCase(TestCase):
     @with_transaction()
     def test_search_element_like(self):
         "Test search dict element like"
-        pool = Pool()
+        pool = tx.pool
         Dict = pool.get('test.dict_noschema')
 
         dict_, = Dict.create([{
@@ -717,7 +716,7 @@ class FieldDictTestCase(TestCase):
     @with_transaction()
     def test_search_element_ilike(self):
         "Test search dict element ilike"
-        pool = Pool()
+        pool = tx.pool
         Dict = pool.get('test.dict_noschema')
 
         dict_, = Dict.create([{
@@ -749,7 +748,7 @@ class FieldDictTestCase(TestCase):
     @with_transaction()
     def test_search_element_not_like(self):
         "Test search dict element not like"
-        pool = Pool()
+        pool = tx.pool
         Dict = pool.get('test.dict_noschema')
 
         dict_, = Dict.create([{
@@ -781,7 +780,7 @@ class FieldDictTestCase(TestCase):
     @with_transaction()
     def test_search_element_not_ilike(self):
         "Test search dict element not ilike"
-        pool = Pool()
+        pool = tx.pool
         Dict = pool.get('test.dict_noschema')
 
         dict_, = Dict.create([{
@@ -813,7 +812,7 @@ class FieldDictTestCase(TestCase):
     @with_transaction()
     def test_search_element_text(self):
         "Test search dict element on text"
-        pool = Pool()
+        pool = tx.pool
         Dict = pool.get('test.dict_text')
         dict_, = Dict.create([{
                     'dico': {'a': 'Foo'},
@@ -828,7 +827,7 @@ class FieldDictTestCase(TestCase):
     @with_transaction()
     def test_search_order_element(self):
         "Test search order by dict element"
-        pool = Pool()
+        pool = tx.pool
         Dict = pool.get('test.dict_noschema')
         for value in [5, 3, 2]:
             Dict.create([{'dico': {'a': 5 - value, 'b': value}}])
@@ -841,7 +840,7 @@ class FieldDictTestCase(TestCase):
     @with_transaction()
     def test_string(self):
         "Test string dict"
-        Dict = Pool().get('test.dict')
+        Dict = tx.pool.get('test.dict')
         self.create_schema()
 
         dict_, = Dict.create([{
@@ -853,7 +852,7 @@ class FieldDictTestCase(TestCase):
     @with_transaction()
     def test_string_keys(self):
         "Test string keys dict"
-        Dict = Pool().get('test.dict')
+        Dict = tx.pool.get('test.dict')
         self.create_schema()
 
         dict_, = Dict.create([{
@@ -866,7 +865,7 @@ class FieldDictTestCase(TestCase):
     @with_transaction()
     def test_set_key(self):
         "Test setting a key of dict"
-        Dict = Pool().get('test.dict')
+        Dict = tx.pool.get('test.dict')
         self.create_schema()
 
         dict_, = Dict.create([{
@@ -898,7 +897,7 @@ class FieldDictUnaccentedTestCase(ExtensionTestCase):
     @with_transaction()
     def test_search_unaccented_off(self):
         "Test searches without the unaccented feature"
-        pool = Pool()
+        pool = tx.pool
         Dict = pool.get('test.dict_unaccented_off')
         dict_, = Dict.create([{
                     'dico': {'a': 'Stéphanie'},
@@ -913,7 +912,7 @@ class FieldDictUnaccentedTestCase(ExtensionTestCase):
     @with_transaction()
     def test_search_accented(self):
         "Test searches of accented value"
-        pool = Pool()
+        pool = tx.pool
         Dict = pool.get('test.dict_unaccented_on')
         dict_, = Dict.create([{
                     'dico': {'a': 'Stéphanie'},
@@ -928,7 +927,7 @@ class FieldDictUnaccentedTestCase(ExtensionTestCase):
     @with_transaction()
     def test_search_unaccented(self):
         "Test searches of unaccented value"
-        pool = Pool()
+        pool = tx.pool
         Dict = pool.get('test.dict_unaccented_on')
         dict_, = Dict.create([{
                     'dico': {'a': 'Stephanie'},

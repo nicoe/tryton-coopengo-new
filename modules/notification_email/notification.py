@@ -6,15 +6,14 @@ from email.utils import getaddresses
 from genshi.template import TextTemplate
 
 import trytond.config as config
+from trytond import tx
 from trytond.i18n import gettext
 from trytond.model import ModelSQL, ModelView, fields
-from trytond.pool import Pool
 from trytond.pyson import Eval, TimeDelta
 from trytond.report import get_email
 from trytond.sendmail import SMTPDataManager, send_message_transactional
 from trytond.tools import slugify
 from trytond.tools.email_ import format_address, has_rcpt, set_from_header
-from trytond.transaction import Transaction
 
 from .exceptions import TemplateError
 
@@ -101,7 +100,7 @@ class Email(ModelSQL, ModelView):
 
     @classmethod
     def __setup__(cls):
-        pool = Pool()
+        pool = tx.pool
         EmailTemplate = pool.get('ir.email.template')
         super().__setup__()
         for field in [
@@ -127,7 +126,7 @@ class Email(ModelSQL, ModelView):
 
     @classmethod
     def get_contact_mechanisms(cls):
-        pool = Pool()
+        pool = tx.pool
         try:
             ContactMechanism = pool.get('party.contact_mechanism')
         except KeyError:
@@ -144,22 +143,22 @@ class Email(ModelSQL, ModelView):
         return [('content.model',) + tuple(clause[1:])]
 
     def _get_addresses(self, value):
-        pool = Pool()
+        pool = tx.pool
         EmailTemplate = pool.get('ir.email.template')
-        with Transaction().set_context(usage=self.contact_mechanism):
+        with tx.transaction.set_context(usage=self.contact_mechanism):
             # reformat addresses with encoding
             return [
                 format_address(e, n)
                 for n, e in getaddresses(EmailTemplate.get_addresses(value))]
 
     def _get_languages(self, value):
-        pool = Pool()
+        pool = tx.pool
         EmailTemplate = pool.get('ir.email.template')
-        with Transaction().set_context(usage=self.contact_mechanism):
+        with tx.transaction.set_context(usage=self.contact_mechanism):
             return EmailTemplate.get_languages(value)
 
     def get_email(self, record, sender, to, cc, bcc, languages):
-        pool = Pool()
+        pool = tx.pool
         Attachment = pool.get('notification.email.attachment')
 
         # TODO order languages to get default as last one for title
@@ -169,7 +168,7 @@ class Email(ModelSQL, ModelView):
         else:
             language = None
         from_ = sender
-        with Transaction().set_context(language=language):
+        with tx.transaction.set_context(language=language):
             notification = self.__class__(self.id)
             if notification.from_:
                 from_ = notification.from_
@@ -211,7 +210,7 @@ class Email(ModelSQL, ModelView):
                 'Trigger "%s" is not related to any email notification'
                 % trigger.rec_name)
         if notification_email.send_after:
-            with Transaction().set_context(
+            with tx.transaction.set_context(
                     queue_scheduled_at=trigger.notification_email.send_after):
                 notification_email.__class__.__queue__._send_email_queued(
                     notification_email, [r.id for r in records], trigger.id)
@@ -219,7 +218,7 @@ class Email(ModelSQL, ModelView):
             notification_email.send_email(records, trigger)
 
     def _send_email_queued(self, ids, trigger_id):
-        pool = Pool()
+        pool = tx.pool
         Model = pool.get(self.model)
         Trigger = pool.get('ir.trigger')
         records = Model.browse(ids)
@@ -227,10 +226,10 @@ class Email(ModelSQL, ModelView):
         self.send_email(records, trigger)
 
     def send_email(self, records, trigger):
-        pool = Pool()
+        pool = tx.pool
         Email = pool.get('ir.email')
         datamanager = SMTPDataManager()
-        Transaction().join(datamanager)
+        tx.transaction.join(datamanager)
         from_ = (config.get('notification_email', 'from')
             or config.get('email', 'from'))
         emails = []
@@ -339,9 +338,9 @@ class EmailAttachment(ModelSQL):
 
     @classmethod
     def get(cls, report, record, language):
-        pool = Pool()
+        pool = tx.pool
         Report = pool.get(report.report_name, type='report')
-        with Transaction().set_context(language=language):
+        with tx.transaction.set_context(language=language):
             ext, content, _, title = Report.execute(
                 [record.id], {
                     'action_id': report.id,

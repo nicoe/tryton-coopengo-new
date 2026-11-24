@@ -6,11 +6,12 @@ from urllib.parse import parse_qsl, urlencode, urlparse, urlunparse
 from sql.functions import Lower
 from sql.operators import Equal
 
+from trytond import tx
 from trytond.i18n import lazy_gettext
 from trytond.model import (
     DeactivableMixin, Exclude, Model, ModelSQL, ModelView, fields)
 from trytond.pool import PoolMeta
-from trytond.transaction import Transaction, inactive_records
+from trytond.transaction import inactive_records
 
 
 class Parameter(DeactivableMixin, ModelSQL, ModelView):
@@ -124,7 +125,7 @@ class MarketingCampaignMixin(Model):
     @classmethod
     def default_get(
             cls, fields_names=None, with_rec_name=True, with_default=True):
-        transaction = Transaction()
+        transaction = tx.transaction
         context = transaction.context
         default = super().default_get(
             fields_names=fields_names,

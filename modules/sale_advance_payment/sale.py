@@ -5,17 +5,16 @@ from itertools import chain
 
 from simpleeval import simple_eval
 
-from trytond import backend, config
+from trytond import backend, config, tx
 from trytond.i18n import gettext
 from trytond.model import (
     DeactivableMixin, ModelSQL, ModelView, Workflow, fields)
 from trytond.modules.company.model import (
     CompanyMultiValueMixin, CompanyValueMixin)
 from trytond.modules.currency.fields import Monetary
-from trytond.pool import Pool, PoolMeta
+from trytond.pool import PoolMeta
 from trytond.pyson import Bool, Eval
 from trytond.tools import decistmt
-from trytond.transaction import Transaction
 
 from .exceptions import FormulaError
 
@@ -111,7 +110,7 @@ class AdvancePaymentTermLine(ModelView, ModelSQL, CompanyMultiValueMixin):
         return simple_eval(decistmt(self.formula), **context)
 
     def get_line(self, currency, **context):
-        pool = Pool()
+        pool = tx.pool
         Line = pool.get('sale.advance_payment.line')
 
         return Line(
@@ -200,7 +199,7 @@ class AdvancePaymentLine(ModelSQL, ModelView):
 
     @classmethod
     def get_sale_states(cls):
-        pool = Pool()
+        pool = tx.pool
         Sale = pool.get('sale.sale')
         return Sale.fields_get(['state'])['state']['selection']
 
@@ -239,7 +238,7 @@ class AdvancePaymentLine(ModelSQL, ModelView):
         return invoice
 
     def get_invoice_advance_payment_lines(self, invoice):
-        pool = Pool()
+        pool = tx.pool
         InvoiceLine = pool.get('account.invoice.line')
 
         advance_amount = self._get_advance_amount()
@@ -312,7 +311,7 @@ class Sale(metaclass=PoolMeta):
     @ModelView.button
     @Workflow.transition('quotation')
     def quote(cls, sales):
-        pool = Pool()
+        pool = tx.pool
         AdvancePaymentLine = pool.get('sale.advance_payment.line')
 
         super().quote(sales)
@@ -334,11 +333,11 @@ class Sale(metaclass=PoolMeta):
         return super().copy(sales, default=default)
 
     def set_advance_payment_term(self):
-        pool = Pool()
+        pool = tx.pool
         AdvancePaymentTerm = pool.get('sale.advance_payment_term')
         if self.advance_payment_term:
             if self.party and self.party.lang:
-                with Transaction().set_context(language=self.party.lang.code):
+                with tx.transaction.set_context(language=self.party.lang.code):
                     advance_payment_term = AdvancePaymentTerm(
                         self.advance_payment_term.id)
             else:
@@ -363,7 +362,7 @@ class Sale(metaclass=PoolMeta):
         return super()._invoices_for_state + self.advance_payment_invoices
 
     def get_recall_lines(self, invoice):
-        pool = Pool()
+        pool = tx.pool
         InvoiceLine = pool.get('account.invoice.line')
 
         recall_lines = []
@@ -394,7 +393,7 @@ class Sale(metaclass=PoolMeta):
 
     @classmethod
     def _process_invoice(cls, sales):
-        pool = Pool()
+        pool = tx.pool
         Invoice = pool.get('account.invoice')
         invoices = []
         for sale in sales:

@@ -1,8 +1,8 @@
 # This file is part of Tryton.  The COPYRIGHT file at the top level of
 # this repository contains the full copyright notices and license terms.
+from trytond import tx
 from trytond.model import (
     ModelSingleton, ModelSQL, ModelView, MultiValueMixin, ValueMixin, fields)
-from trytond.pool import Pool
 from trytond.pyson import Id
 
 default_cost_price_method = fields.Selection(
@@ -12,7 +12,7 @@ default_cost_price_method = fields.Selection(
 
 @classmethod
 def get_cost_price_methods(cls):
-    pool = Pool()
+    pool = tx.pool
     Template = pool.get('product.template')
     field_name = 'cost_price_method'
     return (Template.fields_get([field_name])[field_name]['selection']

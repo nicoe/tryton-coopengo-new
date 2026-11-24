@@ -2,9 +2,9 @@
 # this repository contains the full copyright notices and license terms.
 from urllib.parse import urljoin
 
+from trytond import tx
 from trytond.i18n import lazy_gettext
 from trytond.model import fields
-from trytond.pool import Pool
 from trytond.pyson import Eval
 
 
@@ -92,7 +92,7 @@ class IdentifiersUpdateMixin:
 
     @classmethod
     def set_shopify_to_update(cls, records):
-        pool = Pool()
+        pool = tx.pool
         Identifier = pool.get('web.shop.shopify_identifier')
         identifiers = cls.get_shopify_identifier_to_update(records)
         Identifier.write(identifiers, {
@@ -127,7 +127,7 @@ class IdentifiersMixin(IdentifiersUpdateMixin):
                 return record.shopify_identifier
 
     def set_shopify_identifier(self, web_shop, identifier=None):
-        pool = Pool()
+        pool = tx.pool
         Identifier = pool.get('web.shop.shopify_identifier')
         for record in self.shopify_identifiers:
             if record.web_shop == web_shop:
@@ -175,7 +175,7 @@ class IdentifiersMixin(IdentifiersUpdateMixin):
 
     @classmethod
     def on_modification(cls, mode, records, field_names=None):
-        pool = Pool()
+        pool = tx.pool
         Identifier = pool.get('web.shop.shopify_identifier')
         super().on_modification(mode, records, field_names=field_names)
         if mode == 'delete':

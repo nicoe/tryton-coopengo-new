@@ -1,9 +1,9 @@
 # This file is part of Tryton.  The COPYRIGHT file at the top level of
 # this repository contains the full copyright notices and license terms.
+from trytond import tx
 from trytond.model import fields
-from trytond.pool import Pool, PoolMeta
+from trytond.pool import PoolMeta
 from trytond.pyson import Eval
-from trytond.transaction import Transaction
 
 
 class CreateChartProperties(metaclass=PoolMeta):
@@ -29,11 +29,11 @@ class CreateChart(metaclass=PoolMeta):
     __name__ = 'account.create_chart'
 
     def transition_create_properties(self):
-        pool = Pool()
+        pool = tx.pool
         Configuration = pool.get('account.configuration')
         state = super().transition_create_properties()
 
-        with Transaction().set_context(company=self.properties.company.id):
+        with tx.transaction.set_context(company=self.properties.company.id):
             config = Configuration(1)
             for name in [
                     'category_account_expense',
@@ -44,7 +44,7 @@ class CreateChart(metaclass=PoolMeta):
         return state
 
     def default_properties(self, fields):
-        pool = Pool()
+        pool = tx.pool
         Account = pool.get('account.account')
 
         defaults = super().default_properties(fields)

@@ -1,8 +1,9 @@
 # This file is part of Tryton.  The COPYRIGHT file at the top level of
 # this repository contains the full copyright notices and license terms.
 
+from trytond import tx
 from trytond.model import fields
-from trytond.pool import Pool, PoolMeta
+from trytond.pool import PoolMeta
 from trytond.pyson import Eval
 
 
@@ -42,12 +43,12 @@ class Rule(metaclass=PoolMeta):
 
     @classmethod
     def get_document_incoming_types(cls):
-        pool = Pool()
+        pool = tx.pool
         DocumentIncoming = pool.get('document.incoming')
         return DocumentIncoming.fields_get(['type'])['type']['selection']
 
     def run(self, email_):
-        pool = Pool()
+        pool = tx.pool
         DocumentIncoming = pool.get('document.incoming')
         super().run(email_)
         if (self.action == 'document.incoming|from_inbound_email'

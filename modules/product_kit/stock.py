@@ -2,10 +2,10 @@
 # this repository contains the full copyright notices and license terms.
 from decimal import Decimal
 
+from trytond import tx
 from trytond.model import ModelView, Workflow, fields
 from trytond.modules.product import round_price
-from trytond.pool import Pool, PoolMeta
-from trytond.transaction import Transaction
+from trytond.pool import PoolMeta
 
 
 class ShipmentIn(metaclass=PoolMeta):
@@ -15,7 +15,7 @@ class ShipmentIn(metaclass=PoolMeta):
     @ModelView.button
     @Workflow.transition('received')
     def receive(cls, shipments):
-        pool = Pool()
+        pool = tx.pool
         PurchaseLineComponent = pool.get('purchase.line.component')
         for shipment in shipments:
             for move in shipment.incoming_moves:
@@ -31,7 +31,7 @@ class ShipmentOutReturn(metaclass=PoolMeta):
     @ModelView.button
     @Workflow.transition('received')
     def receive(cls, shipments):
-        pool = Pool()
+        pool = tx.pool
         SaleLineComponent = pool.get('sale.line.component')
         for shipment in shipments:
             for move in shipment.incoming_moves:
@@ -44,13 +44,13 @@ class Move(metaclass=PoolMeta):
     __name__ = 'stock.move'
 
     def _compute_component_unit_price(self, unit_price):
-        pool = Pool()
+        pool = tx.pool
         Currency = pool.get('currency.currency')
         UoM = pool.get('product.uom')
         amount, quantity = 0, 0
         for line in self.origin.line.invoice_lines:
             if line.invoice and line.invoice.state in {'posted', 'paid'}:
-                with Transaction().set_context(date=self.effective_date):
+                with tx.transaction.set_context(date=self.effective_date):
                     amount += Currency.compute(
                         line.invoice.currency, line.amount, self.currency)
                 quantity += UoM.compute_qty(
@@ -73,7 +73,7 @@ class MoveSale(metaclass=PoolMeta):
         return super()._get_origin() + ['sale.line.component']
 
     def get_sale(self, name):
-        pool = Pool()
+        pool = tx.pool
         SaleLineComponent = pool.get('sale.line.component')
         sale = super().get_sale(name)
         if isinstance(self.origin, SaleLineComponent):
@@ -90,7 +90,7 @@ class MoveSale(metaclass=PoolMeta):
             ]
 
     def get_sale_exception_state(self, name):
-        pool = Pool()
+        pool = tx.pool
         SaleLineComponent = pool.get('sale.line.component')
         state = super().get_sale_exception_state(name)
         if isinstance(self.origin, SaleLineComponent):
@@ -102,7 +102,7 @@ class MoveSale(metaclass=PoolMeta):
 
     @fields.depends('origin')
     def on_change_with_product_uom_category(self, name=None):
-        pool = Pool()
+        pool = tx.pool
         SaleLineComponent = pool.get('sale.line.component')
         category = super().on_change_with_product_uom_category(name=name)
         # Enforce the same unit category as they are used to compute the
@@ -114,7 +114,7 @@ class MoveSale(metaclass=PoolMeta):
         return category
 
     def get_cost_price(self, product_cost_price=None):
-        pool = Pool()
+        pool = tx.pool
         SaleLineComponent = pool.get('sale.line.component')
         Sale = pool.get('sale.sale')
         # For return sale's move use the cost price of the original sale
@@ -142,7 +142,7 @@ class MoveSale(metaclass=PoolMeta):
 
     @property
     def origin_name(self):
-        pool = Pool()
+        pool = tx.pool
         SaleLineComponent = pool.get('sale.line.component')
         name = super().origin_name
         if isinstance(self.origin, SaleLineComponent) and self.origin.id >= 0:
@@ -150,7 +150,7 @@ class MoveSale(metaclass=PoolMeta):
         return name
 
     def _compute_unit_price(self, unit_price):
-        pool = Pool()
+        pool = tx.pool
         SaleLineComponent = pool.get('sale.line.component')
         unit_price = super()._compute_unit_price(unit_price)
         if isinstance(self.origin, SaleLineComponent):
@@ -166,7 +166,7 @@ class MovePurchase(metaclass=PoolMeta):
         return super()._get_origin() + ['purchase.line.component']
 
     def get_purchase(self, name):
-        pool = Pool()
+        pool = tx.pool
         PurchaseLineComponent = pool.get('purchase.line.component')
         purchase = super().get_purchase(name)
         if isinstance(self.origin, PurchaseLineComponent):
@@ -183,7 +183,7 @@ class MovePurchase(metaclass=PoolMeta):
             ]
 
     def get_supplier(self, name):
-        pool = Pool()
+        pool = tx.pool
         PurchaseLineComponent = pool.get('purchase.line.component')
         supplier = super().get_supplier(name)
         if isinstance(self.origin, PurchaseLineComponent):
@@ -199,7 +199,7 @@ class MovePurchase(metaclass=PoolMeta):
                 *clause[1:3], 'purchase.line.component', *clause[3:])]
 
     def get_purchase_exception_state(self, name):
-        pool = Pool()
+        pool = tx.pool
         PurchaseLineComponent = pool.get('purchase.line.component')
         state = super().get_purchase_exception_state(name)
         if isinstance(self.origin, PurchaseLineComponent):
@@ -211,7 +211,7 @@ class MovePurchase(metaclass=PoolMeta):
 
     @fields.depends('origin')
     def on_change_with_product_uom_category(self, name=None):
-        pool = Pool()
+        pool = tx.pool
         PurchaseLineComponent = pool.get('purchase.line.component')
         category = super().on_change_with_product_uom_category(name=name)
         # Enforce the same unit category as they are used to compute the
@@ -224,7 +224,7 @@ class MovePurchase(metaclass=PoolMeta):
 
     @property
     def origin_name(self):
-        pool = Pool()
+        pool = tx.pool
         PurchaseLineComponent = pool.get('purchase.line.component')
         name = super().origin_name
         if (isinstance(self.origin, PurchaseLineComponent)
@@ -233,7 +233,7 @@ class MovePurchase(metaclass=PoolMeta):
         return name
 
     def _compute_unit_price(self, unit_price):
-        pool = Pool()
+        pool = tx.pool
         PurchaseLineComponent = pool.get('purchase.line.component')
         unit_price = super()._compute_unit_price(unit_price)
         if isinstance(self.origin, PurchaseLineComponent):

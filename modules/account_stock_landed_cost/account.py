@@ -6,15 +6,15 @@ from operator import itemgetter
 
 from sql.functions import CharLength
 
+from trytond import tx
 from trytond.i18n import gettext
 from trytond.model import (
     ChatMixin, Index, MatchMixin, ModelSQL, ModelView, Workflow, fields)
 from trytond.model.exceptions import AccessError
 from trytond.modules.company.model import CompanyValueMixin
 from trytond.modules.product import price_digits, round_price
-from trytond.pool import Pool, PoolMeta
+from trytond.pool import PoolMeta
 from trytond.pyson import Eval, Id
-from trytond.transaction import Transaction
 from trytond.wizard import Button, StateTransition, StateView, Wizard
 
 from .exceptions import FilterUnusedWarning, NoMoveWarning
@@ -57,7 +57,7 @@ class ConfigurationLandedCostSequence(ModelSQL, CompanyValueMixin):
 
     @classmethod
     def default_landed_cost_sequence(cls, **pattern):
-        pool = Pool()
+        pool = tx.pool
         ModelData = pool.get('ir.model.data')
         try:
             return ModelData.get_id(
@@ -175,7 +175,7 @@ class LandedCost(Workflow, ModelSQL, ModelView, MatchMixin, ChatMixin):
 
     @staticmethod
     def default_company():
-        return Transaction().context.get('company')
+        return tx.transaction.context.get('company')
 
     @staticmethod
     def default_allocation_method():
@@ -207,14 +207,14 @@ class LandedCost(Workflow, ModelSQL, ModelView, MatchMixin, ChatMixin):
 
     @property
     def cost(self):
-        pool = Pool()
+        pool = tx.pool
         Currency = pool.get('currency.currency')
 
         currency = self.company.currency
         cost = Decimal(0)
 
         for line in self.invoice_lines:
-            with Transaction().set_context(date=line.invoice.currency_date):
+            with tx.transaction.set_context(date=line.invoice.currency_date):
                 cost += Currency.compute(
                     line.invoice.currency, line.amount, currency, round=False)
         return cost
@@ -242,7 +242,7 @@ class LandedCost(Workflow, ModelSQL, ModelView, MatchMixin, ChatMixin):
         return result
 
     def _stock_move_filter_unused(self, moves):
-        pool = Pool()
+        pool = tx.pool
         Warning = pool.get('res.user.warning')
 
         categories = {
@@ -285,7 +285,7 @@ class LandedCost(Workflow, ModelSQL, ModelView, MatchMixin, ChatMixin):
 
     def _get_value_factors(self):
         "Return the factor for each move based on value"
-        pool = Pool()
+        pool = tx.pool
         Currency = pool.get('currency.currency')
 
         currency = self.company.currency
@@ -294,7 +294,7 @@ class LandedCost(Workflow, ModelSQL, ModelView, MatchMixin, ChatMixin):
         sum_value = 0
         unit_prices = {}
         for move in moves:
-            with Transaction().set_context(date=move.effective_date):
+            with tx.transaction.set_context(date=move.effective_date):
                 unit_price = Currency.compute(
                     move.currency, move.unit_price, currency, round=False)
             unit_prices[move.id] = unit_price
@@ -312,7 +312,7 @@ class LandedCost(Workflow, ModelSQL, ModelView, MatchMixin, ChatMixin):
         return factors
 
     def _costs_to_allocate(self, moves, factors):
-        pool = Pool()
+        pool = tx.pool
         Move = pool.get('stock.move')
         cost = self.cost
         costs = []
@@ -343,7 +343,7 @@ class LandedCost(Workflow, ModelSQL, ModelView, MatchMixin, ChatMixin):
 
     def _allocate_cost(self, factors, sign=1):
         "Allocate cost on moves using factors"
-        pool = Pool()
+        pool = tx.pool
         Move = pool.get('stock.move')
         Currency = pool.get('currency.currency')
         assert sign in {1, -1}
@@ -354,7 +354,7 @@ class LandedCost(Workflow, ModelSQL, ModelView, MatchMixin, ChatMixin):
 
         for cost in costs:
             move = cost['move']
-            with Transaction().set_context(date=move.effective_date):
+            with tx.transaction.set_context(date=move.effective_date):
                 unit_landed_cost = Currency.compute(
                     currency, cost['unit_landed_cost'],
                     move.currency, round=False)
@@ -381,7 +381,7 @@ class LandedCost(Workflow, ModelSQL, ModelView, MatchMixin, ChatMixin):
     @classmethod
     @Workflow.transition('posted')
     def post(cls, landed_costs):
-        pool = Pool()
+        pool = tx.pool
         Date = pool.get('ir.date')
         Warning = pool.get('res.user.warning')
         today = Date.today()
@@ -401,7 +401,7 @@ class LandedCost(Workflow, ModelSQL, ModelView, MatchMixin, ChatMixin):
                 landed_cost.allocation_method)()
         for company, c_landed_costs in groupby(
                 landed_costs, key=lambda l: l.company):
-            with Transaction().set_context(company=company.id):
+            with tx.transaction.set_context(company=company.id):
                 today = Date.today()
             for landed_cost in c_landed_costs:
                 landed_cost.posted_date = today
@@ -411,7 +411,7 @@ class LandedCost(Workflow, ModelSQL, ModelView, MatchMixin, ChatMixin):
 
     @classmethod
     def preprocess_values(cls, mode, values):
-        pool = Pool()
+        pool = tx.pool
         Config = pool.get('account.configuration')
         values = super().preprocess_values(mode, values)
         if values.get('number') is None:

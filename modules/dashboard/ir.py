@@ -4,8 +4,8 @@ import math
 
 from lxml import etree
 
-from trytond.pool import Pool, PoolMeta
-from trytond.transaction import Transaction
+from trytond import tx
+from trytond.pool import PoolMeta
 
 
 class View(metaclass=PoolMeta):
@@ -16,7 +16,7 @@ class View(metaclass=PoolMeta):
         '''
         Return the database id of view_dashboard
         '''
-        ModelData = Pool().get('ir.model.data')
+        ModelData = tx.pool.get('ir.model.data')
         models_data = ModelData.search([
                 ('fs_id', '=', 'view_dashboard'),
                 ('module', '=', 'dashboard'),
@@ -40,10 +40,10 @@ class View(metaclass=PoolMeta):
         '''
         Add action to view arch of dashboard
         '''
-        User = Pool().get('res.user')
+        User = tx.pool.get('res.user')
         tree = etree.fromstring(arch)
         root = tree.getroottree().getroot()
-        user = User(Transaction().user)
+        user = User(tx.transaction.user)
         if user.dashboard_layout == 'square':
             root.set('col', str(int(math.ceil(math.sqrt(
                 len(user.dashboard_actions))))))
@@ -116,7 +116,7 @@ class View(metaclass=PoolMeta):
     @classmethod
     def read(cls, ids, fields_names):
         res = super().read(ids, fields_names)
-        if Transaction().user == 0:
+        if tx.transaction.user == 0:
             return res
         dashboard_id = cls.dashboard_id()
         if fields_names is None \

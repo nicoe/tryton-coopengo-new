@@ -11,10 +11,10 @@ from sql.functions import CharLength
 from sql.operators import Exists, Or
 
 import trytond.config as config
-from trytond.pool import Pool
+from trytond import tx
 from trytond.pyson import PYSONEncoder
 from trytond.tools import cached_property
-from trytond.transaction import Transaction, inactive_records
+from trytond.transaction import inactive_records
 
 from .field import (
     SQL_OPERATORS, Field, context_validate, domain_method, instantiate_context,
@@ -104,13 +104,13 @@ class Many2One(Field):
 
     def get_target(self):
         'Return the target Model'
-        return Pool().get(self.model_name)
+        return tx.pool.get(self.model_name)
 
     def __set__(self, inst, value):
         Target = self.get_target()
         if isinstance(value, (dict, int)):
             ctx = instantiate_context(self, inst)
-            with Transaction().set_context(ctx):
+            with tx.transaction.set_context(ctx):
                 if isinstance(value, dict):
                     value = Target(**value)
                 elif isinstance(value, int):
@@ -128,7 +128,7 @@ class Many2One(Field):
         return super().sql_format(value)
 
     def convert_domain_path(self, domain, tables):
-        cursor = Transaction().connection.cursor()
+        cursor = tx.transaction.connection.cursor()
         table, _ = tables[None]
         name, operator, ids = domain
         where = SQL_OPERATORS['in'](
@@ -161,7 +161,7 @@ class Many2One(Field):
         return where
 
     def convert_domain_mptt(self, domain, tables):
-        cursor = Transaction().connection.cursor()
+        cursor = tx.transaction.connection.cursor()
         table, _ = tables[None]
         name, operator, ids = domain
         where = SQL_OPERATORS['in'](
@@ -222,7 +222,7 @@ class Many2One(Field):
 
     @inactive_records
     def _convert_domain(self, domain, tables, Model):
-        pool = Pool()
+        pool = tx.pool
         Rule = pool.get('ir.rule')
         Target = self.get_target()
         subquery_threshold = config.getint('database', 'subquery_threshold')
@@ -352,7 +352,7 @@ class Many2One(Field):
         Target = self.get_target()
         table, _ = tables[None]
         target_tables = tables.get(self.name)
-        context = Transaction().context
+        context = tx.transaction.context
         if target_tables is None:
             if Target._history and context.get('_datetime'):
                 target = Target.__table_history__()

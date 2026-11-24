@@ -1,7 +1,7 @@
 # This file is part of Tryton.  The COPYRIGHT file at the top level of
 # this repository contains the full copyright notices and license terms.
 
-from trytond.pool import Pool
+from trytond import tx
 from trytond.tests.test_tryton import (
     TestCase, activate_module, with_transaction)
 
@@ -16,7 +16,7 @@ class FieldContextTestCase(TestCase):
 
     @with_transaction()
     def test_context(self):
-        pool = Pool()
+        pool = tx.pool
         Parent = pool.get('test.field_context.parent')
         Child = pool.get('test.field_context.child')
         child = Child()

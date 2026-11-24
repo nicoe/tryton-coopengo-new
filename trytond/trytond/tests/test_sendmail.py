@@ -4,9 +4,9 @@ import smtplib
 from email.message import EmailMessage, Message
 from unittest.mock import ANY, MagicMock, Mock, call, patch
 
+from trytond import tx
 from trytond.sendmail import (
     SMTPDataManager, get_smtp_server, sendmail, sendmail_transactional)
-from trytond.transaction import Transaction
 
 from .test_tryton import TestCase, activate_module, with_transaction
 
@@ -108,7 +108,7 @@ class SendmailTestCase(TestCase):
     @with_transaction()
     def test_SMTPDataManager(self, get_smtp_server):
         'Test SMTPDataManager'
-        transaction = Transaction()
+        transaction = tx.transaction
         get_smtp_server.return_value = server = Mock()
 
         datamanager = transaction.join(SMTPDataManager())

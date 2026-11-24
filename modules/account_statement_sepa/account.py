@@ -6,9 +6,10 @@ from io import BytesIO
 
 from lxml import etree
 
+from trytond import tx
 from trytond.i18n import gettext
 from trytond.modules.account_statement.exceptions import ImportStatementError
-from trytond.pool import Pool, PoolMeta
+from trytond.pool import PoolMeta
 
 
 class StatementImportStart(metaclass=PoolMeta):
@@ -51,7 +52,7 @@ class StatementImport(metaclass=PoolMeta):
     parse_camt_054_001 = parse_camt
 
     def camt_statement(self, camt_statement):
-        pool = Pool()
+        pool = tx.pool
         Statement = pool.get('account.statement')
         Journal = pool.get('account.statement.journal')
 
@@ -91,7 +92,7 @@ class StatementImport(metaclass=PoolMeta):
         return camt_statement.findtext('./{*}Acct/{*}Ccy')
 
     def camt_statement_date(self, camt_statement):
-        pool = Pool()
+        pool = tx.pool
         Date = pool.get('ir.date')
         datetime = camt_statement.findtext('./{*}CreDtTm')
         if datetime:
@@ -129,7 +130,7 @@ class StatementImport(metaclass=PoolMeta):
             return self._camt_amount(total)
 
     def camt_origin(self, camt_statement, entry):
-        pool = Pool()
+        pool = tx.pool
         Date = pool.get('ir.date')
         Origin = pool.get('account.statement.origin')
 
@@ -161,7 +162,7 @@ class StatementImport(metaclass=PoolMeta):
         return entry.findtext('./{*}AddtlNtryInf')
 
     def camt_party(self, camt_statement, entry, detail):
-        pool = Pool()
+        pool = tx.pool
         AccountNumber = pool.get('bank.account.number')
 
         path = {

@@ -6,17 +6,16 @@ from sql import Null
 from sql.conditionals import Case
 from sql.operators import Equal, NotEqual
 
+from trytond import tx
 from trytond.cache import Cache
 from trytond.i18n import gettext
 from trytond.model import (
     Exclude, ModelSQL, ModelView, Unique, Workflow, fields)
 from trytond.model.exceptions import AccessError
-from trytond.pool import Pool
 from trytond.pyson import Eval, Id
 from trytond.rpc import RPC
 from trytond.sql.functions import DateRange
 from trytond.sql.operators import RangeOverlap
-from trytond.transaction import Transaction
 from trytond.wizard import (
     Button, StateAction, StateTransition, StateView, Wizard)
 
@@ -116,13 +115,13 @@ class FiscalYear(Workflow, ModelSQL, ModelView):
 
     @classmethod
     def __register__(cls, module):
-        pool = Pool()
+        pool = tx.pool
         Period = pool.get('account.period')
         Sequence = pool.get('ir.sequence')
         SequenceStrict = pool.get('ir.sequence.strict')
 
         table_h = cls.__table_handler__(module)
-        cursor = Transaction().connection.cursor()
+        cursor = tx.transaction.connection.cursor()
         t = cls.__table__()
 
         migrate_move_sequence = not table_h.column_exist('move_sequence')
@@ -183,7 +182,7 @@ class FiscalYear(Workflow, ModelSQL, ModelView):
 
     @staticmethod
     def default_company():
-        return Transaction().context.get('company')
+        return tx.transaction.context.get('company')
 
     def get_icon(self, name):
         return {
@@ -199,7 +198,7 @@ class FiscalYear(Workflow, ModelSQL, ModelView):
 
     @classmethod
     def check_period_dates(cls, fiscalyears, field_names=None):
-        pool = Pool()
+        pool = tx.pool
         Period = pool.get('account.period')
         if field_names and not (field_names & {'start_date', 'end_date'}):
             return
@@ -209,7 +208,7 @@ class FiscalYear(Workflow, ModelSQL, ModelView):
     @classmethod
     def check_modification(
             cls, mode, fiscalyears, values=None, external=False):
-        pool = Pool()
+        pool = tx.pool
         Move = pool.get('account.move')
         super().check_modification(
             mode, fiscalyears, values=values, external=external)
@@ -236,7 +235,7 @@ class FiscalYear(Workflow, ModelSQL, ModelView):
         '''
         Create periods for the fiscal years with month interval
         '''
-        Period = Pool().get('account.period')
+        Period = tx.pool.get('account.period')
         to_create = []
         for fiscalyear in fiscalyears:
             period_start_date = fiscalyear.start_date
@@ -273,14 +272,14 @@ class FiscalYear(Workflow, ModelSQL, ModelView):
         or raise FiscalYearNotFoundError.
         If test_state is true, it searches on non-closed fiscal years
         '''
-        pool = Pool()
+        pool = tx.pool
         Lang = pool.get('ir.lang')
         Date = pool.get('ir.date')
         Company = pool.get('company.company')
 
         company_id = int(company) if company is not None else None
         if not date:
-            with Transaction().set_context(company=company_id):
+            with tx.transaction.set_context(company=company_id):
                 date = Date.today()
         key = (company_id, date)
         fiscalyear = cls._find_cache.get(key, -1)
@@ -320,7 +319,7 @@ class FiscalYear(Workflow, ModelSQL, ModelView):
 
     def get_deferral(self, account):
         'Computes deferrals for accounts'
-        pool = Pool()
+        pool = tx.pool
         Currency = pool.get('currency.currency')
         Deferral = pool.get('account.account.deferral')
 
@@ -349,7 +348,7 @@ class FiscalYear(Workflow, ModelSQL, ModelView):
         '''
         Close a fiscal year
         '''
-        pool = Pool()
+        pool = tx.pool
         Period = pool.get('account.period')
         Account = pool.get('account.account')
         Deferral = pool.get('account.account.deferral')
@@ -374,7 +373,7 @@ class FiscalYear(Workflow, ModelSQL, ModelView):
                     ])
             Period.close(periods)
 
-            with Transaction().set_context(fiscalyear=fiscalyear.id,
+            with tx.transaction.set_context(fiscalyear=fiscalyear.id,
                     date=None, cumulate=True, journal=None):
                 accounts = Account.search([
                         ('company', '=', fiscalyear.company.id),
@@ -392,7 +391,7 @@ class FiscalYear(Workflow, ModelSQL, ModelView):
         '''
         Reopen a fiscal year
         '''
-        Deferral = Pool().get('account.account.deferral')
+        Deferral = tx.pool.get('account.account.deferral')
 
         for fiscalyear in fiscalyears:
             if cls.search([
@@ -413,7 +412,7 @@ class FiscalYear(Workflow, ModelSQL, ModelView):
     @ModelView.button
     @Workflow.transition('locked')
     def lock_(cls, fiscalyears):
-        pool = Pool()
+        pool = tx.pool
         Period = pool.get('account.period')
         periods = Period.search([
                 ('fiscalyear', 'in', [f.id for f in fiscalyears]),
@@ -472,7 +471,7 @@ class BalanceNonDeferral(Wizard):
     balance = StateAction('account.act_move_form')
 
     def get_move_line(self, account):
-        pool = Pool()
+        pool = tx.pool
         Line = pool.get('account.move.line')
         # Don't use account.balance because we need the non-commulated balance
         balance = account.debit - account.credit
@@ -489,7 +488,7 @@ class BalanceNonDeferral(Wizard):
         return line
 
     def get_counterpart_line(self, amount):
-        pool = Pool()
+        pool = tx.pool
         Line = pool.get('account.move.line')
         if self.start.fiscalyear.company.currency.is_zero(amount):
             return
@@ -505,11 +504,11 @@ class BalanceNonDeferral(Wizard):
         return line
 
     def create_move(self):
-        pool = Pool()
+        pool = tx.pool
         Account = pool.get('account.account')
         Move = pool.get('account.move')
 
-        with Transaction().set_context(fiscalyear=self.start.fiscalyear.id,
+        with tx.transaction.set_context(fiscalyear=self.start.fiscalyear.id,
                 date=None, cumulate=False):
             accounts = Account.search([
                     ('company', '=', self.start.fiscalyear.company.id),
@@ -620,11 +619,11 @@ class RenewFiscalYearStart(ModelView):
 
     @classmethod
     def default_company(cls):
-        return Transaction().context.get('company')
+        return tx.transaction.context.get('company')
 
     @classmethod
     def default_previous_fiscalyear(cls):
-        pool = Pool()
+        pool = tx.pool
         FiscalYear = pool.get('account.fiscalyear')
         fiscalyears = FiscalYear.search([
                 ('company', '=', cls.default_company() or -1),
@@ -665,7 +664,7 @@ class RenewFiscalYear(Wizard):
     create_ = StateAction('account.act_fiscalyear_form')
 
     def fiscalyear_defaults(self):
-        pool = Pool()
+        pool = tx.pool
         Sequence = pool.get('ir.sequence.strict')
         defaults = {
             'name': self.start.name,
@@ -689,7 +688,7 @@ class RenewFiscalYear(Wizard):
         return defaults
 
     def create_fiscalyear(self):
-        pool = Pool()
+        pool = tx.pool
         FiscalYear = pool.get('account.fiscalyear')
         fiscalyear, = FiscalYear.copy(
             [self.start.previous_fiscalyear],
