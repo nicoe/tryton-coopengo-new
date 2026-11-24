@@ -3,7 +3,7 @@
 
 import copy
 import inspect
-from functools import wraps
+from functools import lru_cache, wraps
 
 from trytond.i18n import gettext
 from trytond.tools import is_instance_method
@@ -251,6 +251,7 @@ class Function(Field):
             hasattr(model, f'order_{self.name}')
             or hasattr(model, f'column_{self.name}'))
 
+    @lru_cache
     def getter_multiple(self, method):
         "Returns True if getter function accepts multiple fields"
         signature = inspect.signature(method)
