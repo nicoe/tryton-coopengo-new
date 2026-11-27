@@ -108,7 +108,7 @@ class ModelStorage(Model):
     Define a model with storage capability in Tryton.
     """
     __slots__ = ('_transaction', '_savepoint', '_user', '_context', '_ids',
-        '_transaction_cache', '_local_cache')
+        '_transaction_cache', '_local_cache', '_transaction_computed_cache')
 
     create_uid = fields.Many2One(
         'res.user', lazy_gettext('ir.msg_created_by'), readonly=True)
@@ -1857,6 +1857,7 @@ class ModelStorage(Model):
     def __init__(self, id=None, **kwargs):
         _ids = kwargs.pop('_ids', None)
         _local_cache = kwargs.pop('_local_cache', None)
+        _computed_cache = kwargs.pop('_computed_cache', None)
         _transaction_cache = kwargs.pop('_transaction_cache', None)
         transaction = kwargs.pop('_transaction', None)
         if transaction is None:
@@ -1879,6 +1880,11 @@ class ModelStorage(Model):
         else:
             self._transaction_cache = transaction.get_cache()
 
+        if _computed_cache is not None:
+            self._transaction_computed_cache = _computed_cache
+        else:
+            self._transaction_computed_cache = transaction.get_computed_cache()
+
         if _local_cache is not None:
             assert isinstance(_local_cache, LRUDictTransaction)
             self._local_cache = _local_cache
@@ -1895,6 +1901,10 @@ class ModelStorage(Model):
     def _cache(self):
         return self._transaction_cache[self.__name__]
 
+    @property
+    def _computed_cache(self):
+        return self._transaction_computed_cache[self.__name__]
+
     def __getattr__(self, name):
         try:
             return super().__getattr__(name)
@@ -1903,6 +1913,7 @@ class ModelStorage(Model):
                 raise
 
         self._local_cache.refresh()
+        self._computed_cache.refresh()
 
         try:
             return self._local_cache[self.id][name]
@@ -2096,17 +2107,23 @@ class ModelStorage(Model):
                 self._transaction.reset_context(), \
                 self._transaction.set_context(self._context), \
                 without_check_access():
-            if (self.id in self._cache and name in self._cache[self.id]
-                    and ffields.keys() <= set(self._cache[self.id]._keys())):
+            if ((self.id in self._cache and name in self._cache[self.id]
+                        or (self.id in self._computed_cache
+                            and name in self._computed_cache[self.id]))
+                    and ffields.keys() <= (set(self._cache[self.id]._keys())
+                        | set(self._computed_cache[self.id]._keys()))):
                 # Use values from cache
                 read_data = []
                 for id_ in islice(self._ids, index, index + read_size):
-                    if id_ in self._cache:
+                    if id_ in self._cache or id_ in self._computed_cache:
                         data = {'id': id_}
                         for fname in ffields:
-                            if fname not in self._cache[id_]:
+                            if fname in self._cache[id_]:
+                                data[fname] = self._cache[id_][fname]
+                            elif fname in self._computed_cache[id_]:
+                                data[fname] = self._computed_cache[id_][fname]
+                            else:
                                 break
-                            data[fname] = self._cache[id_][fname]
                         else:
                             read_data.append(data)
             else:
@@ -2115,10 +2132,8 @@ class ModelStorage(Model):
                 read_data = self.read(list(index.keys()), list(ffields.keys()))
                 read_data.sort(key=lambda r: index[r['id']])
             # create browse records for 'remote' models
-            no_local_cache = {'binary'}
-            if not transaction.readonly:
-                no_local_cache |= {
-                    'one2one', 'one2many', 'many2many', 'reference'}
+            no_transaction_cache = {
+                'binary', 'one2one', 'one2many', 'many2many', 'reference'}
             for data in read_data:
                 id_ = data['id']
                 to_delete = set()
@@ -2127,18 +2142,17 @@ class ModelStorage(Model):
                     if field._type in {
                             'many2one', 'one2one', 'one2many', 'many2many',
                             'reference'}:
-                        if (fname != name
-                                and field._type not in no_local_cache):
-                            continue
                         fvalue = instantiate(field, data[fname], data)
                     if id_ == self.id and fname == name:
                         value = fvalue
+                    if (fname not in self._computed_cache[id_]
+                            and (not isinstance(field, fields.Function)
+                                or not field.getter_with_context)):
+                        self._computed_cache[id_][fname] = data[fname]
                     if fname not in self._local_cache[id_]:
                         self._local_cache[id_][fname] = fvalue
-                    if (field._type in no_local_cache
-                            or (isinstance(field, fields.Function)
-                                and (not transaction.readonly
-                                    or field.getter_with_context))):
+                    if (field._type in no_transaction_cache
+                            or isinstance(field, fields.Function)):
                         to_delete.add(fname)
                 self._cache[id_]._update(
                     **{k: v for k, v in data.items() if k not in to_delete})

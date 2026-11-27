@@ -286,6 +286,9 @@ class Transaction(object):
             instance.cache = WeakValueDictionary()
             instance._cache_deque = deque(
                 maxlen=config.getint('cache', 'transaction'))
+            instance.computed_cache = WeakValueDictionary()
+            instance._computed_cache_deque = deque(
+                maxlen=config.getint('cache', 'transaction'))
             transactions.append(instance)
         else:
             instance = transactions[-1]
@@ -322,6 +325,27 @@ class Transaction(object):
                 default_factory_with_key=True))
         # Keep last used cache references to allow to pre-fill them
         self._cache_deque.append(cache)
+        return cache
+
+    def get_computed_cache(self):
+        from trytond.cache import LRUDict, LRUDictTransaction
+        from trytond.pool import Pool
+
+        keys = tuple(((key, self.context[key])
+                for key in sorted(self.cache_keys)
+                if key in self.context))
+
+        cache = self.computed_cache.setdefault(
+            (self.user, keys),
+            LRUDict(
+                config.getint('cache', 'model'),
+                lambda name: LRUDictTransaction(
+                    record_cache_size(self),
+                    Pool().get(name)._record),
+                default_factory_with_key=True))
+        # Keep last used cache references to allow to pre-fill them
+        self._computed_cache_deque.append(cache)
+
         return cache
 
     def start(self, database_name, user, readonly=False, context=None,

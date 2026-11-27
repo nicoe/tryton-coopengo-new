@@ -84,13 +84,12 @@ class FieldFunctionTestCase(TestCase):
         self.assertEqual(record.function_without_context, 'en - empty')
 
     @with_transaction()
-    def test_getter_cached_readonly_transaction(self):
-        "Test getter cached in read only transaction"
+    def test_getter_intermediatory_cache(self):
+        "Test getter intermediatory cache"
         pool = Pool()
         Model = pool.get('test.function.getter_context')
 
-        with Transaction().new_transaction(readonly=True), \
-                patch.object(Model, 'getter') as getter:
+        with patch.object(Model, 'getter') as getter:
             record, = Model.search([], limit=1)
             record.function_with_context
             record.function_without_context
